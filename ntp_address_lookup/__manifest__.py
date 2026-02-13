@@ -7,7 +7,7 @@
     "version": "15.0.5.0.0",
     "author": "NTP",
     "website": "",
-    "depends": ["base", "account", "sale", "ntp_einvoice"],
+    "depends": ["base", "contacts", "account", "sale", "ntp_einvoice"],
     "data": [
         "security/ir.model.access.csv",
         "wizard/address_lookup_wizard.xml",
@@ -16,7 +16,9 @@
         "views/sale_order.xml",
         "views/res_config_settings.xml",
         "data/server_actions.xml",
+        "views/address_log.xml",
     ],
+    "external_dependencies": {"python": ["openai"]},
     "post_init_hook": "post_init_hook",
     "installable": True,
     "application": False,

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- ============================================================ -->
+        <!-- Address Lookup Log: Tree View                                 -->
+        <!-- ============================================================ -->
+        <record id="view_address_lookup_log_tree" model="ir.ui.view">
+            <field name="name">address.lookup.log.tree</field>
+            <field name="model">address.lookup.log</field>
+            <field name="arch" type="xml">
+                <tree string="Address Lookup Logs"
+                      decoration-success="success == True"
+                      decoration-danger="success == False"
+                      create="false" edit="false">
+                    <field name="create_date" string="Date" />
+                    <field name="partner_name" />
+                    <field name="operation" />
+                    <field name="source" />
+                    <field name="input_address" optional="show" />
+                    <field name="result_display" />
+                    <field name="confidence" />
+                    <field name="success" />
+                    <field name="user_id" />
+                    <field name="error_message" optional="hide" />
+                </tree>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Address Lookup Log: Form View                                 -->
+        <!-- ============================================================ -->
+        <record id="view_address_lookup_log_form" model="ir.ui.view">
+            <field name="name">address.lookup.log.form</field>
+            <field name="model">address.lookup.log</field>
+            <field name="arch" type="xml">
+                <form string="Address Lookup Log" create="false" edit="false">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="partner_id" />
+                                <field name="partner_name" />
+                                <field name="operation" />
+                                <field name="source" />
+                                <field name="user_id" />
+                                <field name="create_date" string="Date" />
+                            </group>
+                            <group>
+                                <field name="success" />
+                                <field name="confidence" />
+                                <field name="province_id" />
+                                <field name="district_id" />
+                                <field name="ward_id" />
+                            </group>
+                        </group>
+                        <group>
+                            <field name="input_address" />
+                            <field name="result_display" />
+                            <field name="error_message"
+                                   attrs="{'invisible': [('error_message', '=', False)]}" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Address Lookup Log: Search View                               -->
+        <!-- ============================================================ -->
+        <record id="view_address_lookup_log_search" model="ir.ui.view">
+            <field name="name">address.lookup.log.search</field>
+            <field name="model">address.lookup.log</field>
+            <field name="arch" type="xml">
+                <search string="Address Lookup Logs">
+                    <field name="partner_name" />
+                    <field name="input_address" />
+                    <field name="result_display" />
+                    <separator />
+                    <filter name="filter_success" string="Successful"
+                            domain="[('success', '=', True)]" />
+                    <filter name="filter_failed" string="Failed"
+                            domain="[('success', '=', False)]" />
+                    <separator />
+                    <filter name="filter_auto_detect" string="Auto Detect"
+                            domain="[('operation', '=', 'auto_detect')]" />
+                    <filter name="filter_ai_suggest" string="AI Suggestion"
+                            domain="[('operation', '=', 'ai_suggest')]" />
+                    <filter name="filter_manual" string="Manual"
+                            domain="[('operation', 'in', ['manual_search', 'manual_select'])]" />
+                    <separator />
+                    <group expand="0" string="Group By">
+                        <filter name="groupby_operation" string="Operation"
+                                context="{'group_by': 'operation'}" />
+                        <filter name="groupby_source" string="Source"
+                                context="{'group_by': 'source'}" />
+                        <filter name="groupby_partner" string="Partner"
+                                context="{'group_by': 'partner_id'}" />
+                        <filter name="groupby_date" string="Date"
+                                context="{'group_by': 'create_date:day'}" />
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Address Lookup Log: Action                                    -->
+        <!-- ============================================================ -->
+        <record id="action_address_lookup_log" model="ir.actions.act_window">
+            <field name="name">Address Lookup Logs</field>
+            <field name="res_model">address.lookup.log</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No address lookup logs yet
+                </p>
+                <p>
+                    Logs are automatically created when addresses are
+                    auto-detected, AI-suggested, or manually searched.
+                </p>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Menu Item (under Contacts)                                    -->
+        <!-- ============================================================ -->
+        <menuitem id="menu_address_lookup_log"
+                  name="Address Lookup Logs"
+                  parent="contacts.menu_contacts"
+                  action="action_address_lookup_log"
+                  sequence="30" />
+    </data>
+</odoo>

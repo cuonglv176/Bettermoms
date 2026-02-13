@@ -14,6 +14,11 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
+# Constants for retry logic
+MAX_RETRIES = 3
+RETRY_DELAY_SECONDS = 2
+REQUEST_TIMEOUT = 30
+
 
 class CollectedInvoice(models.Model):
     _name = "ntp.collected.invoice"
@@ -110,6 +115,17 @@ class CollectedInvoice(models.Model):
         tracking=True,
     )
 
+    # ---- Retry tracking ----
+    retry_count = fields.Integer(
+        "Retry Count",
+        default=0,
+        help="Number of times this invoice has been retried.",
+    )
+    last_error_date = fields.Datetime(
+        "Last Error Date",
+        readonly=True,
+    )
+
     # ---- Attachments & Notes ----
     attachment_ids = fields.Many2many(
         "ir.attachment",
@@ -142,6 +158,167 @@ class CollectedInvoice(models.Model):
                 rec.amount_match = False
 
     # ====================================================================
+    # HTTP Request Helper with Retry
+    # ====================================================================
+
+    def _make_request(self, method, url, config=None, **kwargs):
+        """Make an HTTP request with retry logic and logging.
+
+        Args:
+            method (str): HTTP method ('get' or 'post').
+            url (str): Request URL.
+            config: Optional collector config for logging.
+            **kwargs: Additional arguments passed to requests.
+
+        Returns:
+            requests.Response: The response object.
+
+        Raises:
+            requests.RequestException: If all retries fail.
+        """
+        kwargs.setdefault("timeout", REQUEST_TIMEOUT)
+        log_model = self.env["ntp.collector.log"]
+        last_exception = None
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            start_time = time.time()
+            try:
+                if method.lower() == "get":
+                    response = requests.get(url, **kwargs)
+                elif method.lower() == "post":
+                    response = requests.post(url, **kwargs)
+                else:
+                    raise ValueError("Unsupported HTTP method: %s" % method)
+
+                duration = time.time() - start_time
+
+                _logger.debug(
+                    "HTTP %s %s -> %d (%.2fs, attempt %d/%d)",
+                    method.upper(), url[:100], response.status_code,
+                    duration, attempt, MAX_RETRIES,
+                )
+
+                # Log successful request
+                if response.status_code in (200, 201):
+                    log_model.log_operation(
+                        config=config,
+                        operation="fetch",
+                        success=True,
+                        request_url=url[:500],
+                        response_code=response.status_code,
+                        duration_seconds=duration,
+                    )
+                    return response
+
+                # Log non-success response
+                _logger.warning(
+                    "HTTP %s %s returned %d (attempt %d/%d): %s",
+                    method.upper(), url[:100], response.status_code,
+                    attempt, MAX_RETRIES, response.text[:200],
+                )
+
+                if response.status_code in (429, 500, 502, 503, 504):
+                    # Retryable status codes
+                    if attempt < MAX_RETRIES:
+                        delay = RETRY_DELAY_SECONDS * attempt
+                        _logger.info("Retrying in %ds...", delay)
+                        time.sleep(delay)
+                        continue
+
+                # Non-retryable error or last attempt
+                log_model.log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    request_url=url[:500],
+                    response_code=response.status_code,
+                    response_summary=response.text[:500],
+                    duration_seconds=duration,
+                    error_message="HTTP %d: %s" % (
+                        response.status_code, response.text[:200],
+                    ),
+                )
+                return response
+
+            except requests.ConnectionError as e:
+                last_exception = e
+                duration = time.time() - start_time
+                _logger.warning(
+                    "Connection error for %s (attempt %d/%d): %s",
+                    url[:100], attempt, MAX_RETRIES, e,
+                )
+                if attempt < MAX_RETRIES:
+                    delay = RETRY_DELAY_SECONDS * attempt
+                    time.sleep(delay)
+                    continue
+
+            except requests.Timeout as e:
+                last_exception = e
+                duration = time.time() - start_time
+                _logger.warning(
+                    "Timeout for %s (attempt %d/%d): %s",
+                    url[:100], attempt, MAX_RETRIES, e,
+                )
+                if attempt < MAX_RETRIES:
+                    delay = RETRY_DELAY_SECONDS * attempt
+                    time.sleep(delay)
+                    continue
+
+            except requests.RequestException as e:
+                last_exception = e
+                duration = time.time() - start_time
+                _logger.error(
+                    "Request error for %s (attempt %d/%d): %s",
+                    url[:100], attempt, MAX_RETRIES, e,
+                )
+                break
+
+        # All retries exhausted
+        log_model.log_operation(
+            config=config,
+            operation="fetch",
+            success=False,
+            request_url=url[:500],
+            error_message="All %d retries failed: %s" % (MAX_RETRIES, str(last_exception)),
+            duration_seconds=duration if 'duration' in dir() else 0,
+        )
+        raise last_exception or requests.RequestException(
+            "All retries failed for %s" % url
+        )
+
+    # ====================================================================
+    # Shopee HMAC Signing Helper
+    # ====================================================================
+
+    def _shopee_sign(self, config, path, timestamp=None):
+        """Generate HMAC-SHA256 signature for Shopee API.
+
+        Args:
+            config: Collector config record.
+            path (str): API path.
+            timestamp (int): Unix timestamp (defaults to current time).
+
+        Returns:
+            tuple: (sign, timestamp, partner_id, shop_id)
+        """
+        if timestamp is None:
+            timestamp = int(time.time())
+        partner_id = int(config.api_key or 0)
+        shop_id = int(config.shop_id or 0)
+
+        sign_base = "%d%s%d%s%d" % (
+            partner_id, path, timestamp,
+            config.access_token or "", shop_id,
+        )
+        sign = hmac.new(
+            (config.api_secret or "").encode("utf-8"),
+            sign_base.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        return sign, timestamp, partner_id, shop_id
+
+    # ====================================================================
     # Cron Entry Points
     # ====================================================================
 
@@ -151,21 +328,61 @@ class CollectedInvoice(models.Model):
         configs = self.env["ntp.collector.config"].search(
             [("is_active", "=", True)]
         )
+        _logger.info(
+            "Cron fetch invoices started: %d active configs found", len(configs),
+        )
+        total_fetched = 0
+        total_errors = 0
+
         for config in configs:
+            start_time = time.time()
             try:
                 if config.provider == "shopee":
-                    self._fetch_shopee_invoices(config)
+                    count = self._fetch_shopee_invoices(config)
                 elif config.provider == "grab":
-                    self._fetch_grab_invoices(config)
+                    count = self._fetch_grab_invoices(config)
+                else:
+                    _logger.warning(
+                        "Unknown provider '%s' for config %s, skipping",
+                        config.provider, config.name,
+                    )
+                    continue
+
+                duration = time.time() - start_time
                 config.last_sync_date = fields.Datetime.now()
+                total_fetched += count
+
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=True,
+                    records_processed=count,
+                    duration_seconds=duration,
+                )
+
                 _logger.info(
-                    "Invoice fetch completed for config: %s", config.name
+                    "Invoice fetch completed for config '%s': %d new invoices (%.1fs)",
+                    config.name, count, duration,
                 )
             except Exception as e:
+                duration = time.time() - start_time
+                total_errors += 1
                 _logger.error(
-                    "Invoice fetch error for %s: %s", config.name, e,
-                    exc_info=True,
+                    "Invoice fetch error for '%s': %s",
+                    config.name, e, exc_info=True,
                 )
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message=str(e),
+                    duration_seconds=duration,
+                )
+
+        _logger.info(
+            "Cron fetch invoices completed: %d fetched, %d errors across %d configs",
+            total_fetched, total_errors, len(configs),
+        )
 
     @api.model
     def cron_push_to_bizzi(self):
@@ -176,18 +393,38 @@ class CollectedInvoice(models.Model):
                 ("state", "in", ["draft", "matched"]),
             ]
         )
+        _logger.info(
+            "Cron push to Bizzi started: %d pending invoices", len(pending),
+        )
+        pushed = 0
+        errors = 0
+
         for inv in pending:
             try:
                 inv._push_to_bizzi()
+                pushed += 1
             except Exception as e:
+                errors += 1
                 inv.write({
                     "bizzi_status": "error",
-                    "error_message": str(e),
+                    "error_message": str(e)[:1000],
+                    "last_error_date": fields.Datetime.now(),
                 })
                 _logger.error(
-                    "Bizzi push error for %s: %s", inv.name, e,
-                    exc_info=True,
+                    "Bizzi push error for %s: %s", inv.name, e, exc_info=True,
                 )
+                self.env["ntp.collector.log"].log_operation(
+                    config=inv.config_id,
+                    provider=inv.provider,
+                    operation="push_bizzi",
+                    invoice=inv,
+                    success=False,
+                    error_message=str(e),
+                )
+
+        _logger.info(
+            "Cron push to Bizzi completed: %d pushed, %d errors", pushed, errors,
+        )
 
     # ====================================================================
     # Provider Fetch Methods
@@ -204,9 +441,6 @@ class CollectedInvoice(models.Model):
         if not base_url:
             raise UserError("Shopee API URL is not configured.")
 
-        partner_id = int(config.api_key or 0)
-        shop_id = int(config.shop_id or 0)
-
         # Calculate time range
         now = int(time.time())
         if config.last_sync_date:
@@ -216,18 +450,7 @@ class CollectedInvoice(models.Model):
             time_from = now - (30 * 24 * 3600)
 
         path = "/api/v2/order/get_order_list"
-        timestamp = now
-
-        # HMAC signing for Shopee Open Platform
-        sign_base = "%d%s%d%s%d" % (
-            partner_id, path, timestamp,
-            config.access_token or "", shop_id,
-        )
-        sign = hmac.new(
-            (config.api_secret or "").encode("utf-8"),
-            sign_base.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
+        sign, timestamp, partner_id, shop_id = self._shopee_sign(config, path)
 
         params = {
             "partner_id": partner_id,
@@ -244,21 +467,37 @@ class CollectedInvoice(models.Model):
         }
 
         has_more = True
+        page = 0
         while has_more:
+            page += 1
             try:
                 url = "%s%s" % (base_url, path)
-                response = requests.get(url, params=params, timeout=30)
+                response = self._make_request("get", url, config=config, params=params)
                 data = response.json()
 
                 if data.get("error"):
                     _logger.warning(
-                        "Shopee API error: %s - %s",
-                        data.get("error"), data.get("message"),
+                        "Shopee API error (page %d): %s - %s",
+                        page, data.get("error"), data.get("message"),
+                    )
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        operation="fetch",
+                        success=False,
+                        error_message="Shopee API: %s - %s" % (
+                            data.get("error"), data.get("message"),
+                        ),
+                        request_url=url,
                     )
                     break
 
                 resp = data.get("response", {})
                 order_list = resp.get("order_list", [])
+
+                _logger.info(
+                    "Shopee fetch page %d: %d orders returned",
+                    page, len(order_list),
+                )
 
                 for order in order_list:
                     order_sn = order.get("order_sn", "")
@@ -274,9 +513,16 @@ class CollectedInvoice(models.Model):
                         continue
 
                     # Fetch order detail for amount
-                    detail = self._shopee_get_order_detail(
-                        config, base_url, partner_id, shop_id, order_sn,
-                    )
+                    try:
+                        detail = self._shopee_get_order_detail(
+                            config, base_url, partner_id, shop_id, order_sn,
+                        )
+                    except Exception as e:
+                        _logger.warning(
+                            "Failed to get Shopee order detail for %s: %s",
+                            order_sn, e,
+                        )
+                        detail = {"total_amount": 0.0}
 
                     vals = {
                         "name": "SHOPEE-%s" % order_sn,
@@ -303,30 +549,40 @@ class CollectedInvoice(models.Model):
                 has_more = resp.get("more", False)
                 if has_more:
                     params["cursor"] = resp.get("next_cursor", "")
+                    # Re-sign for next page
+                    sign, timestamp, _, _ = self._shopee_sign(config, path)
+                    params["sign"] = sign
+                    params["timestamp"] = timestamp
                 else:
                     has_more = False
 
             except requests.RequestException as e:
-                _logger.error("Shopee API request error: %s", e)
+                _logger.error("Shopee API request error (page %d): %s", page, e)
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="Request error: %s" % str(e),
+                )
                 break
 
-        # Auto-match fetched invoices with existing sale orders
-        self._auto_match_shopee_orders()
+        # Auto-match after fetching
+        if count > 0:
+            try:
+                self._auto_match_shopee_orders()
+            except Exception as e:
+                _logger.error("Auto-match error after Shopee fetch: %s", e)
+
+        _logger.info(
+            "Shopee fetch completed for config '%s': %d new invoices",
+            config.name, count,
+        )
         return count
 
     def _shopee_get_order_detail(self, config, base_url, partner_id, shop_id, order_sn):
         """Fetch single order detail from Shopee for amount info."""
         path = "/api/v2/order/get_order_detail"
-        timestamp = int(time.time())
-        sign_base = "%d%s%d%s%d" % (
-            partner_id, path, timestamp,
-            config.access_token or "", shop_id,
-        )
-        sign = hmac.new(
-            (config.api_secret or "").encode("utf-8"),
-            sign_base.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
+        sign, timestamp, _, _ = self._shopee_sign(config, path)
 
         params = {
             "partner_id": partner_id,
@@ -339,7 +595,7 @@ class CollectedInvoice(models.Model):
         }
         try:
             url = "%s%s" % (base_url, path)
-            response = requests.get(url, params=params, timeout=15)
+            response = self._make_request("get", url, config=config, params=params)
             data = response.json()
             resp = data.get("response", {})
             orders = resp.get("order_list", [])
@@ -387,20 +643,38 @@ class CollectedInvoice(models.Model):
         }
 
         has_more = True
+        page = 0
         while has_more:
+            page += 1
             try:
-                response = requests.get(
-                    url, params=params, headers=headers, timeout=30,
+                response = self._make_request(
+                    "get", url, config=config,
+                    params=params, headers=headers,
                 )
                 if response.status_code != 200:
                     _logger.warning(
-                        "Grab API error (HTTP %d): %s",
-                        response.status_code, response.text[:500],
+                        "Grab API error (HTTP %d, page %d): %s",
+                        response.status_code, page, response.text[:500],
+                    )
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        operation="fetch",
+                        success=False,
+                        error_message="HTTP %d: %s" % (
+                            response.status_code, response.text[:200],
+                        ),
+                        request_url=url,
+                        response_code=response.status_code,
                     )
                     break
 
                 data = response.json()
                 transactions = data.get("data", data.get("transactions", []))
+
+                _logger.info(
+                    "Grab fetch page %d: %d transactions returned",
+                    page, len(transactions),
+                )
 
                 for txn in transactions:
                     txn_id = txn.get("transactionID", txn.get("id", ""))
@@ -452,9 +726,19 @@ class CollectedInvoice(models.Model):
                     has_more = False
 
             except requests.RequestException as e:
-                _logger.error("Grab API request error: %s", e)
+                _logger.error("Grab API request error (page %d): %s", page, e)
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="Request error: %s" % str(e),
+                )
                 break
 
+        _logger.info(
+            "Grab fetch completed for config '%s': %d new invoices",
+            config.name, count,
+        )
         return count
 
     # ====================================================================
@@ -469,22 +753,93 @@ class CollectedInvoice(models.Model):
             ("external_order_id", "!=", False),
             ("state", "=", "draft"),
         ])
+        matched_count = 0
         for inv in unmatched:
-            so = self.env["sale.order"].search([
-                ("x_shopee_order_id", "=", inv.external_order_id),
-            ], limit=1)
-            if so:
-                inv.write({
-                    "sale_order_id": so.id,
-                    "partner_id": so.partner_id.id,
-                    "state": "matched",
-                })
+            try:
+                so = self.env["sale.order"].search([
+                    ("x_shopee_order_id", "=", inv.external_order_id),
+                ], limit=1)
+                if so:
+                    inv.write({
+                        "sale_order_id": so.id,
+                        "partner_id": so.partner_id.id,
+                        "state": "matched",
+                    })
+                    matched_count += 1
+                    self.env["ntp.collector.log"].log_operation(
+                        config=inv.config_id,
+                        provider="shopee",
+                        operation="match",
+                        invoice=inv,
+                        success=True,
+                    )
+            except Exception as e:
+                _logger.warning(
+                    "Auto-match error for invoice %s: %s", inv.name, e,
+                )
+
+        if matched_count:
+            _logger.info(
+                "Auto-matched %d Shopee invoices with sale orders", matched_count,
+            )
+
+    def _auto_match_grab_orders(self):
+        """Auto-match collected Grab invoices with existing sale orders."""
+        unmatched = self.search([
+            ("provider", "=", "grab"),
+            ("sale_order_id", "=", False),
+            ("external_order_id", "!=", False),
+            ("state", "=", "draft"),
+        ])
+        matched_count = 0
+        for inv in unmatched:
+            try:
+                so = self.env["sale.order"].search([
+                    ("x_grab_order_id", "=", inv.external_order_id),
+                ], limit=1)
+                if so:
+                    inv.write({
+                        "sale_order_id": so.id,
+                        "partner_id": so.partner_id.id,
+                        "state": "matched",
+                    })
+                    matched_count += 1
+                    self.env["ntp.collector.log"].log_operation(
+                        config=inv.config_id,
+                        provider="grab",
+                        operation="match",
+                        invoice=inv,
+                        success=True,
+                    )
+            except Exception as e:
+                _logger.warning(
+                    "Auto-match error for invoice %s: %s", inv.name, e,
+                )
+
+        if matched_count:
+            _logger.info(
+                "Auto-matched %d Grab invoices with sale orders", matched_count,
+            )
 
     def action_match_sale_order(self):
         """Manual button: try to match with sale order via external_order_id."""
         for rec in self:
-            if rec.external_order_id:
-                domain = [("x_shopee_order_id", "=", rec.external_order_id)]
+            if not rec.external_order_id:
+                rec.message_post(body="No external order ID to match.")
+                continue
+
+            try:
+                if rec.provider == "shopee":
+                    domain = [("x_shopee_order_id", "=", rec.external_order_id)]
+                elif rec.provider == "grab":
+                    domain = [("x_grab_order_id", "=", rec.external_order_id)]
+                else:
+                    domain = [
+                        "|",
+                        ("x_shopee_order_id", "=", rec.external_order_id),
+                        ("x_grab_order_id", "=", rec.external_order_id),
+                    ]
+
                 so = self.env["sale.order"].search(domain, limit=1)
                 if so:
                     rec.write({
@@ -492,11 +847,36 @@ class CollectedInvoice(models.Model):
                         "partner_id": so.partner_id.id,
                         "state": "matched",
                     })
+                    rec.message_post(
+                        body="Matched with Sale Order: %s" % so.name,
+                    )
+                    self.env["ntp.collector.log"].log_operation(
+                        config=rec.config_id,
+                        provider=rec.provider,
+                        operation="match",
+                        invoice=rec,
+                        success=True,
+                    )
                 else:
                     rec.message_post(
                         body="No matching Sale Order found for ID: %s"
                         % rec.external_order_id,
                     )
+                    self.env["ntp.collector.log"].log_operation(
+                        config=rec.config_id,
+                        provider=rec.provider,
+                        operation="match",
+                        invoice=rec,
+                        success=False,
+                        error_message="No matching SO found",
+                    )
+            except Exception as e:
+                _logger.error(
+                    "Manual match error for %s: %s", rec.name, e, exc_info=True,
+                )
+                rec.message_post(
+                    body="Match error: %s" % str(e),
+                )
 
     # ====================================================================
     # Bizzi Integration (Reuses ntp_cne Bizzi config)
@@ -510,10 +890,19 @@ class CollectedInvoice(models.Model):
             except Exception as e:
                 rec.write({
                     "bizzi_status": "error",
-                    "error_message": str(e),
+                    "error_message": str(e)[:1000],
+                    "last_error_date": fields.Datetime.now(),
                 })
                 _logger.error(
                     "Bizzi push error for %s: %s", rec.name, e, exc_info=True,
+                )
+                self.env["ntp.collector.log"].log_operation(
+                    config=rec.config_id,
+                    provider=rec.provider,
+                    operation="push_bizzi",
+                    invoice=rec,
+                    success=False,
+                    error_message=str(e),
                 )
 
     def _push_to_bizzi(self):
@@ -560,10 +949,15 @@ class CollectedInvoice(models.Model):
             payload["attachment_data"] = attachment.datas.decode("utf-8") if attachment.datas else ""
 
         url = urljoin(api_url, "v1/invoices")
+        start_time = time.time()
+
         try:
-            response = requests.post(
-                url, json=payload, headers=headers, timeout=30,
+            response = self._make_request(
+                "post", url, config=self.config_id,
+                json=payload, headers=headers,
             )
+            duration = time.time() - start_time
+
             if response.status_code in (200, 201):
                 result = response.json()
                 bizzi_id = result.get("data", {}).get(
@@ -579,6 +973,16 @@ class CollectedInvoice(models.Model):
                     body="Invoice successfully uploaded to Bizzi. "
                     "Bizzi ID: %s" % bizzi_id,
                 )
+                self.env["ntp.collector.log"].log_operation(
+                    config=self.config_id,
+                    provider=self.provider,
+                    operation="push_bizzi",
+                    invoice=self,
+                    success=True,
+                    request_url=url,
+                    response_code=response.status_code,
+                    duration_seconds=duration,
+                )
             else:
                 error_text = response.text[:500]
                 self.write({
@@ -586,12 +990,34 @@ class CollectedInvoice(models.Model):
                     "error_message": "HTTP %d: %s" % (
                         response.status_code, error_text,
                     ),
+                    "last_error_date": fields.Datetime.now(),
                 })
                 self.message_post(
                     body="Bizzi upload failed (HTTP %d): %s"
                     % (response.status_code, error_text),
                 )
+                self.env["ntp.collector.log"].log_operation(
+                    config=self.config_id,
+                    provider=self.provider,
+                    operation="push_bizzi",
+                    invoice=self,
+                    success=False,
+                    request_url=url,
+                    response_code=response.status_code,
+                    response_summary=error_text,
+                    error_message="HTTP %d" % response.status_code,
+                    duration_seconds=duration,
+                )
         except requests.RequestException as e:
+            self.env["ntp.collector.log"].log_operation(
+                config=self.config_id,
+                provider=self.provider,
+                operation="push_bizzi",
+                invoice=self,
+                success=False,
+                request_url=url,
+                error_message=str(e),
+            )
             raise UserError("Bizzi API request failed: %s" % str(e))
 
     # ====================================================================
@@ -604,11 +1030,48 @@ class CollectedInvoice(models.Model):
             "state": "verified",
             "bizzi_status": "verified",
         })
+        _logger.info(
+            "Invoices marked as verified: %s",
+            ", ".join(self.mapped("name")),
+        )
 
     def action_reset_to_draft(self):
         """Reset error records back to draft for retry."""
-        self.write({
-            "state": "draft",
-            "bizzi_status": "pending",
-            "error_message": False,
-        })
+        for rec in self:
+            rec.write({
+                "state": "draft",
+                "bizzi_status": "pending",
+                "error_message": False,
+                "retry_count": rec.retry_count + 1,
+            })
+        _logger.info(
+            "Invoices reset to draft: %s",
+            ", ".join(self.mapped("name")),
+        )
+
+    def action_retry_failed(self):
+        """Retry all failed invoices."""
+        failed = self.filtered(lambda r: r.state == "error" or r.bizzi_status == "error")
+        if not failed:
+            raise UserError("No failed invoices to retry.")
+
+        _logger.info("Retrying %d failed invoices", len(failed))
+        for inv in failed:
+            try:
+                inv.write({
+                    "state": "draft",
+                    "bizzi_status": "pending",
+                    "error_message": False,
+                    "retry_count": inv.retry_count + 1,
+                })
+                self.env["ntp.collector.log"].log_operation(
+                    config=inv.config_id,
+                    provider=inv.provider,
+                    operation="retry",
+                    invoice=inv,
+                    success=True,
+                )
+            except Exception as e:
+                _logger.error(
+                    "Error retrying invoice %s: %s", inv.name, e,
+                )

@@ -13,6 +13,7 @@
         "views/collector_config.xml",
         "views/collected_invoice.xml",
         "views/res_config_settings.xml",
+        "views/collector_log.xml",
         "views/menu.xml",
         "data/cron.xml",
     ],

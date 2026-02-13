@@ -651,6 +651,7 @@ def auto_detect_address(street, street2, city, env):
                     "ward_name": "",
                     "confidence": round(prov_score * 0.45, 4),
                     "display": prov.name,
+                    "source": "fuzzy",
                 })
             continue
 
@@ -679,6 +680,7 @@ def auto_detect_address(street, street2, city, env):
                             "ward_name": ward.name,
                             "confidence": round(combined, 4),
                             "display": ward.path_with_type,
+                            "source": "fuzzy",
                         })
             else:
                 # Province + District only (no ward match)
@@ -697,6 +699,7 @@ def auto_detect_address(street, street2, city, env):
                         "ward_name": "",
                         "confidence": round(combined, 4),
                         "display": "%s, %s" % (dist.name, prov.name),
+                        "source": "fuzzy",
                     })
 
     # Sort by confidence descending

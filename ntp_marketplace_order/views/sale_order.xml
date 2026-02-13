@@ -23,6 +23,11 @@
                                'invisible': [('x_order_source', '!=', 'shopee')],
                                'required': [('x_order_source', '=', 'shopee')]
                            }" />
+                    <field name="x_grab_order_id"
+                           attrs="{
+                               'invisible': [('x_order_source', '!=', 'grab')],
+                               'required': [('x_order_source', '=', 'grab')]
+                           }" />
                 </xpath>
 
             </field>
@@ -39,6 +44,8 @@
 
                 <xpath expr="//field[@name='partner_id']" position="after">
                     <field name="x_order_source" optional="show" />
+                    <field name="x_shopee_order_id" optional="hide" />
+                    <field name="x_grab_order_id" optional="hide" />
                 </xpath>
 
             </field>

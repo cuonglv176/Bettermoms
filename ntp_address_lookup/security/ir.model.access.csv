@@ -9,3 +9,5 @@ access_address_lookup_wizard_user,address.lookup.wizard.user,model_address_looku
 access_address_lookup_wizard_line_user,address.lookup.wizard.line.user,model_address_lookup_wizard_line,base.group_user,1,1,1,1
 access_address_batch_wizard_user,address.batch.wizard.user,model_address_batch_wizard,base.group_user,1,1,1,1
 access_address_batch_wizard_line_user,address.batch.wizard.line.user,model_address_batch_wizard_line,base.group_user,1,1,1,1
+access_address_lookup_log_user,address.lookup.log.user,model_address_lookup_log,base.group_user,1,0,0,0
+access_address_lookup_log_admin,address.lookup.log.admin,model_address_lookup_log,base.group_system,1,1,1,1

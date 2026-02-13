@@ -89,6 +89,26 @@ class AddressLookupWizard(models.TransientModel):
                 partner_vals["country_id"] = vn_id
 
             self.partner_id.write(partner_vals)
+
+            # Log the operation
+            display = ", ".join(filter(None, [
+                self.ward_id.name_with_type if self.ward_id else "",
+                self.district_id.name_with_type if self.district_id else "",
+                self.province_id.name_with_type,
+            ]))
+            self.env["address.lookup.log"].log_operation(
+                partner=self.partner_id,
+                operation="manual_select",
+                input_address=self.street_input or "",
+                result_display=display,
+                confidence=100.0,
+                source="manual",
+                province_id=self.province_id.id,
+                district_id=self.district_id.id if self.district_id else False,
+                ward_id=self.ward_id.id if self.ward_id else False,
+                success=True,
+            )
+
             logger.info(
                 "Address applied successfully to partner [%s] %s",
                 self.partner_id.id, self.partner_id.name,
@@ -100,6 +120,13 @@ class AddressLookupWizard(models.TransientModel):
             logger.error(
                 "Error applying dropdown address to partner [%s]: %s",
                 self.partner_id.id, e, exc_info=True,
+            )
+            self.env["address.lookup.log"].log_operation(
+                partner=self.partner_id,
+                operation="manual_select",
+                source="manual",
+                success=False,
+                error_message=str(e),
             )
             raise UserError(
                 _("Failed to apply address: %s") % str(e)
@@ -124,12 +151,28 @@ class AddressLookupWizard(models.TransientModel):
                 "Ward search error for query '%s': %s",
                 query, e, exc_info=True,
             )
+            self.env["address.lookup.log"].log_operation(
+                partner=self.partner_id,
+                operation="manual_search",
+                input_address=query,
+                source="database",
+                success=False,
+                error_message=str(e),
+            )
             raise UserError(
                 _("Error searching address: %s") % str(e)
             ) from e
 
         if not results:
             logger.info("No results found for query '%s'", query)
+            self.env["address.lookup.log"].log_operation(
+                partner=self.partner_id,
+                operation="manual_search",
+                input_address=query,
+                source="database",
+                success=False,
+                error_message="No results found",
+            )
             raise UserError(
                 _("No address found for '%s'. Try a different search term.") % query
             )
@@ -152,13 +195,26 @@ class AddressLookupWizard(models.TransientModel):
                 "ward_id": res.get("ward_id", False),
                 "district_id": res.get("district_id", False),
                 "province_id": res.get("province_id", False),
+                "confidence": res.get("confidence", 0.0),
                 "is_selected": idx == 0,
+                "source": res.get("source", "database"),
             }))
 
         self.write({
             "result_line_ids": line_vals,
             "search_performed": True,
         })
+
+        # Log the search operation
+        self.env["address.lookup.log"].log_operation(
+            partner=self.partner_id,
+            operation="manual_search",
+            input_address=query,
+            result_display=results[0].get("description", "") if results else "",
+            confidence=results[0].get("confidence", 0) if results else 0,
+            source="database",
+            success=True,
+        )
 
         return {
             "type": "ir.actions.act_window",
@@ -190,6 +246,7 @@ class AddressLookupWizard(models.TransientModel):
                     "district_id": w.district_id.id if w.district_id else False,
                     "province_id": w.province_id.id if w.province_id else False,
                     "confidence": 100.0,
+                    "source": "database",
                 } for w in wards]
 
         # Step 2: Fallback to fuzzy matching engine
@@ -199,17 +256,40 @@ class AddressLookupWizard(models.TransientModel):
             fuzzy_results = auto_detect_address(query, "", "", self.env)
             return [{
                 "description": r["display"],
-                "ward_name": r["ward_name"],
-                "district_name": r["district_name"],
-                "province_name": r["province_name"],
+                "ward_name": r.get("ward_name", ""),
+                "district_name": r.get("district_name", ""),
+                "province_name": r.get("province_name", ""),
                 "ward_id": r["ward_id"],
                 "district_id": r["district_id"],
                 "province_id": r["province_id"],
                 "confidence": round(r["confidence"] * 100, 1),
+                "source": "fuzzy",
             } for r in fuzzy_results]
         except Exception as e:
             logger.warning("Fuzzy search fallback failed: %s", e)
-            return []
+
+        # Step 3: AI suggestion fallback
+        logger.info("Fuzzy match found no results for '%s', trying AI suggestion", query)
+        try:
+            from ..utils.ai_address_suggest import ai_suggest_address, ai_match_to_db
+            ai_result = ai_suggest_address(query, self.env)
+            if ai_result:
+                ai_matches = ai_match_to_db(ai_result, self.env)
+                return [{
+                    "description": r["display"],
+                    "ward_name": r.get("ward_name", ""),
+                    "district_name": r.get("district_name", ""),
+                    "province_name": r.get("province_name", ""),
+                    "ward_id": r["ward_id"],
+                    "district_id": r["district_id"],
+                    "province_id": r["province_id"],
+                    "confidence": round(r["confidence"] * 100, 1),
+                    "source": "ai",
+                } for r in ai_matches]
+        except Exception as e:
+            logger.warning("AI suggestion fallback failed: %s", e)
+
+        return []
 
     def button_apply_search(self):
         """Apply selected search result back to the partner."""
@@ -251,6 +331,21 @@ class AddressLookupWizard(models.TransientModel):
                 partner_vals["x_ward_id"] = selected.ward_id.id
 
             self.partner_id.write(partner_vals)
+
+            # Log the apply operation
+            self.env["address.lookup.log"].log_operation(
+                partner=self.partner_id,
+                operation="apply",
+                input_address=self.search_query or "",
+                result_display=selected.description or "",
+                confidence=selected.confidence,
+                source=selected.source or "database",
+                province_id=selected.province_id.id if selected.province_id else False,
+                district_id=selected.district_id.id if selected.district_id else False,
+                ward_id=selected.ward_id.id if selected.ward_id else False,
+                success=True,
+            )
+
             logger.info(
                 "Search result applied successfully to partner [%s] %s",
                 self.partner_id.id, self.partner_id.name,
@@ -262,6 +357,13 @@ class AddressLookupWizard(models.TransientModel):
             logger.error(
                 "Error applying search result to partner [%s]: %s",
                 self.partner_id.id, e, exc_info=True,
+            )
+            self.env["address.lookup.log"].log_operation(
+                partner=self.partner_id,
+                operation="apply",
+                source="database",
+                success=False,
+                error_message=str(e),
             )
             raise UserError(
                 _("Failed to apply address: %s") % str(e)
@@ -286,6 +388,16 @@ class AddressLookupWizardLine(models.TransientModel):
     province_id = fields.Many2one("vn.province", "Province Record")
     confidence = fields.Float("Confidence %", digits=(5, 1), default=0.0)
     is_selected = fields.Boolean("Select", default=False)
+    source = fields.Selection(
+        [
+            ("database", "Database"),
+            ("fuzzy", "Fuzzy Match"),
+            ("ai", "AI Suggestion"),
+            ("manual", "Manual"),
+        ],
+        string="Source",
+        default="database",
+    )
 
     @api.onchange("is_selected")
     def _onchange_is_selected(self):

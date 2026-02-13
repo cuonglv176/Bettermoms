@@ -3,3 +3,5 @@ access_collected_invoice_user,ntp.collected.invoice.user,model_ntp_collected_inv
 access_collected_invoice_manager,ntp.collected.invoice.manager,model_ntp_collected_invoice,account.group_account_manager,1,1,1,1
 access_collector_config_user,ntp.collector.config.user,model_ntp_collector_config,base.group_user,1,0,0,0
 access_collector_config_admin,ntp.collector.config.admin,model_ntp_collector_config,base.group_system,1,1,1,1
+access_collector_log_user,ntp.collector.log.user,model_ntp_collector_log,base.group_user,1,0,0,0
+access_collector_log_admin,ntp.collector.log.admin,model_ntp_collector_log,account.group_account_manager,1,1,1,1

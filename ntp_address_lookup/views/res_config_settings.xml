@@ -24,6 +24,40 @@
                             </div>
                         </div>
                     </div>
+                    <h2>AI Address Suggestion</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-9 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <field name="address_lookup_ai_suggest" />
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <label for="address_lookup_ai_suggest" />
+                                <div class="text-muted">
+                                    Enable AI-powered address parsing when fuzzy matching
+                                    cannot find a confident result. Uses OpenAI API.
+                                </div>
+                                <div attrs="{'invisible': [('address_lookup_ai_suggest', '=', False)]}">
+                                    <div class="mt8">
+                                        <label for="address_lookup_openai_api_key" />
+                                        <field name="address_lookup_openai_api_key"
+                                               placeholder="sk-..." password="True" />
+                                        <div class="text-muted">
+                                            Leave empty to use OPENAI_API_KEY environment variable.
+                                        </div>
+                                    </div>
+                                    <div class="mt8">
+                                        <label for="address_lookup_openai_base_url" />
+                                        <field name="address_lookup_openai_base_url"
+                                               placeholder="https://api.openai.com/v1" />
+                                        <div class="text-muted">
+                                            Custom base URL for OpenAI-compatible API.
+                                            Leave empty for default.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </xpath>
             </field>
         </record>

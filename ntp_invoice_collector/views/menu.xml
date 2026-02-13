@@ -27,5 +27,12 @@
                   sequence="20"
                   groups="base.group_system" />
 
+        <!-- Collector Logs -->
+        <menuitem id="menu_collector_logs"
+                  name="Collector Logs"
+                  parent="menu_marketplace_invoices_root"
+                  action="action_collector_log"
+                  sequence="30" />
+
     </data>
 </odoo>

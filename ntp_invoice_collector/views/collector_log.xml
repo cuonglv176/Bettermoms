@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- ============================================================ -->
+        <!-- Collector Log: Tree View                                      -->
+        <!-- ============================================================ -->
+        <record id="view_collector_log_tree" model="ir.ui.view">
+            <field name="name">ntp.collector.log.tree</field>
+            <field name="model">ntp.collector.log</field>
+            <field name="arch" type="xml">
+                <tree string="Collector Logs"
+                      decoration-success="success == True"
+                      decoration-danger="success == False"
+                      create="false" edit="false">
+                    <field name="create_date" string="Date" />
+                    <field name="config_name" />
+                    <field name="provider" />
+                    <field name="operation" />
+                    <field name="records_processed" />
+                    <field name="success" />
+                    <field name="duration_seconds" string="Duration (s)" />
+                    <field name="response_code" optional="hide" />
+                    <field name="error_message" optional="hide" />
+                    <field name="user_id" optional="hide" />
+                </tree>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collector Log: Form View                                      -->
+        <!-- ============================================================ -->
+        <record id="view_collector_log_form" model="ir.ui.view">
+            <field name="name">ntp.collector.log.form</field>
+            <field name="model">ntp.collector.log</field>
+            <field name="arch" type="xml">
+                <form string="Collector Log" create="false" edit="false">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="config_id" />
+                                <field name="config_name" />
+                                <field name="provider" />
+                                <field name="operation" />
+                                <field name="invoice_id" />
+                                <field name="user_id" />
+                                <field name="create_date" string="Date" />
+                            </group>
+                            <group>
+                                <field name="success" />
+                                <field name="records_processed" />
+                                <field name="duration_seconds" />
+                                <field name="request_url" />
+                                <field name="response_code" />
+                            </group>
+                        </group>
+                        <group>
+                            <field name="response_summary"
+                                   attrs="{'invisible': [('response_summary', '=', False)]}" />
+                            <field name="error_message"
+                                   attrs="{'invisible': [('error_message', '=', False)]}" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collector Log: Search View                                    -->
+        <!-- ============================================================ -->
+        <record id="view_collector_log_search" model="ir.ui.view">
+            <field name="name">ntp.collector.log.search</field>
+            <field name="model">ntp.collector.log</field>
+            <field name="arch" type="xml">
+                <search string="Collector Logs">
+                    <field name="config_name" />
+                    <field name="error_message" />
+                    <separator />
+                    <filter name="filter_success" string="Successful"
+                            domain="[('success', '=', True)]" />
+                    <filter name="filter_failed" string="Failed"
+                            domain="[('success', '=', False)]" />
+                    <separator />
+                    <filter name="filter_shopee" string="Shopee"
+                            domain="[('provider', '=', 'shopee')]" />
+                    <filter name="filter_grab" string="Grab"
+                            domain="[('provider', '=', 'grab')]" />
+                    <separator />
+                    <filter name="filter_fetch" string="Fetch"
+                            domain="[('operation', '=', 'fetch')]" />
+                    <filter name="filter_match" string="Match"
+                            domain="[('operation', '=', 'match')]" />
+                    <filter name="filter_push" string="Push to Bizzi"
+                            domain="[('operation', '=', 'push_bizzi')]" />
+                    <separator />
+                    <group expand="0" string="Group By">
+                        <filter name="groupby_provider" string="Provider"
+                                context="{'group_by': 'provider'}" />
+                        <filter name="groupby_operation" string="Operation"
+                                context="{'group_by': 'operation'}" />
+                        <filter name="groupby_config" string="Config"
+                                context="{'group_by': 'config_id'}" />
+                        <filter name="groupby_date" string="Date"
+                                context="{'group_by': 'create_date:day'}" />
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collector Log: Action                                         -->
+        <!-- ============================================================ -->
+        <record id="action_collector_log" model="ir.actions.act_window">
+            <field name="name">Collector Logs</field>
+            <field name="res_model">ntp.collector.log</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No collector logs yet
+                </p>
+                <p>
+                    Logs are automatically created when invoices are fetched,
+                    matched, or pushed to Bizzi.
+                </p>
+            </field>
+        </record>
+    </data>
+</odoo>

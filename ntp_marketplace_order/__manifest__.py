@@ -2,8 +2,8 @@
 {
     "name": "NTP Marketplace Order",
     "category": "Sales",
-    "summary": "Shopee Order Reference & Mandatory Validation on Sales Orders",
-    "description": "Add Order Source field to Sales Orders with mandatory Shopee Order ID validation and uniqueness check.",
+    "summary": "Shopee & Grab Order Reference & Mandatory Validation on Sales Orders",
+    "description": "Add Order Source field to Sales Orders with mandatory Shopee/Grab Order ID validation and uniqueness check.",
     "version": "15.0.1.0.0",
     "author": "NTP",
     "website": "",
