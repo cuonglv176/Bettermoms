@@ -1,0 +1,57 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+#	* app_sequence_customize
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 12.0+e-20190301\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-05-01 14:42+0000\n"
+"PO-Revision-Date: 2019-05-01 14:42+0000\n"
+"Last-Translator: <>\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Plural-Forms: \n"
+
+#. module: app_sequence_customize
+#: model_terms:ir.ui.view,arch_db:app_sequence_customize.ir_app_sequence_customize_form
+msgid "Once you change the Frequency, you must remove the exist date range under to reset."
+msgstr "一旦更改重置周期，请记得先删除下列的日期范围"
+
+#. module: app_sequence_customize
+#: model:ir.model.fields,help:app_sequence_customize.field_ir_sequence__reset_interval
+msgid "Once you change the Frequency, you must remove the exist date range under."
+msgstr "D:\PjWeb\o12.odooapp.cn\dev\app_sequence_customize\static\description"
+
+#. module: app_sequence_customize
+#: model:ir.model.fields,field_description:app_sequence_customize.field_ir_sequence__reset_interval
+msgid "Reset Frequency"
+msgstr "重置周期"
+
+#. module: app_sequence_customize
+#: selection:ir.sequence,reset_interval:0
+msgid "Reset per Day"
+msgstr "每天重置"
+
+#. module: app_sequence_customize
+#: selection:ir.sequence,reset_interval:0
+msgid "Reset per Month"
+msgstr "每月重置"
+
+#. module: app_sequence_customize
+#: selection:ir.sequence,reset_interval:0
+msgid "Reset per Year(Default)"
+msgstr "每年重置(默认)"
+
+#. module: app_sequence_customize
+#: model:ir.model,name:app_sequence_customize.model_ir_sequence
+msgid "Sequence"
+msgstr "序号"
+
+#. module: app_sequence_customize
+#: model_terms:ir.ui.view,arch_db:app_sequence_customize.ir_app_sequence_customize_form
+msgid "The date is base on the creator's timezone. If you set the Frequency, the date range and Next Number would create auto. Also you can customize From/to/Next Number."
+msgstr "日期计算使用记录创建人所在的时区。如果你设置了重置周期，该周期的日期范围相关参数将自动创建"
+

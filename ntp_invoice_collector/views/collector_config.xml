@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ============================================================ -->
+        <!-- Collector Config: Form View                                   -->
+        <!-- ============================================================ -->
+        <record id="view_collector_config_form" model="ir.ui.view">
+            <field name="name">ntp.collector.config.form</field>
+            <field name="model">ntp.collector.config</field>
+            <field name="arch" type="xml">
+                <form string="Collector Configuration">
+                    <header>
+                        <button name="action_test_connection" type="object"
+                                string="Test Connection" class="btn-primary"
+                                icon="fa-plug" />
+                        <button name="action_fetch_now" type="object"
+                                string="Fetch Now" class="btn-secondary"
+                                icon="fa-download" />
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" placeholder="Configuration Name" />
+                            </h1>
+                        </div>
+                        <group>
+                            <group string="Provider">
+                                <field name="provider" />
+                                <field name="is_active" />
+                                <field name="sync_interval_hours" />
+                                <field name="last_sync_date" />
+                            </group>
+                            <group string="API Credentials">
+                                <field name="api_url" placeholder="https://partner.shopeemobile.com" />
+                                <field name="api_key" placeholder="Partner ID / App Key" />
+                                <field name="api_secret" password="True" placeholder="Partner Key / Secret" />
+                                <field name="shop_id" placeholder="Shop ID" />
+                                <field name="access_token" password="True" placeholder="OAuth Access Token" />
+                            </group>
+                        </group>
+                        <group>
+                            <field name="notes" placeholder="Additional notes..." />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collector Config: Tree View                                   -->
+        <!-- ============================================================ -->
+        <record id="view_collector_config_tree" model="ir.ui.view">
+            <field name="name">ntp.collector.config.tree</field>
+            <field name="model">ntp.collector.config</field>
+            <field name="arch" type="xml">
+                <tree string="Collector Configurations">
+                    <field name="name" />
+                    <field name="provider" />
+                    <field name="shop_id" />
+                    <field name="is_active" />
+                    <field name="last_sync_date" />
+                </tree>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collector Config: Action                                      -->
+        <!-- ============================================================ -->
+        <record id="action_collector_config" model="ir.actions.act_window">
+            <field name="name">Collector Configurations</field>
+            <field name="res_model">ntp.collector.config</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Configure your marketplace API connections
+                </p>
+                <p>
+                    Add Shopee or Grab API credentials to enable automated invoice collection.
+                </p>
+            </field>
+        </record>
+
+    </data>
+</odoo>

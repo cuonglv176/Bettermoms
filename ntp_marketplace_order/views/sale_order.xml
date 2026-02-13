@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ============================================================ -->
+        <!-- Sale Order Form: Add Order Source + Shopee Order ID           -->
+        <!-- ============================================================ -->
+        <record id="view_sale_order_form_inherit_marketplace" model="ir.ui.view">
+            <field name="name">sale.order.form.inherit.marketplace</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form" />
+            <field name="arch" type="xml">
+
+                <!-- Add Order Source after date_order -->
+                <xpath expr="//field[@name='date_order']" position="after">
+                    <field name="x_order_source" />
+                </xpath>
+
+                <!-- Add Shopee Order ID after Order Source (visible only when source=shopee) -->
+                <xpath expr="//field[@name='x_order_source']" position="after">
+                    <field name="x_shopee_order_id"
+                           attrs="{
+                               'invisible': [('x_order_source', '!=', 'shopee')],
+                               'required': [('x_order_source', '=', 'shopee')]
+                           }" />
+                </xpath>
+
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Sale Order Tree: Add Order Source column                      -->
+        <!-- ============================================================ -->
+        <record id="view_sale_order_tree_inherit_marketplace" model="ir.ui.view">
+            <field name="name">sale.order.tree.inherit.marketplace</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_tree" />
+            <field name="arch" type="xml">
+
+                <xpath expr="//field[@name='partner_id']" position="after">
+                    <field name="x_order_source" optional="show" />
+                </xpath>
+
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Sale Order Search: Add filter and group-by for Order Source   -->
+        <!-- ============================================================ -->
+        <record id="view_sale_order_filter_inherit_marketplace" model="ir.ui.view">
+            <field name="name">sale.order.filter.inherit.marketplace</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.sale_order_view_search_inherit_quotation" />
+            <field name="arch" type="xml">
+
+                <!-- Add Shopee filter -->
+                <xpath expr="//filter[@name='my_quotation']" position="before">
+                    <separator />
+                    <filter name="filter_shopee" string="Shopee Orders"
+                            domain="[('x_order_source', '=', 'shopee')]" />
+                    <filter name="filter_grab" string="Grab Orders"
+                            domain="[('x_order_source', '=', 'grab')]" />
+                    <separator />
+                </xpath>
+
+                <!-- Add Group By Order Source -->
+                <xpath expr="//group/filter[@name='customer']" position="after">
+                    <filter name="groupby_order_source" string="Order Source"
+                            context="{'group_by': 'x_order_source'}" />
+                </xpath>
+
+            </field>
+        </record>
+
+    </data>
+</odoo>

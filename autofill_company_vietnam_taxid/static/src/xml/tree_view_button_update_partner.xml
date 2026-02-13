@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-extend="ListView.buttons">
+        <t t-jquery="div.o_list_buttons" t-operation="append">
+            <t t-if="widget.modelName and widget.modelName=='res.partner'">
+                <button type="button" class="btn o_list_button_update_via_vat">
+                    Update via VAT
+                </button>
+            </t>
+        </t>
+    </t>
+
+<!--     <t t-extend="KanbanView.buttons">-->
+<!--        <t t-jquery="button" t-operation="after">-->
+<!--            <t t-if="widget.modelName and widget.modelName=='res.partner'">-->
+<!--                <button type="button" class="btn o_kanban_button_update_via_vat">-->
+<!--                    Update via VAT-->
+<!--                </button>-->
+<!--            </t>-->
+<!--        </t>-->
+<!--    </t>-->
+</templates>

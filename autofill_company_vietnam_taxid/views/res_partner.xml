@@ -1,0 +1,18 @@
+<odoo>
+    <data>
+        <record id="view_res_partner_form_inherit_vat_autocomplete" model="ir.ui.view">
+            <field name="name">res.partner.form.inherit.vat.autocomplete</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+
+                <xpath expr="//field[@name='vat']" position="after">
+                    <field name="autofill_from_vat" forcecreate="1" invisible="1"/>
+                    <button name="action_get_company_info_from_vat" type="object" string="Update via VAT"
+                            attrs="{'invisible': ['|',('company_type', '=', 'person'), ('vat', '=', False)]}"
+                            class="btn btn-link pt-0"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

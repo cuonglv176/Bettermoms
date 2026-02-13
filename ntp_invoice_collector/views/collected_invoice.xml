@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ============================================================ -->
+        <!-- Collected Invoice: Form View                                  -->
+        <!-- ============================================================ -->
+        <record id="view_collected_invoice_form" model="ir.ui.view">
+            <field name="name">ntp.collected.invoice.form</field>
+            <field name="model">ntp.collected.invoice</field>
+            <field name="arch" type="xml">
+                <form string="Collected Invoice">
+                    <header>
+                        <button name="action_match_sale_order" type="object"
+                                string="Match Sale Order" class="btn-primary"
+                                icon="fa-link"
+                                attrs="{'invisible': [('sale_order_id', '!=', False)]}" />
+                        <button name="action_push_to_bizzi" type="object"
+                                string="Push to Bizzi" class="btn-primary"
+                                icon="fa-upload"
+                                attrs="{'invisible': [('bizzi_status', 'not in', ['pending', 'error'])]}" />
+                        <button name="action_set_verified" type="object"
+                                string="Mark Verified" class="btn-secondary"
+                                attrs="{'invisible': [('state', 'not in', ['pushed'])]}" />
+                        <button name="action_reset_to_draft" type="object"
+                                string="Reset to Draft" class="btn-secondary"
+                                attrs="{'invisible': [('state', '!=', 'error')]}" />
+                        <field name="state" widget="statusbar"
+                               statusbar_visible="draft,matched,pushed,verified" />
+                    </header>
+                    <sheet>
+                        <!-- Smart Buttons -->
+                        <div class="oe_button_box" name="button_box">
+                            <button name="%(sale.action_quotations_with_onboarding)d"
+                                    type="action" class="oe_stat_button"
+                                    icon="fa-shopping-cart"
+                                    attrs="{'invisible': [('sale_order_id', '=', False)]}">
+                                <field name="sale_order_id" widget="statinfo"
+                                       string="Sale Order" />
+                            </button>
+                        </div>
+
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1" />
+                            </h1>
+                        </div>
+
+                        <group>
+                            <group string="Invoice Details">
+                                <field name="provider" />
+                                <field name="config_id" />
+                                <field name="external_order_id" />
+                                <field name="transaction_date" />
+                                <field name="total_amount" />
+                                <field name="currency_id" groups="base.group_multi_currency" />
+                            </group>
+                            <group string="Matching &amp; Integration">
+                                <field name="sale_order_id" />
+                                <field name="sale_order_amount"
+                                       attrs="{'invisible': [('sale_order_id', '=', False)]}" />
+                                <field name="amount_match" widget="boolean_toggle"
+                                       attrs="{'invisible': [('sale_order_id', '=', False)]}" />
+                                <field name="partner_id" />
+                                <field name="account_move_id" />
+                                <field name="bizzi_invoice_id" />
+                                <field name="bizzi_status" />
+                            </group>
+                        </group>
+
+                        <notebook>
+                            <page string="Attachments">
+                                <field name="attachment_ids" widget="many2many_binary" />
+                            </page>
+                            <page string="Notes">
+                                <field name="notes" placeholder="Additional notes..." />
+                            </page>
+                            <page string="Errors"
+                                  attrs="{'invisible': [('error_message', '=', False)]}">
+                                <field name="error_message" readonly="1" />
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids" />
+                        <field name="activity_ids" />
+                        <field name="message_ids" />
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collected Invoice: Tree View                                  -->
+        <!-- ============================================================ -->
+        <record id="view_collected_invoice_tree" model="ir.ui.view">
+            <field name="name">ntp.collected.invoice.tree</field>
+            <field name="model">ntp.collected.invoice</field>
+            <field name="arch" type="xml">
+                <tree string="Collected Invoices"
+                      decoration-danger="state == 'error'"
+                      decoration-success="state == 'verified'"
+                      decoration-info="state == 'matched'"
+                      decoration-warning="bizzi_status == 'error'">
+                    <field name="name" />
+                    <field name="provider" />
+                    <field name="external_order_id" />
+                    <field name="transaction_date" />
+                    <field name="total_amount" sum="Total" />
+                    <field name="sale_order_id" optional="show" />
+                    <field name="amount_match" optional="hide" />
+                    <field name="state" />
+                    <field name="bizzi_status" />
+                </tree>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collected Invoice: Search View                                -->
+        <!-- ============================================================ -->
+        <record id="view_collected_invoice_search" model="ir.ui.view">
+            <field name="name">ntp.collected.invoice.search</field>
+            <field name="model">ntp.collected.invoice</field>
+            <field name="arch" type="xml">
+                <search string="Search Collected Invoices">
+                    <field name="name" />
+                    <field name="external_order_id" />
+                    <field name="partner_id" />
+                    <separator />
+                    <filter name="filter_shopee" string="Shopee"
+                            domain="[('provider', '=', 'shopee')]" />
+                    <filter name="filter_grab" string="Grab"
+                            domain="[('provider', '=', 'grab')]" />
+                    <separator />
+                    <filter name="filter_draft" string="Fetched"
+                            domain="[('state', '=', 'draft')]" />
+                    <filter name="filter_matched" string="Matched"
+                            domain="[('state', '=', 'matched')]" />
+                    <filter name="filter_pushed" string="Pushed to Bizzi"
+                            domain="[('state', '=', 'pushed')]" />
+                    <filter name="filter_verified" string="Verified"
+                            domain="[('state', '=', 'verified')]" />
+                    <filter name="filter_error" string="Errors"
+                            domain="[('state', '=', 'error')]" />
+                    <separator />
+                    <filter name="filter_unmatched" string="Missing SO Match"
+                            domain="[('sale_order_id', '=', False), ('provider', '=', 'shopee')]" />
+                    <filter name="filter_amount_mismatch" string="Amount Mismatch"
+                            domain="[('amount_match', '=', False), ('sale_order_id', '!=', False)]" />
+                    <separator />
+                    <group expand="0" string="Group By">
+                        <filter name="groupby_provider" string="Provider"
+                                context="{'group_by': 'provider'}" />
+                        <filter name="groupby_state" string="Status"
+                                context="{'group_by': 'state'}" />
+                        <filter name="groupby_bizzi" string="Bizzi Status"
+                                context="{'group_by': 'bizzi_status'}" />
+                        <filter name="groupby_date" string="Transaction Date"
+                                context="{'group_by': 'transaction_date:month'}" />
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Collected Invoice: Action                                     -->
+        <!-- ============================================================ -->
+        <record id="action_collected_invoice" model="ir.actions.act_window">
+            <field name="name">Marketplace Invoices</field>
+            <field name="res_model">ntp.collected.invoice</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_collected_invoice_search" />
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No marketplace invoices collected yet
+                </p>
+                <p>
+                    Configure your Shopee/Grab API connections and activate the
+                    scheduled sync to automatically collect invoices.
+                </p>
+            </field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="ir_app_sequence_customize_form" model="ir.ui.view">
+            <field name="name">ir_app_sequence_customize_form</field>
+            <field name="model">ir.sequence</field>
+            <field name="inherit_id" ref="base.sequence_view"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='use_date_range']" position="after">
+                    <field name="reset_interval" attrs="{'invisible': [('use_date_range', '=', False)]}"/>
+                    <p colspan="2" class="" attrs="{'invisible': [('use_date_range', '=', False)]}">
+                    <ul>
+                        <li>
+                            The date is base on the creator's timezone. If you set the Frequency, the date range and Next Number would create auto. Also you can customize From/to/Next Number.
+                        </li>
+                        <li>
+                            Once you change the Frequency, you must remove the exist date range under to reset.
+                        </li>
+                    </ul>
+                    </p>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

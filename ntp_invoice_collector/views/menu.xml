@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ============================================================ -->
+        <!-- Menu: Under Accounting                                        -->
+        <!-- ============================================================ -->
+
+        <!-- Parent menu under Accounting -->
+        <menuitem id="menu_marketplace_invoices_root"
+                  name="Marketplace Invoices"
+                  parent="account.menu_finance"
+                  sequence="45" />
+
+        <!-- Collected Invoices list -->
+        <menuitem id="menu_collected_invoices"
+                  name="Collected Invoices"
+                  parent="menu_marketplace_invoices_root"
+                  action="action_collected_invoice"
+                  sequence="10" />
+
+        <!-- Collector Configurations -->
+        <menuitem id="menu_collector_configs"
+                  name="Collector Configurations"
+                  parent="menu_marketplace_invoices_root"
+                  action="action_collector_config"
+                  sequence="20"
+                  groups="base.group_system" />
+
+    </data>
+</odoo>
