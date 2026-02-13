@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+vat_type_user,tax_type_user,model_vat_type,base.group_user,1,1,1,1
+purchase_landed_cost_user,purchase_landed_cost_user,model_purchase_landed_cost,base.group_user,1,1,1,1
+purchase_landed_valuation_user,purchase_landed_valuation_user,model_purchase_landed_valuation,base.group_user,1,1,1,1

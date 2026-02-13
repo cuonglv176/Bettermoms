@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Action confirm_payments for multi -->
+    <record id="action_find_partner_from_puid" model="ir.actions.server">
+        <field name="name">Find Partner From PUID</field>
+        <field name="type">ir.actions.server</field>
+        <field name="state">code</field>
+        <field name="groups_id" eval="[(4, ref('account.group_account_invoice'))]" />
+        <field name="model_id" ref="account.model_account_bank_statement" />
+        <field name="binding_model_id" ref="account.model_account_bank_statement" />
+        <field name="binding_view_types">form,list</field>
+        <field name="code">
+            action = records.action_find_partner_from_puid()
+        </field>
+        <field name="sequence">201</field>
+    </record>
+
+    <record id="account_bank_statement_form_inherit_ntp_payment_support" model="ir.ui.view">
+        <field name="name">account.bank.statement.form.inherit.ntp.payment.support</field>
+        <field name="model">account.bank.statement</field>
+        <field name="inherit_id" ref="account.view_bank_statement_form" />
+        <field name="arch" type="xml">
+            <!-- <xpath expr="//header" position="inside">
+                <button string="Find Partner" name="button_find_partner_from_puid" type="object"/>
+            </xpath> -->
+            <xpath expr="//field[@name='transaction_type']" position="before">
+                <field name="puid" optional="hide" />
+            </xpath>
+        </field>
+    </record>
+
+    <record id="account_bank_statement_line_view_form_inherit_ntp_payment_support" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.view.form</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="inherit_id" ref="account.view_bank_statement_line_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='transaction_type']" position="after">
+                <field name="puid" />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

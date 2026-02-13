@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <template id="assets_backend" name="ntp_cne_assets" inherit_id="web.assets_backend">
+            <xpath expr="link[last()]" position="after">
+                <script type="text/javascript" src="/ntp_cne/static/src/js/tree_view_button_sync_tax_invoice.js"></script>
+                <script type="text/javascript" src="/ntp_cne/static/src/js/tax_invoice_bill_receipt_suggestion_field.js"></script>
+            </xpath>
+        </template>
+    </data>
+</odoo>

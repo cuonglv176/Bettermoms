@@ -1,0 +1,118 @@
+select account_move_line.partner_id as groupby, account_move_line.account_id,
+       'sum' as key,
+	sum( account_move_line.debit ) as debit,
+	sum( account_move_line.credit)  as credit,
+	sum( account_move_line.balance) as balance
+from "account_move_line"
+left join "account_move" as "account_move_line__move_id" on ("account_move_line"."move_id" = "account_move_line__move_id"."id")
+where (
+	(
+		(
+			(
+				(
+					(
+						(("account_move_line"."display_type" not in ('line_section','line_note')) or "account_move_line"."display_type" is null)
+						and (("account_move_line__move_id"."state" != 'cancel') or "account_move_line__move_id"."state" is null)
+					)
+					and ("account_move_line"."company_id" = 1)
+				)
+				and ("account_move_line"."date" <= '2021-02-28') and ("account_move_line"."date" >= '2021-02-01')
+			)
+			and ("account_move_line__move_id"."state" = 'posted')
+		) and (
+			(
+				(("account_move_line"."credit" != 0.0) or ("account_move_line"."debit" != 0.0))
+				or ("account_move_line"."amount_currency" = 0.0)
+			) or (("account_move_line"."ref"::text not ilike '%exch%%') or "account_move_line"."ref" is null)
+		)
+	) and (
+		(
+			"account_move_line"."account_id" in
+				(
+					select "account_account".id
+					from "account_account"
+					where ("account_account"."internal_type" = 'receivable') and ("account_account"."company_id" is null
+					or ("account_account"."company_id" in (1))) order by  "account_account"."id"
+				)
+		) or (
+			"account_move_line"."account_id" in
+				(
+					select "account_account".id
+					from "account_account"
+					where ("account_account"."internal_type" = 'payable') and ("account_account"."company_id" is null
+					or ("account_account"."company_id" in (1))) order by  "account_account"."id"
+				)
+			)
+		)
+) and ("account_move_line"."company_id" is null  or ("account_move_line"."company_id" in (1))) And account_move_line.partner_id = 286716
+group by account_move_line.partner_id,  account_move_line.account_id
+
+union all
+select account_move_line.partner_id as groupby, account_move_line.account_id,
+       'initial_balance' as key,
+	sum( account_move_line.debit ) as debit,
+	sum( account_move_line.credit)  as credit,
+	sum( account_move_line.balance) as balance
+from "account_move_line"
+left join "account_move" as "account_move_line__move_id" on ("account_move_line"."move_id" = "account_move_line__move_id"."id")
+where (
+	(
+		(
+			(
+				(
+					(
+						(("account_move_line"."display_type" not in ('line_section','line_note')) or "account_move_line"."display_type" is null)
+						and (("account_move_line__move_id"."state" != 'cancel') or "account_move_line__move_id"."state" is null)
+					)
+					and ("account_move_line"."company_id" = 1)
+				)
+				and ("account_move_line"."date" <= '2021-01-31')
+				and (
+					("account_move_line"."date" >= null)
+					or
+					(
+						"account_move_line"."account_id" in
+						(
+							select "account_account".id from "account_account"
+							where ("account_account"."user_type_id" in
+							(
+								select "account_account_type".id
+								from "account_account_type"
+								where ("account_account_type"."include_initial_balance" = true)
+								order by  "account_account_type"."id"
+							))
+							and ("account_account"."company_id" is null
+							or ("account_account"."company_id" in (1)))
+							order by  "account_account"."id"
+						)
+					)
+				)
+			)
+			and ("account_move_line__move_id"."state" = 'posted')
+		) and (
+			(
+				(("account_move_line"."credit" != 0.0) or ("account_move_line"."debit" != 0.0))
+				or ("account_move_line"."amount_currency" = 0.0)
+			) or (("account_move_line"."ref"::text not ilike '%exch%%') or "account_move_line"."ref" is null)
+		)
+	) and (
+		(
+			"account_move_line"."account_id" in
+				(
+					select "account_account".id
+					from "account_account"
+					where ("account_account"."internal_type" = 'receivable') and ("account_account"."company_id" is null
+					or ("account_account"."company_id" in (1))) order by  "account_account"."id"
+				)
+		) or (
+			"account_move_line"."account_id" in
+				(
+					select "account_account".id
+					from "account_account"
+					where ("account_account"."internal_type" = 'payable') and ("account_account"."company_id" is null
+					or ("account_account"."company_id" in (1))) order by  "account_account"."id"
+				)
+			)
+		)
+) and ("account_move_line"."company_id" is null  or ("account_move_line"."company_id" in (1))) And account_move_line.partner_id = 286716
+group by account_move_line.partner_id,  account_move_line.account_id

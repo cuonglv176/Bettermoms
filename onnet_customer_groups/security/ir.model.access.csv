@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_company_group_user,company_group,model_company_group,base.group_user,1,1,1,0
+
+access_company_short_name_user,company_short_name_user,model_company_short_name,base.group_user,1,1,1,1
+

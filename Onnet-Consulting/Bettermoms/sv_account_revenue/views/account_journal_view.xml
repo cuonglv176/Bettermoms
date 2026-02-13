@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+
+    <record id="account_journal_form_inherit_revenue" model="ir.ui.view">
+      <field name="name">account.journal.form.inherit.revenue</field>
+      <field name="model">account.journal</field>
+      <field name="inherit_id" ref="account.view_account_journal_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//field[@name='account_control_ids']" position="after">
+          <field name="is_revenue_journal"/>
+        </xpath>
+      </field>
+    </record>
+
+  </data>
+</odoo>

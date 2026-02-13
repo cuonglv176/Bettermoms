@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Server action bound to res.partner list view for batch auto-detect -->
+        <record id="action_batch_auto_detect_address" model="ir.actions.act_window">
+            <field name="name">Auto-detect Address (Batch)</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">address.batch.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{'default_partner_count': active_ids and len(active_ids) or 0}</field>
+            <field name="binding_model_id" ref="base.model_res_partner" />
+            <field name="binding_view_types">list</field>
+        </record>
+    </data>
+</odoo>

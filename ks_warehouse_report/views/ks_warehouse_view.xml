@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ks_view_warehouse_tree" model="ir.ui.view">
+        <field name="name">ks.warehouse.report.tree</field>
+        <field name="model">ks.warehouse.report</field>
+        <field name="arch" type="xml">
+            <tree string="Warehouse" create="false" edit="false">
+                <field name="ks_product_id"/>
+                <field name="ks_product_code"/>
+                <field name="ks_product_barcode"/>
+                <field name="ks_product_type"/>
+                <field name="ks_product_categ_id"/>
+                <field name="ks_product_sales_price"/>
+                <field name="ks_location_id"/>
+                <field name="ks_company_id"/>
+                <field name="ks_product_qty_available"/>
+                <field name="ks_usage" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+    <record id="ks_view_warehouse_form" model="ir.ui.view">
+        <field name="name">ks.warehouse.report.form</field>
+        <field name="model">ks.warehouse.report</field>
+        <field name="arch" type="xml">
+            <form string="Warehouse" create="false" edit="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="ks_product_id"/>
+                            <field name="ks_product_code"/>
+                            <field name="ks_product_barcode"/>
+                            <field name="ks_product_type"/>
+                            <field name="ks_product_categ_id"/>
+                        </group>
+                        <group>
+                            <field name="ks_product_sales_price"/>
+                            <field name="ks_location_id"/>
+                            <field name="ks_company_id"/>
+                            <field name="ks_product_qty_available"/>
+                            <field name="ks_usage" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="ks_warehouse_report_search_view" model="ir.ui.view">
+        <field name="name">ks_warehouse_report.search</field>
+        <field name="model">ks.warehouse.report</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="ks_product_id"/>
+                <field name="ks_product_code"/>
+                <field name="ks_product_id"/>
+                <field name="ks_product_barcode"/>
+                <filter string="Internal Usage" name="ks_internal_usage" domain="[('ks_usage', '=', 'internal')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="ks_action_warehouse_report" model="ir.actions.act_window">
+        <field name="name">All Report View</field>
+        <field name="res_model">ks.warehouse.report</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{"search_default_ks_internal_usage":1}</field>
+    </record>
+
+    <!--Add menu-->
+    <menuitem
+            parent="stock.menu_warehouse_report"
+            id="ks_menu_warehouse_reporting_main"
+            name="Warehouse Reports"
+            sequence="500"/>
+    <menuitem
+            parent="ks_warehouse_report.ks_menu_warehouse_reporting_main"
+            id="ks_menu_warehouse_report"
+            action="ks_action_warehouse_report"
+            name="All Report View"
+            groups="base.group_no_one"/>
+</odoo>

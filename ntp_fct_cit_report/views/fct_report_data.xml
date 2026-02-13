@@ -1,0 +1,10 @@
+<odoo>
+    <record id="action_account_fct_cit_report" model="ir.actions.client">
+        <field name="name">FCT Report</field>
+        <field name="tag">account_report</field>
+        <field name="context" eval="{'model': 'account.fctcit.report'}" />
+    </record>
+
+    <menuitem id="menu_action_account_fct_cit_report" name="FCT Report" action="action_account_fct_cit_report" parent="account_reports.account_reports_audit_reports_menu" groups="account.group_account_readonly"/>
+
+</odoo>

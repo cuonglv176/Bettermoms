@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_einvoice_line_view_tree" model="ir.ui.view">
+        <field name="name">ntp.einvoice.line.view.tree</field>
+        <field name="model">ntp.einvoice.line</field>
+        <field name="arch" type="xml">
+            <tree string="">
+                <field name="currency_id" invisible="1" />
+                <field name="issue_date" />
+                <field name="einvoice_id" />
+                <field name="partner_id" />
+                <field name="product_id" />
+                <field name="name" optional="hide" />
+                <field name="price_unit" optional="hide" />
+                <field name="product_code" />
+                <field name="price_unit_without_tax" />
+                <field name="product_uom_id" optional="hide" />
+                <field name="product_uom" />
+                <field name="quantity" />
+                <field name="tax_ids" widget="many2many_tags" optional="hide" />
+                <field name="vat_percent" />
+                <field name="discount" />
+                <field name="vat_amount" widget="monetary" decoration-bf="1" sum="Total VAT" />
+                <field name="price_subtotal" widget="monetary" decoration-bf="1" sum="Total Amount Without VAT" />
+                <field name="price_total" widget="monetary" decoration-bf="1" sum="Total Amount With VAT" />
+                <field name="provider_einvoice_status" widget="badge"
+                        decoration-success="provider_einvoice_status == 'created'"
+                        decoration-warning="provider_einvoice_status in ['replace', 'adjust']"
+                        decoration-muted="provider_einvoice_status in ['canceled', 'be_replaced', 'be_adjusted']" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="ntp_einvoice_line_view_search" model="ir.ui.view">
+        <field name="name">ntp.einvoice.line.view.search</field>
+        <field name="model">ntp.einvoice.line</field>
+        <field name="arch" type="xml">
+            <search string="">
+                <field name="name" string="Label" filter_domain="[('name', 'ilike', self)]" />
+                <field name="einvoice_id" string="EInvoice" filter_domain="[('einvoice_id', 'ilike', self)]" />
+                <field name="product_id" string="Product" filter_domain="[('product_id', 'ilike', self)]" />
+                <field name="partner_id" string="Partner" filter_domain="[('partner_id', 'ilike', self)]" />
+                <separator />
+                <filter name="no_mccqt" string="No MCCQT" domain="[('x_provider_mccqt', '=', False)]" />
+                <filter name="has_mccqt" string="Has MCCQT" domain="[('x_provider_mccqt', '!=', False)]" />
+                <separator />
+                <filter name="product_line_only" string="Product Only" domain="[('line_type', '=', '1')]" />
+                <filter name="no_product_id" string="Missing Product Id" domain="[('product_id', '=', False)]" />
+                <filter name="no_partner_id" string="Missing Partner Id" domain="[('partner_id', '=', False)]" />
+                <separator />
+                <filter name="draft" string="Draft" domain="[('provider_einvoice_status', '=', 'draft')]" />
+                <filter name="creating" string="Requested" domain="[('provider_einvoice_status', '=', 'creating')]" />
+                <filter name="created" string="Issued" domain="[('provider_einvoice_status', '=', 'created')]" />
+                <filter name="replace" string="Replace" domain="[('provider_einvoice_status', '=', 'replace')]" />
+                <filter name="be_replaced" string="Be Replaced" domain="[('provider_einvoice_status', '=', 'be_replaced')]" />
+                <filter name="adjust" string="Adjust" domain="[('provider_einvoice_status', '=', 'adjust')]" />
+                <filter name="be_adjusted" string="Be Adjusted" domain="[('provider_einvoice_status', '=', 'be_adjusted')]" />
+                <filter name="canceled" string="Canceled" domain="[('provider_einvoice_status', '=', 'canceled')]" />
+                <filter name="unknown" string="Unknown" domain="[('provider_einvoice_status', '=', 'unknown')]" />
+                <separator />
+                <filter name="report_to_cqt" string="Report CQT"
+                        domain="[('provider_einvoice_status', 'in', ['creating', 'created', 'adjust', 'be_adjusted', 'replace']), ('line_type', '=', '1')]" />
+                <filter name="issue_date" string="Issue Date" date="issue_date" />
+                <separator />
+                <group expand="0" string="Group By">
+                    <filter string="Issue Date" context="{'group_by':'issue_date:month'}" name="group_issue_date" />
+                    <filter string="Product" context="{'group_by':'product_id'}" name="group_product_id" />
+                    <filter string="Customer" context="{'group_by':'partner_id'}" name="group_partner_id" />
+                    <filter string="EInvoice" context="{'group_by':'einvoice_id'}" name="group_einvoice_id" />
+                    <filter string="EInvoice Status" context="{'group_by':'provider_einvoice_status'}" name="group_provider_einvoice_status" />
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

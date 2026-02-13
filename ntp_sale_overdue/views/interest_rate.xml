@@ -1,0 +1,25 @@
+<odoo>
+    <data>
+        <record id="interest_rate_tree_view" model="ir.ui.view">
+            <field name="name">Interest Rate Tree</field>
+            <field name="model">interest.rate</field>
+            <field name="arch" type="xml">
+                    <tree editable="bottom">
+                        <field name="date"/>
+                        <field name="rate"/>
+                    </tree>
+            </field>
+        </record>
+          <record id="action_interest_rate" model="ir.actions.act_window">
+            <field name="name">Interest Rate</field>
+            <field name="res_model">interest.rate</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="interest_rate_tree_view"/>
+        </record>
+        <menuitem id="menu_interest_rate"
+            name="Interest Rate"
+            action="action_interest_rate"
+            parent="account.account_invoicing_menu"
+            groups="base.group_user"/>
+    </data>
+</odoo>

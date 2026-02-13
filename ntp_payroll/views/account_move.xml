@@ -1,0 +1,15 @@
+<odoo>
+    <data>
+        <record id="ntp_account_amount_view_form_inherit" model="ir.ui.view">
+            <field name="name">account.move.view.form.inherit</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group[@id='other_tab_entry_group']/group[1]" position="inside">
+                       <field name="is_payslip" />
+                       <field name="payslip_run_id" attrs="{'invisible': [('is_payslip', '=', False)]}"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

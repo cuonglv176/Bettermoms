@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_asset_inherit" model="ir.ui.view">
+        <field name="name">account.move.form</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <div name="button_box" position="inside">
+                <button name="%(vn_einvoice.action_invoice_viettel_context)d" 
+                        context="{'leaf_field':'account_move_ids', 'right_leaf':active_id}" type="action" class="oe_stat_button" icon="fa-pencil-square-o">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_value"><field name="invoice_viettel_count" /></span>
+                        <span class="o_stat_text">e-Invoices</span>
+                    </div>
+                </button>
+            </div>
+            <xpath expr="//header" position="inside">
+              <button name="create_vninvoice"
+                  type="object"
+                  class="oe_highlight" string="Tạo EInvoice"
+                  attrs="{'invisible': [('state', '=', 'draft')]}"/>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_id']" position="after">
+              <field name="invoice_address"/>
+              <field name="buyer_vat"/>
+            </xpath>
+
+            <xpath expr="//field[@name='payment_reference']" position="before">
+              <field name="buyerName" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+              <field name="vsi_status" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+              <field name="invoice_viettel_ids" widget="many2many_tags" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+              <field name="paymentType" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+              <field name="invoiceStatus" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+              <field name="company_branch_id" attrs="{'invisible': [('move_type', 'in', ['entry','in_invoice'])]}"/>
+              <field name="company_branch_vat" string="Company branch" attrs="{'invisible': [('move_type', 'not in', ['in_invoice', 'entry'])]}"/>
+              <field name="vsi_template" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+              <field name="vsi_series" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+              <field name="vsi_number" attrs="{'invisible': [('move_type', '=', 'entry')]}"/>
+            </xpath>
+
+        </field>
+    </record>
+    <record id="view_sv_move_line_tree" model="ir.ui.view">
+        <field name="name">account.move.line.tree</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_move_line_tree"/>
+        <field name="arch" type="xml">
+            <field name="statement_id" position="before">
+                <field name="company_branch_id"/>
+            </field>
+        </field>
+    </record>
+
+
+  </odoo>

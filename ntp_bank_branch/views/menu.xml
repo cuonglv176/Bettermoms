@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_open_ntp_bank_branch" model="ir.actions.act_window">
+        <field name="name">Bank Branch</field>
+        <field name="res_model">ntp.bank.branch</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+              Create new
+            </p>
+        </field>
+    </record>
+
+    <menuitem
+        id="ntp_bank_branch_menu"
+        name="Bank Branches"
+        action="action_open_ntp_bank_branch"
+        parent="contacts.menu_config_bank_accounts"
+        sequence="20"/>
+
+</odoo>

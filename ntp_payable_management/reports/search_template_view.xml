@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="search_template_show_interval">
+        <button type="button" class="o-no-caret btn btn-secondary dropdown-toggle" data-toggle="dropdown">
+            <span class="fa fa-binoculars"/>
+            Show In:
+            <t t-set="selected_show_interval" t-value="[opt for opt in options['available_show_intervals'] if opt['id'] == options['show_interval']][0]"/>
+            <t t-esc="selected_show_interval['name']"/>
+        </button>
+        <div class="dropdown-menu o_filter_menu" role="menu">
+            <t t-foreach="options['available_show_intervals']" t-as="show_interval">
+                <a role="menuitem" class="dropdown-item js_account_reports_one_choice_filter" t-att-title="show_interval['name']" t-att-data-id="show_interval['id']" data-filter="show_interval">
+                    <t t-esc="show_interval['name']"/>
+                </a>
+            </t>
+        </div>
+    </template>
+
+    <template id="search_template_cash_flow_report" inherit_id="account_reports.search_template" primary="True">
+        <xpath expr="//div[1]" position="after">
+            <div class="btn-group dropdown o_account_reports_show_interval">
+                <t t-call="ntp_payable_management.search_template_show_interval"/>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="internal_transfer_create_view_form" model="ir.ui.view">
+        <field name="name">internal.transfer.create.view.form</field>
+        <field name="model">internal.transfer.create</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <p class="oe_grey">
+                    Create Internal Transfer
+                </p>
+                <group>
+                    <!-- hidden -->
+                    <field name="currency_id" invisible="1"></field>
+                    <group name="source" string="Source Journal" colspan="2">
+                        <field name="journal_id" readonly="1" string="Journal" />
+                        <field name="statement_id" readonly="1" string="Statement" />
+                        <field name="statement_line_id" readonly="1" string="Transaction Id" />
+                        <field name="amount" readonly="1" string="Amount" />
+                        <field name="payment_ref" readonly="1" string="Payment Ref" />
+                        <field name="date" readonly="1" string="Date" />
+                    </group>
+                    <group name="destination" string="Destination Journal" colspan="2">
+                        <field name="destination_journal_id" string="Journal" domain="[('type', 'in', ['cash', 'bank']), ('id', '!=', journal_id)]" />
+                    </group>
+                    <group string="Create Configutation" colspan="2">
+                        <field name="auto_post_when_create" string="Auto Post" readonly="1"/>
+                    </group>
+                </group>
+
+                <footer>
+                    <button string="Create Internal Transfer" confirm="Are you sure ?" name="button_create_internal_transfer" type="object" class="oe_highlight" />
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+
+        </field>
+    </record>
+
+    <record id="action_view_internal_transfer_create" model="ir.actions.act_window">
+        <field name="name">Create Internal Transfer</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">internal.transfer.create</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <!-- TODO: check if we need this -->
+        <field name="binding_model_id" ref="ntp_payment_remittance.model_account_bank_statement_line" />
+        <field name="binding_view_types">list</field>
+    </record>
+
+</odoo>

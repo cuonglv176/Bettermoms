@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_view_stock_landed_cost_form" model="ir.ui.view">
+        <field name="name">stock.landed.cost.inherit</field>
+        <field name="model">stock.landed.cost</field>
+        <field name="inherit_id" ref="stock_landed_costs.view_stock_landed_cost_form"/>
+        <field name="arch" type="xml">
+           <field name="picking_ids" position="before">
+                   <field name="vendor_bill_id" invisible="1"/>
+           </field>
+            <field name="picking_ids" position="attributes">
+                <attribute name="context">{'vendor_bill_id': vendor_bill_id}</attribute>
+           </field>
+
+        </field>
+    </record>
+
+
+</odoo>

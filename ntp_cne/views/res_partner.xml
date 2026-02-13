@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_tax_invoice_res_partner_form_inherit" model="ir.ui.view">
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+                <div class="oe_button_box" name="button_box" position="inside">
+                    <!-- since res.partner is outside scope of ntp_cne module -->
+                    <!-- using action_tax_invoice_context need ntp_cne prefix -->
+                    <!-- otherwise will get: "ValueError: External ID not found in the system: tax_invoice.action_tax_invoice_context" -->
+                    <!-- type must be 'action' -->
+                    <!--
+                        <button name="%(ntp_cne.action_tax_invoice_context)d" context="{'field':'vendor_id', 'value':active_id, 'default_vendor_id':active_id}" type="action" class="oe_stat_button" icon="fa-pencil-square-o">
+                            <div class="o_field_widget o_stat_info">
+                            <span class="o_stat_value">
+                                <field name="vendor_tax_invoices" string="" widget="statinfo" />
+                            </span>
+                            <span class="o_stat_text">Tax Invoices</span>
+                        </div>
+                    </button>
+                    -->
+                    <!-- since type=action is not working, try to use python code instead -->
+                    <button name="action_open_tax_invoice"
+                            type="object" class="oe_stat_button" icon="fa-pencil-square-o">
+                        <div class="o_field_widget o_stat_info">
+                            <span class="o_stat_value">
+                                <!-- <field name="vendor_tax_invoices" string="" widget="statinfo" /> -->
+                                <field name="vendor_tax_invoices_count" string="" widget="statinfo" nolabel="1"/>
+                            </span>
+                            <span class="o_stat_text">Tax Invoices</span>
+                        </div>
+                    </button>
+                </div>
+
+                <xpath expr="//page[@name='accounting']//group[@name='accounting_entries']" position="after">
+                    <group name="bill_pr_automation" string="Bill/PR Automation From Tax Invoice" attrs="{'invisible': [('company_type', '=', 'person')]}">
+                        <field name="auto_create_invoice_enable" string="Auto Create" />
+                        <field name="auto_create_invoice_type" string="Create Type" attrs="{'invisible': [('auto_create_invoice_enable', '=', False)]}" />
+                        <field name="is_cost_aggregation" />
+                        <field name="aggregate_expense_account" attrs="{'invisible': [('is_cost_aggregation', '=', False)]}"/>
+                        <field name="aggregate_product" attrs="{'invisible': [('is_cost_aggregation', '=', False)]}"/>
+                        <field name="collect_item_code_in_bill_ref" />
+                    </group>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

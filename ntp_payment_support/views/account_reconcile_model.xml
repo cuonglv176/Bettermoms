@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_account_reconcile_model_form_inherit_ntp_payable_management" model="ir.ui.view">
+        <field name="name">account.reconcile.model.view.form.inherit</field>
+        <field name="model">account.reconcile.model</field>
+        <field name="inherit_id" ref="account.view_account_reconcile_model_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='match_text_location_reference']" position="after">
+                <span class="o_form_label" style="width: 2% !important">   </span>
+                <label for="match_text_location_puid" string="PUID"/>
+                <field name="match_text_location_puid"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

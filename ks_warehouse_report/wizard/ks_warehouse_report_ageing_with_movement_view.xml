@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ks_view_warehouse_report_ageing_with_movement_form" model="ir.ui.view">
+        <field name="name">ks.warehouse.report.ageing.with.movement.out.form</field>
+        <field name="model">ks.warehouse.report.ageing.with.movement.out</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false">
+                <group>
+                    <field name="datas" filename="report_name"/>
+                    <field name="report_name"/>
+                </group>
+                <footer>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="ks_view_warehouse_ageing_with_movement_form" model="ir.ui.view">
+        <field name="name">ks.warehouse.report.ageing.with.movement.form</field>
+        <field name="model">ks.warehouse.report.ageing.with.movement</field>
+        <field name="arch" type="xml">
+            <form>
+                <h2>
+                    <field name="ks_name"/>
+                </h2>
+                <group>
+                    <group>
+                        <field name="ks_date_from"/>
+                        <field name="ks_date_to"/>
+                        <field name="ks_duration"/>
+                    </group>
+                    <group>
+                        <!--                    <field name="location_id"/>-->
+                        <!--                    <field name="warehouse_id"/>-->
+                        <field name="ks_company_id"/>
+                    </group>
+                </group>
+                <!--            <group string="Filters">-->
+                <!--                <field name="show_opening"/>-->
+                <!--                <field name="show_closing"/>-->
+                <!--                <field name="show_adjustment"/>-->
+                <!--                <field name="show_scrap_loss"/>-->
+                <!--                <field name="show_internal"/>-->
+                <!--                <field name="show_purchase"/>-->
+                <!--            </group>-->
+                <footer>
+                    <!--                    <button name="ks_action_generate_report" string="Generate Report" type="object" class="btn-primary" />-->
+                    <button name="ks_generate_xlsx_report" string="Generate XLSX" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="ks_action_warehouse_report_ageing_with_movements" model="ir.actions.act_window">
+        <field name="name">Stock Aging With Movement Report</field>
+        <field name="res_model">ks.warehouse.report.ageing.with.movement</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!--Add menu-->
+    <menuitem
+            parent="ks_warehouse_report.ks_menu_warehouse_reporting_main"
+            id="ks_menu_warehouse_report_ageing_with_movements"
+            action="ks_action_warehouse_report_ageing_with_movements"
+            name="Stock Aging With Movement Report"/>
+</odoo>

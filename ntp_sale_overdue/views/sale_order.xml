@@ -1,0 +1,229 @@
+<odoo>
+    <data>
+         <record id="sale_order_form_view_inherit" model="ir.ui.view">
+            <field name="name">sale.order.form.inherit</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale_stock.view_order_form_inherit_sale_stock"/>
+            <field name="arch" type="xml">
+<!--                <xpath expr="//button[@name='action_view_invoice']" position="before">-->
+<!--                    <field-->
+<!--                        name="overdue_payment" widget="overdue_payment" string="Overdue Invoice"-->
+<!--                        class="fa fa-money btn oe_stat_button font-large"-->
+<!--                        icon="fa-money"-->
+<!--                        attrs="{'invisible': [('effective_date', '=', False)]}"-->
+<!--                        groups="base.group_user">-->
+<!--                    </field>-->
+<!--                </xpath>-->
+                <xpath expr="//field[@name='date_order']" position="after">
+                    <field name="target_payment_date" string="Target Payment Date" attrs="{'invisible': [('effective_date', '=', False)], 'readonly':[('payment_percent', '>=', 100)]}"/>
+                </xpath>
+                <xpath expr="//field[@name='payment_term_id']" position="after">
+                    <field name="number_payment" string="Number Payment"/>
+                </xpath>
+
+                <xpath expr="//page[@name='customer_signature']" position="after">
+                        <page string="Payment Status">
+                            <group string="Payment Status">
+                             <group>
+                                   <field name="ignore_order" attrs="{'invisible': [('ignore_order', '=', False)]}"/>
+                                   <field name="payment_percent" string="Payment %"/>
+                                  <label for="remained_amount"/>
+                                   <div>
+                                     <field name="remained_amount" string="Amount Due"/>
+                                     <button string="Ignore Manual" name="ignore_manual" type="object" class="btn btn-link pt-0"
+                                     attrs="{'invisible': [('ignore_order', '=', True)]}"/>
+                                   </div>
+                                   <field name="avg_payment_days" string="Avg Payment Days"/>
+                                   <field name="overdue_status" string="Overdue Status"/>
+                                   <field name="due_date" attrs="{'invisible': [('effective_date', '=', False)]}"/>
+                                   <field name="compute_due_date" invisible="1"/>
+                                   <field name="expected_payments_days" attrs="{'invisible': [('effective_date', '=', False)]}"/>
+                                   <field name="number_of_changing_target_payment_date" readonly="1" force_save="1"/>
+                            </group>
+                                <group>
+                                    <field name="target_payment_date" string="Target Payment Date" attrs="{'invisible': [('effective_date', '=', False)]}"/>
+                                    <field name="scheduled_date" attrs="{'invisible': [('scheduled_date', '=', False)]}"/>
+                                    <field name="invoice_date" attrs="{'invisible': [('invoice_date', '=', False)]}"/>
+                                     <field name="paid_amount"/>
+                                     <field name="indue_paid_amount"/>
+                                     <field name="late_amount_due"/>
+                                     <field name="remaining_payment_days"/>
+                                     <field name="ignore_manual_reason" readonly="1"/>
+                                </group>
+                            </group>
+                            <group>
+                                <field name="payment_status_ids" readonly="1" nolabel="1">
+                                    <tree decoration-success="today==True" >
+                                        <field name="today" invisible="1"/>
+                                        <field name="date"/>
+                                        <field name="amount_due"/>
+                                        <field name="paid_amount"/>
+                                        <field name="amount_due_balance"/>
+                                        <field name="late_due"/>
+                                    </tree>
+                                </field>
+                            </group>
+                            <div>
+                                <field name="bokeh_chart" widget="bokeh_chart" nolabel="1" attrs="{'invisible': [('effective_date', '=', False)]}"/>
+                            </div>
+                        </page>
+                </xpath>
+
+            </field>
+        </record>
+
+        <record id="sale_order_tree_view_inherit" model="ir.ui.view">
+            <field name="name">sale.order.form.inherit</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_tree"/>
+            <field name="arch" type="xml">
+                <field name="amount_total" position="after">
+                    <field name="avg_payment_days" string="Avg Payment Days"/>
+                    <field name="overdue_status" />
+                    <field name="remained_amount"/>
+                    <field name="number_payment"/>
+                </field>
+            </field>
+        </record>
+
+        <record id="sale_order_filter_view_inherit" model="ir.ui.view">
+            <field name="name">sale.order.form.inherit</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+            <field name="arch" type="xml">
+                <filter name="my_sale_orders_filter" position="after">
+                    <filter string="Late Amount due is not zero" domain="[('late_amount_due', '>', 0)]" name="late_amount_due_filter"/>
+                </filter>
+            </field>
+        </record>
+
+        <record id="payment_management_tree_view" model="ir.ui.view">
+            <field name="name">Payment Management Tree</field>
+            <field name="model">sale.order</field>
+            <field name="arch" type="xml">
+                <tree js_class="sale_tree_dashboard_header" multi_edit="1" duplicate="false"
+                      default_order="late_amount_due desc, overdue_days desc, remaining_payment_days asc"
+                      decoration-danger="current_date &gt;= target_payment_date">
+                    <field name="partner_id" readonly="1" string="Partner"/>
+<!--                    <field name="partner_invoice_id" readonly="1"/>-->
+                    <field name="user_id" widget="many2one_avatar_user"/>
+                    <field name="name" string="Order #" readonly="1" decoration-bf="1"/>
+                    <field name="date_order" readonly="1" decoration-bf="1"/>
+                     <field name="amount_total" sum="Total Tax Included" widget="monetary" decoration-bf="1" optional="hide"/>
+                     <field name="remained_amount" sum="Total Tax Included"/>
+                    <field name="due_date" />
+                    <field name="compute_due_date" invisible="1"/>
+                    <field name="late_amount_due" sum="Not Paid Amount Over-Due" widget="monetary" decoration-bf="1"/>
+                    <field name="overdue_days" />
+                    <field name="remaining_payment_days"/>
+                     <field name="amount_due_percent" optional="hide" />
+                    <field name="effective_date" optional="hide" />
+                    <field name="payment_term_days" avg="Avg Payment Terms Days" optional="hide" />
+                    <field name="number_of_changing_target_payment_date" avg="number of Charging Target Payment Date"  readonly="1" force_save="1" optional="hide" />
+                     <field name="target_payment_date" optional="hide"/>
+                    <field name="overdue_status" optional="hide" />
+                    <field name="number_payment" avg="Number of Payments" optional="hide" />
+                    <field name="avg_payment_days" avg="Avg Payment Days" optional="hide" />
+                    <field name="financing_status" optional="hide" />
+                    <field name="paid_amount" optional="hide"/>
+                    <field name="indue_paid_amount" optional="hide"/>
+                    <field name="overdue_paid_amount" optional="hide"/>
+                </tree>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="view_payment_management_order_pivot">
+            <field name="name">sale.order.pivot</field>
+            <field name="model">sale.order</field>
+            <field name="arch" type="xml">
+                <pivot string="Sales Orders" sample="1">
+                    <field name="due_date" type="row"/>
+                    <field name="late_amount_due" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="view_payment_management_order_graph">
+            <field name="name">sale.order.graph</field>
+            <field name="model">sale.order</field>
+            <field name="arch" type="xml">
+                <graph string="Sales Orders" sample="1">
+                    <field name="partner_id"/>
+                    <field name="late_amount_due" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <record id="action_payment_management" model="ir.actions.act_window">
+            <field name="name">Payment Collection</field>
+            <field name="res_model">sale.order</field>
+            <field name="view_mode">tree,form,pivot,graph</field>
+            <field name="context">{'search_default_late_amount_due_filter': 1}</field>
+            <field name="domain">[('state', 'in', ('sale', 'done')), ('effective_date', '!=', False)]</field>
+            <field name="view_id" ref="payment_management_tree_view"/>
+        </record>
+        <record id="action_payment_management_tree" model="ir.actions.act_window.view">
+            <field name="sequence" eval="1"/>
+            <field name="view_mode">tree</field>
+            <field name="view_id" ref="ntp_sale_overdue.payment_management_tree_view"/>
+            <field name="act_window_id" ref="ntp_sale_overdue.action_payment_management"/>
+        </record>
+        <record id="action_payment_management_pivot" model="ir.actions.act_window.view">
+            <field name="sequence" eval="2"/>
+            <field name="view_mode">pivot</field>
+            <field name="view_id" ref="ntp_sale_overdue.view_payment_management_order_pivot"/>
+            <field name="act_window_id" ref="ntp_sale_overdue.action_payment_management"/>
+        </record>
+        <record id="action_payment_management_graph" model="ir.actions.act_window.view">
+            <field name="sequence" eval="3"/>
+            <field name="view_mode">graph</field>
+            <field name="view_id" ref="ntp_sale_overdue.view_payment_management_order_graph"/>
+            <field name="act_window_id" ref="ntp_sale_overdue.action_payment_management"/>
+        </record>
+         <menuitem id="payment_management_menu"
+                  name="Payment Collection"
+                  action="action_payment_management"
+                  parent="sale.sale_order_menu"
+                  sequence="2"/>
+
+        <record model="ir.ui.view" id="ignore_manual_tree_view">
+            <field name="name">ignore.manual.tree</field>
+            <field name="model">ignore.manual</field>
+            <field name="arch" type="xml">
+                <tree editable="top">
+                    <field name="ignore_reason"/>
+                </tree>
+            </field>
+        </record>
+
+
+        <record model="ir.actions.act_window" id="action_ignore_manual">
+            <field name="name">Ignore Manual Reason</field>
+            <field name="res_model">ignore.manual</field>
+            <field name="view_mode">tree</field>
+        </record>
+
+        <menuitem name="Ignore Manual"
+                  id="menu_ignore_manual"
+                  action="action_ignore_manual"
+                  parent="sale.menu_sales_config"/>
+
+        <record model="ir.ui.view" id="ignore_maunal_wizard_form">
+            <field name="name">ignore.manual.wizard.form</field>
+            <field name="model">ignore.manual.wizard</field>
+            <field name="arch" type="xml">
+                <form>
+                    <group>
+                        <field name="ignore_manual" string="Reason"/>
+                    </group>
+                    <footer>
+                        <button string="Confirm" class="btn btn-primary" name="confirm" type="object"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+
+                    </footer>
+                </form>
+
+            </field>
+        </record>
+    </data>
+</odoo>

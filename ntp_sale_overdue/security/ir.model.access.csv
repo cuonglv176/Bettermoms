@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+interest_rate_user,interest_rate_user,model_interest_rate,base.group_user,1,1,1,1
+ignore_manual,Ignore Manual,model_ignore_manual,base.group_user,1,1,1,1
+ignore_manual_wizard, Ignore Manual Wizard,model_ignore_manual_wizard,base.group_user,1,1,1,1
+sale_payment_status,sale.payment.status,model_sale_payment_status,base.group_user,1,1,1,1

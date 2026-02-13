@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_sale_order_form_inherit_address_lookup" model="ir.ui.view">
+            <field name="name">sale.order.form.inherit.address.lookup</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='partner_shipping_id']" position="after">
+                    <button name="button_verify_shipping_address" type="object"
+                            string="Verify Shipping Address" icon="fa-map-marker"
+                            class="btn btn-link pt-0 pb-0"
+                            attrs="{'invisible': [('partner_shipping_id', '=', False)]}" />
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

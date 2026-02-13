@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- <record id="inherit_view_view_account_payment_tree" model="ir.ui.view">
+        <field name="name">account.payment.view.tree.inherit</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_tree"/>
+        <field name="arch" type="xml">
+            <field name="state" position="before">
+                <field name="bank_sms_transaction_id" readonly="1" />
+            </field>
+        </field>
+    </record>
+
+    <record id="inherit_view_view_account_payment_form" model="ir.ui.view">
+        <field name="name">account.payment.view.form.inherit</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <field name="ref" position="after">
+                <field name="bank_sms_transaction_id" readonly="1" />
+            </field>
+        </field>
+    </record> -->
+</odoo>

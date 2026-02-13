@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- TODO: improve form view when create template here -->
+    <record id="ntp_einvoice_template_view_form" model="ir.ui.view">
+        <field name="name">ntp.einvoice.template.view.form</field>
+        <field name="model">ntp.einvoice.template</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <header>
+                    <button string="Sync Invoices" name="button_sync" class="oe_highlight" type="object" attrs="{'invisible': [('is_active', '=', False)]}" />
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name" />
+                        <field name="code" />
+                        <field name="provider" />
+                        <field name="api_domain" />
+                        <field name="api_username" />
+                        <field name="api_password" />
+                        <field name="tax_code" />
+                        <field name="invoice_type" />
+                        <field name="invoice_template" />
+                        <field name="invoice_template_type" />
+                        <field name="invoice_series" />
+                        <field name="is_default" />
+                        <field name="is_active" />
+                        <field name="last_synced" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="ntp_einvoice_template_view_tree" model="ir.ui.view">
+        <field name="name">ntp.einvoice.template.view.tree</field>
+        <field name="model">ntp.einvoice.template</field>
+        <field name="arch" type="xml">
+            <tree string="">
+                <field name="name" />
+                <field name="code" optional="hide" />
+                <field name="provider" />
+                <field name="api_domain" optional="hide" />
+                <field name="api_username" optional="hide" />
+                <field name="api_password" optional="hide" />
+                <field name="tax_code" />
+                <field name="invoice_type" optional="hide" />
+                <field name="invoice_template" />
+                <field name="invoice_template_type" />
+                <field name="invoice_series" />
+                <field name="is_default" />
+                <field name="is_active" />
+                <field name="last_synced" />
+            </tree>
+        </field>
+    </record>
+
+</odoo>

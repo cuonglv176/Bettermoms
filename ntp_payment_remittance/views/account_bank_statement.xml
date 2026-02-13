@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="account_bank_statement_form_inherit_ntp_pr" model="ir.ui.view">
+        <field name="name">account.bank.statement.form.inherit.ntp.pr</field>
+        <field name="model">account.bank.statement</field>
+        <field name="inherit_id" ref="account.view_bank_statement_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'in', ('confirm'))]}</attribute>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button string="Reorder Statements" name="button_smart_reorder" type="object" class="oe_highlight"
+                        attrs="{'invisible': [('state', '=', 'confirm')]}"
+                        confirm="Are you sure ? It will recreate all GAP lines, and remove all lines without balance information, then reorder statements + filling GAP info" />
+                <button string="(Soft) Reset To New" name="button_soft_reopen"
+                        type="object"
+                        attrs="{'invisible': ['|', ('state', '!=', 'posted'), ('is_show_button_soft_reset', '=', False)]}"
+                        confirm="This will change bank/cash statement to New but Reconciled Bank/Cash Transactions will NOT be UN-RECONCILE. Make sure DONT'T delete them"
+                        />
+                <button name="%(action_view_import_bank_statement_lines)d"
+                        string="Import Bank Transactions"
+                        type="action"
+                        attrs="{'invisible': ['|', ('state', '=', 'confirm'), ('is_show_button_import_line', '=', False)]}" />
+                <field name="is_show_button_soft_reset" invisible="1" />
+                <field name="is_show_button_import_line" invisible="1" />
+            </xpath>
+            <xpath expr="//field[@name='line_ids']/tree/field[@name='amount']" position="after">
+                <field name="balance" optional="hide" attrs="{'readonly': [('parent.state', '!=', 'open')]}" />
+            </xpath>
+
+            <xpath expr="//field[@name='line_ids']/tree/button[@name='button_undo_reconciliation']" position="after">
+                <field name="may_be_internal_transfer" invisible="1" />
+                <button string="Internal Transfer"
+                        name="button_call_interal_transfer" type="object"
+                        attrs="{'invisible': ['|', ('may_be_internal_transfer', '=', False), ('is_reconciled', '=', True)], 'column_invisible': [('parent.state', '!=', 'posted')]}"
+                        icon="fa-exchange"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="account_bank_statement_line_view_form_inherit_ntp_pr" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.view.form</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="inherit_id" ref="account.view_bank_statement_line_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet" position="before">
+                <header>
+                    <button string="Create Internal Transfer"
+                            name="button_call_interal_transfer" type="object" class="oe_highlight"
+                            attrs="{'invisible': ['|', ('may_be_internal_transfer', '=', False), ('is_reconciled', '=', True)]}"/>
+                    <button string="Reset Internal Transfer State"
+                            name="button_reset_internal_transfer_state" type="object" class="oe_highlight"
+                            attrs="{'invisible': ['|', ('internal_transfer_created', '=', False), ('is_reconciled', '=', True)]}"/>
+                    <button string="Skip Internal Transfer"
+                            name="button_skip_internal_transfer" type="object"
+                            attrs="{'invisible': ['|', ('internal_transfer_created', '=', True), ('is_reconciled', '=', True)]}"/>
+                </header>
+            </xpath>
+            <xpath expr="//field[@name='move_id']" position="after">
+                <field name="is_reconciled" invisible="1"/>
+                <field name="internal_transfer_created" readonly="1" />
+                <field name="may_be_internal_transfer" invisible="1" />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+   <data>
+        <record id="view_tas_netoff_account_account_form" model="ir.ui.view">
+            <field name="name">account.account.form</field>
+            <field name="model">account.account</field>
+            <field name="inherit_id" ref="account.view_account_form"/>
+            <field name="arch" type="xml">
+                <field name="allowed_journal_ids" position="after">
+                   <field name="bisexual_account" />
+                   <field name="contra_account" />
+                   <field name="compute_base_on" />
+                </field>
+            </field>
+        </record>
+    </data>
+</odoo>

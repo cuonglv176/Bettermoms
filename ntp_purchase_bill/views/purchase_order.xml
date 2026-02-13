@@ -1,0 +1,65 @@
+<odoo>
+    <data>
+        <record id="view_purchase_order_form" model="ir.ui.view">
+            <field name="name">purchase.order.inherit</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook[last()]" position="inside">
+                  <field name="create_vat_bill" invisible="1"/>
+                  <field name="vat_data" invisible="1"/>
+
+                    <page string="Tax Code for Imported goods" name="tax_summary" attrs="{'invisible': [('vat_data', '=', False)]}">
+                      <group>
+                          <button name="create_vendor_bill_tax" type="object" string="Create Tax Invoice"
+                          attrs="{'invisible': [('create_vat_bill', '=', False)]}"/>
+                      </group>
+                      <group>
+
+                          <field name="tax_summary" widget="html" readonly="1" nolabel="1"/>
+
+                      </group>
+
+                    </page>
+                    <page string="Landed Cost" name="landed_cost">
+                        <notebook>
+                            <page string="Bill Landed Cost" name="bill_landed_cost">
+                                <field name="purchase_landed_ids">
+                                    <tree>
+                                        <field name="bill_id"/>
+                                        <field name="total" sum="Total"/>
+                                        <field name="landed_costs_ids" invisible="1" />
+                                        <field name="had_landed_costs" invisible="1"/>
+                                        <button name="create_landed_cost" type="object" icon="fa-money"
+                                        attrs="{'invisible': [('had_landed_costs', '!=', False)]}"/>
+
+                                        <button name="action_view_landed_costs" type="object" icon="fa-eye"
+                                        attrs="{'invisible': [('had_landed_costs', '=', False)]}"/>
+                                    </tree>
+                                </field>
+
+                            </page>
+                            <page string="Valuation Landed Cost" name="valuation_landed_cost">
+                                <field name="purchase_landed_valuation_ids">
+                                    <tree>
+                                        <field name="product_id"/>
+                                        <field name="qty" />
+                                        <field name="unit_cost" sum="Total Unit Cost"/>
+                                        <field name="original_value" sum="Original Value"/>
+                                        <field name="additional_unit_price" sum="Total additional"/>
+                                        <field name="additional_value" sum="Total"/>
+                                        <field name="new_cost" sum="Total Cost"/>
+                                        <field name="new_value" sum="Total Value"/>
+
+                                    </tree>
+                                </field>
+
+                            </page>
+                        </notebook>
+                    </page>
+                </xpath>
+            </field>
+
+        </record>
+    </data>
+</odoo>

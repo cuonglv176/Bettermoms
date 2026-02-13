@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+
+<!--    <record model="ir.ui.view" id="view_invoice_supplier_currency_rate">-->
+<!--        <field name="name">invoice.supplier.currency.rate</field>-->
+<!--        <field name="model">account.move</field>-->
+<!--        <field name="inherit_id" ref="account.view_move_form"/>-->
+<!--        <field name="arch" type="xml">-->
+
+<!--            <xpath expr="//field[@name='invoice_date']" position="after">-->
+
+<!--                &lt;!&ndash;                <field name="company_currency_id" readonly="1"/>&ndash;&gt;-->
+<!--                &lt;!&ndash;                <field name="currency_flag" invisible="1"/>&ndash;&gt;-->
+<!--                <field name="is_apply_manual"/>-->
+<!--&lt;!&ndash;                <field name="bill_currency_id" attrs="{'invisible': [('is_apply_manual', '=', False)]}"/>&ndash;&gt;-->
+<!--                <field name="exchange_rate" attrs="{'invisible': [('is_apply_manual', '=', False)]}"/>-->
+<!--            </xpath>-->
+
+
+<!--        </field>-->
+<!--    </record>-->
+
+
+</odoo>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- res.partner -->
+
+    <record id="so_to_sliced_invoices_default_view_form" model="ir.ui.view">
+        <field name="name">so.to.sliced.invoices.default.view.form</field>
+        <field name="model">so.to.sliced.invoices.default</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <group string="Member Info">
+                        <field name="partner_id" />
+                        <field name="company_group_code" />
+                        <field name="member_id" required="1" />
+                        <field name="tax_code" />
+                    </group>
+                    <group string="Quota Info">
+                        <field name="quota_to_invoice" />
+                        <field name="quota_unit" widget="radio" />
+                        <field name="max_total_amount_per_invoice" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="so_to_sliced_invoices_default_view_tree" model="ir.ui.view">
+        <field name="name">so.to.sliced.invoices.default.view.tree</field>
+        <field name="model">so.to.sliced.invoices.default</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="partner_id" readonly="1" />
+                <field name="company_group_code" />
+                <field name="member_id" />
+                <field name="tax_code" />
+                <field name="quota_to_invoice" />
+                <field name="quota_unit" widget="radio" />
+                <field name="max_total_amount_per_invoice" />
+            </tree>
+        </field>
+    </record>
+
+    <!-- sale.order  -->
+
+    <record id="so_to_sliced_invoices_view_form" model="ir.ui.view">
+        <field name="name">so.to.sliced.invoices.view.form</field>
+        <field name="model">so.to.sliced.invoices</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <group string="Member Info">
+                        <field name="sale_order_id" readonly="1" />
+                        <field name="partner_id" readonly="1" />
+                        <field name="company_group_code" />
+                        <field name="member_id" />
+                        <field name="tax_code" />
+                    </group>
+                    <group string="Quota Info">
+                        <field name="quota_to_invoice" />
+                        <field name="quota_unit" widget="radio" />
+                        <field name="max_total_amount_per_invoice" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="so_to_sliced_invoices_view_tree" model="ir.ui.view">
+        <field name="name">so.to.sliced.invoices.view.tree</field>
+        <field name="model">so.to.sliced.invoices</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="partner_id" />
+                <field name="company_group_code" />
+                <field name="member_id" />
+                <field name="tax_code" />
+                <field name="quota_to_invoice" />
+                <field name="quota_unit" widget="radio" />
+                <field name="max_total_amount_per_invoice" />
+            </tree>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,4 @@
+span button[name="button_notify_to_create_invoice"] {
+    border: none;
+    background: none !important;
+}

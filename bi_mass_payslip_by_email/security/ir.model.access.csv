@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_send_multiple_mail,access.send.multiple.mail,bi_mass_payslip_by_email.model_send_multiple_mail,,1,1,1,1
+

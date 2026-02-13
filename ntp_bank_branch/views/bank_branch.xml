@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_bank_branch_view_form" model="ir.ui.view">
+        <field name="name">ntp.bank.branch.view.form</field>
+        <field name="model">ntp.bank.branch</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <field name="active" invisible="1" />
+                    <widget name="web_ribbon" title="Archived" bg_color="bg-danger" attrs="{'invisible': [('active', '=', True)]}"/>
+                    <group>
+                        <field name="bank_id" />
+                        <field name="citad_code" />
+                        <field name="region_name" />
+                        <field name="citad_bank_branch" />
+                        <field name="detail_info" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="ntp_bank_branch_view_tree" model="ir.ui.view">
+        <field name="name">ntp.bank.branch.view.tree</field>
+        <field name="model">ntp.bank.branch</field>
+        <field name="arch" type="xml">
+            <tree string="">
+                <field name="bank_id" />
+                <field name="citad_code" />
+                <field name="region_name" />
+                <field name="citad_bank_branch" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="ntp_bank_branch_view_search" model="ir.ui.view">
+        <field name="name">ntp.bank.branch.view.search</field>
+        <field name="model">ntp.bank.branch</field>
+        <field name="arch" type="xml">
+            <search string="Search Bank Branch">
+                <field name="citad_bank_branch" string="Branch" filter_domain="['|', '|', ('citad_code', 'ilike', self), ('detail_info', 'ilike', self), ('citad_bank_branch', 'ilike', self)]" />
+                <separator />
+                <filter string="Archived" name="inactive" domain="[('active','=',False)]"/>
+                <separator />
+                <group expand="0" string="Group By">
+                    <filter string="Bank" name="filter_vendor" domain="[]" context="{'group_by':'bank_id'}"/>
+                    <filter string="Region" name="filter_state" domain="" context="{'group_by':'region_name'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_sv_res_partner_form_inherit" model="ir.ui.view">
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+                <field name="vat" position="after">
+                    <button string="Invoice Address" icon="fa-search" name="button_find_mst" type="object"
+                            class="oe_highlight" attrs="{'invisible': ['|', ('parent_id', '!=', False), ('vat', '=', False), ('company_type', '=', 'individual')]}" />
+                </field>
+                <xpath expr="//span[@name='address_name']" position="before">
+                    <field name="legal_name" />
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_sv_res_partner_tree_inherit" model="ir.ui.view">
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_tree" />
+            <field name="arch" type="xml">
+                <field name="display_name" position="before">
+                    <field name="legal_name" optional="show" />
+                </field>
+            </field>
+        </record>
+
+    </data>
+</odoo>

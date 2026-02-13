@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_partner_customer_group" model="ir.ui.view">
+            <field name="model">res.partner</field>
+            <field name="name">view.partner.customer.group.form</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='vat']" position="after">
+                    <field name="company_group" invisible="1"/>
+                    <field name="parent_group_type" invisible="1"/>
+                    <field name="group_type" attrs="{'invisible': [('company_type', '!=', 'group')]}"
+                           widget="radio" options="{'horizontal': true}"/>
+
+                    <field name="head_id" attrs="{'invisible': [('group_type', 'in', ('head', False))]}" domain="[('company_group', '=', True), ('group_type', '=', 'head')]"/>
+                    <field name="head_code" invisible="1"/>
+                    <field name="company_group_code" attrs="{'readonly': [('group_type', '!=', 'head')]}"/>
+                    <field name="short_name_id"/>
+                    <field name="short_name" invisible="1"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_partner_customer_group_tree" model="ir.ui.view">
+            <field name="model">res.partner</field>
+            <field name="name">view.partner.customer.group.tree</field>
+            <field name="inherit_id" ref="base.view_partner_tree" />
+            <field name="arch" type="xml">
+                <xpath expr="//tree"  position="inside">
+                    <header>
+                      <button string="Create Short Name" name="create_short_name" type="object"/>
+                    </header>
+                </xpath>
+                <xpath expr="//field[@name='display_name']"  position="after">
+                    <field name="group_type" optional="show" />
+                    <field name="company_group_code" optional="show" />
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

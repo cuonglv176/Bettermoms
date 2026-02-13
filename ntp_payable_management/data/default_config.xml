@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data noupdate="1">
+
+        <record id="payment_plan_by" model="ir.config_parameter">
+            <field name="key">ntp_payable_management.payment_plan_by</field>
+            <field name="value">week</field>
+        </record>
+        <record id="payment_plan_pay_date_of_week" model="ir.config_parameter">
+            <field name="key">ntp_payable_management.payment_plan_pay_date_of_week</field>
+            <field name="value">4</field>
+        </record>
+        <record id="payment_plan_pay_date_of_month" model="ir.config_parameter">
+            <field name="key">ntp_payable_management.payment_plan_pay_date_of_month</field>
+            <field name="value">20</field>
+        </record>
+    </data>
+
+</odoo>

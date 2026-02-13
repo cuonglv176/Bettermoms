@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_einvoice_create_view_form" model="ir.ui.view">
+        <field name="name">ntp.einvoice.create.view.form</field>
+        <field name="model">ntp.einvoice.create</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <group>
+                        <field name="company_id" invisible="1" />
+                        <field name="account_move_id" readonly="1" />
+                        <field name="einvoice_template_id" domain="[('is_active', '=', True), ('company_id', '=', company_id)]" />
+                        <field name="invoice_template" />
+                        <field name="invoice_template_type" />
+                        <field name="invoice_series" />
+                    </group>
+                    <footer>
+                        <button string="Create EInvoice" name="button_create_einvoice" type="object" class="oe_highlight"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel" />
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

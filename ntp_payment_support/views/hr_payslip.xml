@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_generate_transfer_content" model="ir.actions.server">
+        <field name="name">Generate Transfer Content</field>
+        <field name="type">ir.actions.server</field>
+        <field name="state">code</field>
+        <field name="model_id" ref="hr_payroll.model_hr_payslip"/>
+        <field name="binding_model_id" ref="hr_payroll.model_hr_payslip"/>
+        <field name="binding_view_types">form,list</field>
+        <field name="code">
+            action = records.action_generate_transfer_content()
+        </field>
+        <field name="sequence">200</field>
+    </record>
+
+
+    <record id="action_download_transfer_for_payslip" model="ir.actions.server">
+        <field name="name">Download Transfer For Payslip</field>
+        <field name="type">ir.actions.server</field>
+        <field name="state">code</field>
+        <field name="model_id" ref="hr_payroll.model_hr_payslip"/>
+        <field name="binding_model_id" ref="hr_payroll.model_hr_payslip"/>
+        <field name="binding_view_types">list</field>
+        <field name="code">
+            action = records.action_download_transfer_for_payslip()
+        </field>
+        <field name="sequence">201</field>
+    </record>
+
+    <record id="view_hr_payslip_form_inherit_hr_payroll" model="ir.ui.view">
+        <field name="name">hr.payslip.view.form.inherit</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='move_id']" position="after">
+                <field name="transfer_content" attrs="{'readonly': [('state', 'in', ['paid', 'cancel'])]}" />
+                <!-- <field name="puid" attrs="{'invisible': [('state', '=', 'draft')]}" /> -->
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_hr_payslip_tree_inherit_hr_payroll" model="ir.ui.view">
+        <field name="name">hr.payslip.view.tree.inherit</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="before">
+                <field name="transfer_content" attrs="{'readonly': [('state', 'in', ['paid', 'cancel'])]}" optional="hide" />
+                <!-- <field name="puid" optional="hide" /> -->
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

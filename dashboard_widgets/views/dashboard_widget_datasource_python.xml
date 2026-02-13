@@ -1,0 +1,133 @@
+<odoo>
+    <record id="view_is_dashboard_form_python" model="ir.ui.view">
+        <field name="name">view_is_dashboard_form_python</field>
+        <field name="model">is.dashboard.widget</field>
+        <field name="inherit_id" ref="view_is_dashboard_form_count"/>
+        <field name="arch" type="xml">
+            <page name="query_1" position="after">
+                <page name="query_1_python" string="Python" attrs="{'invisible': [('datasource', '!=', 'python')]}">
+                    <group>
+                        <field name="query_1_config_python" attrs="{'invisible': [('datasource', '!=', 'python')]}" nolabel="1" widget="ace" options="{'mode': 'python'}" />
+                        <div colspan="2" class="alert alert-info" role="alert" attrs="{'invisible': [('datasource', '!=', 'python')]}">
+                            <p>
+                                <strong>Locals:</strong> Use the following variables to retrieve data required to update the dashboard item
+                                <ul>
+                                    <li>dashboard</li>
+                                    <li>model</li>
+                                    <li>date_range_start</li>
+                                    <li>date_range_end</li>
+                                    <br/>
+                                    <li>dom1 (Does not include any additional conditional domains)</li>
+                                    <li>dom2 (Does not include any additional conditional domains)</li>
+                                    <br/>
+                                    <li>env</li>
+                                    <li>datetime</li>
+                                    <li>dateutil</li>
+                                    <li>format_date(date, format_string)</li>
+                                    <br />
+                                    <li>DEFAULT_SERVER_DATE_FORMAT</li>
+                                    <li>DEFAULT_SERVER_DATETIME_FORMAT</li>
+                                    <br />
+                                    <li>
+                                        dom = get_query_domain_1()  # Domain for query 1 including any additional conditional domains<br />
+                                        dom = get_query_domain_2()  # Domain for query 1 including any additional conditional domains
+                                    </li>
+                                    <br />
+                                    <li>
+                                        goal_value = get_custom_goal_1(target_value, custom_data_separator=':', user_id=None)<br/>
+                                        goal_value = get_custom_goal_2(target_value, custom_data_separator=':', user_id=None)<br/>
+                                        <p>
+                                            <strong>Returns: </strong>goal value
+                                        </p>
+                                        <p>
+                                            <strong>target_value: </strong>
+                                            Goal custom filter data value that is looked for. Value is split by custom_data_separator and the first match is returned
+                                        </p>
+                                        <p>
+                                            <strong>custom_data_separator: </strong>
+                                            Optionally split the Custom Filter Data value in the goal by this value and match on the first part of the split.
+                                            eg. allows a filter value to be "123: Main warehouse" where main warehouse is a comment and 123 is what the match is done with a separator value of ':'
+                                        </p>
+                                        <p>
+                                            <strong>default: </strong>
+                                            Value to return when there is no match
+                                        </p>
+                                        <p>
+                                            <strong>user_id: </strong>
+                                            Optionally filter goals for a specific user
+                                        </p>
+                                    </li>
+                                    <br />
+                                    <li>
+                                        start, end, is_datetime = get_date_range(model, field, range_type, date_range_x=0)<br/>
+                                        start, end, is_datetime = get_date_range_query_1()<br/>
+                                        start, end, is_datetime = get_date_range_query_2()
+                                        <p>
+                                            <strong>Returns: </strong>start, end, is_datetime
+                                        </p>
+                                        <p>
+                                            <strong>date_range_x: </strong>
+                                            Last 'x' days, months, years, etc
+                                        </p>
+                                        <p>
+                                            <strong>Range Type: </strong>
+                                            <field name="help_date_range_types_display"/>
+                                        </p>
+
+                                    </li>
+                                    <br />
+                                    <li>
+                                        current_goal_line, next_goal_line, current_goal_value = dashboard.get_1_goal_for_date(start_date, end_date, lambda_filter_data={'user_id': 4}, lambda_filter=lambda g, d: g.custom_filter_data == d['user_id'])
+                                        <p>
+                                            <strong>Returns: </strong>start, end, is_datetime
+                                        </p>
+                                    </li>
+                                </ul>
+                            </p>
+                            <p>
+                                <strong>Return:</strong> Write to the following variables to update the dashboard item
+                                <ul>
+                                    <li>count (For KPI cards)</li>
+                                    <li>goal_count (For KPI cards)</li>
+                                    <li>total (For KPI cards)</li>
+                                    <li>table (For query tables)</li>
+                                    <li>table (For record lists)</li>
+                                </ul>
+                            </p>
+                            <p>
+                                <strong>Python Table Example</strong><br/>
+                                <pre>
+table = {
+    'headers': [
+        {'name': 'Name', 'column_class': 'bold'},
+        {'name': 'Amount', },
+        {'name': 'Comments', 'class': 'my_css_class'},
+    ],
+    'rows': [
+        {'cells': [{'value': 'John'}, {'value': 1.6123, 'display_value': '$1.61'}, {'value': 'Comment 1', 'action': {'domain': []}}]},
+        {'cells': [{'value': 'Sam'}, {'display_value': '$3.50', 'class': 'bold'}, {'value': 'Comment 2'}]},
+        {'cells': [{'value': 'Sarah'}, {'value': 9.1}, {'value': False}]},
+    ],
+}
+                                </pre>
+                            </p>
+                            <p>
+                                <strong>Record List Example</strong><br/>
+                                <pre>
+records = env['res.partner'].search([], limit=10)
+
+
+# Optional to allow customising the data displayed for each column of the record list
+additional_data = {}  # Additional data to be used if overriding get column value function
+record_list_get_column_value_func = lambda record, field_name, column_rec, additional_data: 'Customer: {}'.format(record['name']) if field_name == 'name' else False
+# Note: Record is the record for each line, field_name is the string of the field name being rendered, column_rec is the record int he columns list configured for this dashboard. additional_data is for any additional data needed for rendering. Return None for default
+                                </pre>
+                            </p>
+                        </div>
+                    </group>
+                </page>
+            </page>
+        </field>
+    </record>
+
+</odoo>

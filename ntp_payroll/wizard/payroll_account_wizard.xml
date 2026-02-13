@@ -1,0 +1,21 @@
+<odoo>
+    <data>
+        <record id="payroll_account_wizard_form_view" model="ir.ui.view">
+            <field name="name">payroll_account_wizard_form_view</field>
+            <field name="model">payroll.account.wizard</field>
+            <field name="arch" type="xml">
+                <form>
+                    <group>
+                        <field name="date"/>
+                        <field name="journal_id" domain="[('type', '=', 'bank')]"/>
+                    </group>
+                    <footer>
+                        <button string="Create" name="create_payment_bill" type="object" class="btn-primary" data-hotkey="v"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+    </data>
+</odoo>

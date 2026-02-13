@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record model="ir.ui.view" id="view_revenue_recognize_form">
+    <field name="name">revenue.recognize.form</field>
+    <field name="model">revenue.recognize</field>
+    <field name="arch" type="xml">
+      <form string="Revenue Recognize">
+        <header>
+          <button name="action_post" string="Post" class="oe_highlight" type="object" attrs="{'invisible': [('state', '=', 'done')]}"/>
+          <field name="state" widget="statusbar"/>
+        </header>
+        <sheet>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="idItem"/>
+              <field name="idSO"/>
+              <field name="idSubItem"/>
+              <field name="sale_order_id"/>
+              <field name="sale_order_line_id"/>
+              <field name="account_move_id"/>
+            </group>
+            <group>
+              <field name="product_id"/>
+              <field name="revenue"/>
+              <field name="seller_id"/>
+              <field name="revenue_date"/>
+              <field name="currencyCode"/>
+              <field name="company_id"/>
+            </group>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record model="ir.ui.view" id="view_revenue_recognize_tree">
+    <field name="name">revenue.recognize.tree</field>
+    <field name="model">revenue.recognize</field>
+    <field name="arch" type="xml">
+      <tree>
+        <field name="name"/>
+        <field name="account_move_id"/>
+        <field name="idItem"/>
+        <field name="idSO"/>
+        <field name="seller_id"/>
+        <field name="idSubItem"/>
+        <field name="revenue"/>
+        <field name="revenue_date"/>
+        <field name="currencyCode"/>
+        <field name="sale_order_id"/>
+        <field name="sale_order_line_id"/>
+        <field name="company_id"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="action_revenue_recognize" model="ir.actions.act_window">
+    <field name="name">Revenue Recognize</field>
+    <field name="res_model">revenue.recognize</field>
+    <field name="view_mode">tree,form</field>
+    <field name="help" type="html">
+      <p>
+        Create New Revenue Recognize
+      </p>
+    </field>
+  </record>
+
+  <menuitem parent="account.menu_finance_entries_management" id="menu_action_revenue_recognize_form"
+    action="action_revenue_recognize"
+    sequence="4" groups="account.group_account_readonly"/>
+
+  <record id="view_account_financial_report_line_form" model="ir.ui.view">
+      <field name="name">account.financial.html.report.line.form</field>
+      <field name="model">account.financial.html.report.line</field>
+      <field name="arch" type="xml">
+          <form string="Report Line">
+              <group>
+                <group string="Main Info">
+                  <field name="name"/>
+                  <field name="code"/>
+                  <field name="code_report"/>
+                  <field name="sequence"/>
+                  <field name="parent_id"/>
+                </group>
+                <group string="Computation">
+                  <field name="formulas"/>
+                  <field name="domain"/>
+                  <field name="groupby"/>
+                  <field name="special_date_changer"/>
+                </group>
+                <group string="Cosmetics">
+                  <field name="level"/>
+                  <field name="green_on_positive"/>
+                  <field name="figure_type"/>
+                  <field name="show_domain"/>
+                  <field name="print_on_new_page"/>
+                  <field name="hide_if_zero"/>
+                  <field name="hide_if_empty"/>
+                </group>
+                <group string="Children Lines">
+                  <field name="children_ids" nolabel="1"/>
+                </group>
+              </group>
+          </form>
+      </field>
+  </record>
+  <record id="view_account_financial_report_line_tree" model="ir.ui.view">
+      <field name="name">account.financial.html.report.line.tree</field>
+      <field name="model">account.financial.html.report.line</field>
+      <field name="arch" type="xml">
+          <tree string="Report Lines">
+              <field name="sequence" widget="handle"/>
+              <field name="name"/>
+              <field name="code"/>
+              <field name="level"/>
+              <field name="figure_type"/>
+          </tree>
+      </field>
+  </record>
+
+
+    <record id="action_account_financial_report_line_tree" model="ir.actions.act_window">
+      <field name="name">Financial Reports Lines</field>
+      <field name="type">ir.actions.act_window</field>
+      <field name="res_model">account.financial.html.report.line</field>
+      <field name="view_mode">tree,form</field>
+      <field name="view_id" ref="view_account_financial_report_line_tree"/>
+  </record>
+
+  <menuitem id="menu_account_financial_report_line_thach" name="Financial Reports Lines" parent="account.account_management_menu"
+            action="action_account_financial_report_line_tree"/>
+
+</odoo>

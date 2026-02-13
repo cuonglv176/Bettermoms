@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="view_partner_ntp_invoice_slicing" model="ir.ui.view">
+            <field name="model">res.partner</field>
+            <field name="name">view.partner.ntp.invoice.slicing.form</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="inside">
+                    <page name="Invoice Slicing" string="Invoice Slicing" attrs="{'invisible': ['|', ('company_type', '!=', 'group'), ('group_type', '!=', 'head')]}">
+                        <group string="Slicing Configuration">
+                            <field name="so_to_sliced_invoice_enable" />
+                            <field name="sub_ids" widget="many2many_tags" readonly="1" string="Sub List" />
+                        </group>
+                        <field name="so_to_sliced_invoices_ids"
+                               widget="many2many"
+                               attrs="{'invisible': [('so_to_sliced_invoice_enable', '=', False)]}"
+                               domain="[('company_group_code', '=', company_group_code)]"
+                               context="{'default_partner_id': active_id}">
+                            <tree editable="bottom">
+                                <field name="sequence" widget="handle" />
+                                <field name="partner_id" optional="hide" />
+                                <field name="company_group_code" optional="hide" />
+                                <field name="member_id" />
+                                <field name="tax_code" />
+                                <field name="quota_to_invoice" />
+                                <field name="quota_unit" />
+                                <field name="max_total_amount_per_invoice" />
+                            </tree>
+                        </field>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>

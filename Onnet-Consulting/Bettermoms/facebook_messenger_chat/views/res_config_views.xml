@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="fb_messenger_inherit_res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">Settings For Facebook Messenger Chat</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="website.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@id='social_default_image_setting']/.." position="after">
+                <h2>Facebook Messenger Chat</h2>
+                <div class="row mt16 o_settings_container" id="facebook_messenger_settings">
+                    <div id="fb_messenger" class="col-12 col-md-6 o_setting_box">
+                        <div class="o_setting_left_pane">
+                            <field name="enable_fb_chat"/>
+                        </div>
+                        <div class="o_setting_right_pane">
+                            <label string="Enable Messenger" for="enable_fb_chat"/>
+                            <div class="text-muted">
+                                This will show the facebook messenger widget in the website.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 o_setting_box" attrs="{'invisible':[('enable_fb_chat','=',False)]}">
+                        <div class="o_setting_left_pane">
+                        </div>
+                        <div class="o_setting_right_pane">
+                            <label for="fb_page_id" string="Facebook Page Id"/>
+                            <div name="fb_page_id_div" attrs="{'invisible':[('enable_fb_chat','=',False)]}">
+                                <field name="fb_page_id" class="oe_inline mr4"
+                                    attrs="{'required':[('enable_fb_chat','=', True)]}"
+                                    placeholder="2475603305825276"
+                                    help="Enter the facebook page Id"/>
+                            </div>
+                            <label for="fb_messenger_theme_color" string="Messenger Theme color code"/>
+                            <div name="fb_messenger_theme_color">
+                                <field name="fb_messenger_theme_color" class="oe_inline mr4" placeholder="#0084ff"
+                                    help="Enter the hexadecimal color code for facebook messenger chat box"/>
+                            </div>
+                            <label for="log_in_msg" string="Logged In Greeting Message"/>
+                            <div>
+                                <field name="log_in_msg" help="Enter the logged in greeting message."
+                                    placeholder="write message here..." style="width:100%;"/>
+                            </div>
+                            <label for="log_out_msg" string="Logged Out Greeting Message"/>
+                            <div>
+                    			<field name="log_out_msg" help="Enter the logged out greeting message."
+                                    placeholder="write message here..." style="width:100%;"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

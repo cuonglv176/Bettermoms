@@ -1,0 +1,21 @@
+<odoo>
+
+    <record id="purchase_order_inherit_view" model="ir.ui.view">
+        <field name="name">inherit.purchase.order</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_create_invoice']" position="after">
+                <button name="create_subscription" string="Create Subscription" type="object" class="oe_highlight"
+                        attrs="{'invisible': [('state', 'not in', ('purchase', 'done'))]}"/>
+
+            </xpath>
+            <div class="oe_button_box" position="inside">
+                <button type="object" name="action_view_subscription" class="oe_stat_button" icon="fa-money" attrs="{'invisible':['|', ('purchase_subscription_count', '=', 0), ('state', 'in', ('draft','sent','to approve'))]}">
+                    <field name="purchase_subscription_count" widget="statinfo" string="Purchase Subscription"/>
+                    <field name="purchase_subscription" invisible="1"/>
+                </button>
+            </div>
+        </field>
+    </record>
+</odoo>

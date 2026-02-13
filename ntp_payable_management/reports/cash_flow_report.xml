@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <template id="line_cash_flow_template">
+        <t t-foreach="lines['lines']" t-as="line">
+            <t t-set="trclass" t-value="'o_account_reports_default_style'"/>
+            <t t-set="domainClass" t-value="'o_account_reports_domain_line_2 account_report_line_name'"/>
+            <t t-if="not line.get('caret_options')">
+                <t t-if="line.get('level') != None">
+                    <t t-set="trclass" t-value="'o_account_searchable_line o_account_reports_level'+str(line['level'])"/>
+                </t>
+            </t>
+            <t t-if="line.get('caret_options')">
+                <t t-if="line.get('level')">
+                    <t t-set="domainClass" t-value="'o_account_reports_domain_line_'+str(line['level'])"/>
+                </t>
+            </t>
+
+            <tr t-attf-class="#{trclass} #{line.get('class', '')} #{'o_js_account_report_parent_row_unfolded' if line.get('unfolded', False) else ''}"
+                tabindex="0"
+                t-att-data-pagebreak="'before' if (line.get('page_break') and context.get('print_mode')) else None"
+                t-att-data-parent-id="line.get('parent_id', False)"
+                t-att="{k: v for k, v in line.items() if k.startswith('data-')}"
+                t-att-style="line.get('style', '')">
+
+                <t t-set="column_index" t-value="0"/>
+                <t t-foreach="line.get('columns')" t-as="cell">
+                    <td t-att-class="'o_account_report_line o_account_report_line_indent' ">
+
+                        <t t-if="cell.get('carryover_popup_data')">
+                            <t t-call="{{cell.get('template', 'account_reports.cell_template_popup_carryover')}}"/>
+                        </t>
+                        <span class="o_account_report_column_value" t-att-title="cell.get('title')">
+                            <t t-call="{{cell.get('template', 'account_reports.cell_template')}}"/>
+                        </span>
+                    </td>
+                    <t t-set="column_index" t-value="column_index + 1"/>
+                </t>
+            </tr>
+        </t>
+    </template>
+    </data>
+</odoo>

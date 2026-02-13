@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="product_normal_form_view_ntp_einvoice" model="ir.ui.view">
+        <field name="name">product.product.form.ntp.einvoice</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_normal_form_view" />
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='sales']" position="inside">
+                <group>
+                    <group string="Product Label Matching In Invoice (e.g. EInvoice)">
+                        <field name="product_label_in_invoice_ids" nolabel="1">
+                            <tree editable="bottom">
+                                <field name="pattern" />
+                                <field name="match_rule" />
+                                <field name="priority" optional="hide" />
+                                <field name="status" optional="hide" />
+                            </tree>
+                        </field>
+                    </group>
+                    <group name="einvoice_rule" string="EInvoice Data">
+                        <field name="product_einvoice_label_rule" string="Label Rule" />
+                        <field name="product_einvoice_label" string="Label" />
+                        <field name="product_einvoice_uom" string="Printed UoM" />
+                    </group>
+                </group>
+            </xpath>
+            <xpath expr="//page[@name='purchase']" position="inside">
+                <group>
+                    <group name="legal_data" string="Legal Data">
+                        <field name="product_legal_description" string="Legal Description" />
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

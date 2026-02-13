@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_reset_incorrect_moves,reset_incorrect_moves,model_reset_incorrect_moves,td_reset_stock_moves.group_delete_stock_moves,1,1,1,1

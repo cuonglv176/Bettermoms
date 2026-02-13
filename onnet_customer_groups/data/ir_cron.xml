@@ -1,0 +1,14 @@
+<odoo>
+    <data>
+        <record model="ir.cron" id="update_short_name_id_cron">
+            <field name="name">automatic update short name id</field>
+            <field name="model_id" ref="account.model_res_partner"/>
+            <field name="state">code</field>
+            <field name="code">model.update_short_name_id()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="numbercall">-1</field>
+        </record>
+    </data>
+</odoo>

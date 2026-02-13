@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+
+    <record model="ir.ui.view" id="view_invoice_currency_rate">
+        <field name="name">invoice.currency.rate</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//div[@name='journal_div']" position="after">
+
+                <field name="is_apply_manual" invisible="1"/>
+                <field name="currency_flag" invisible="1"/>
+                <field name="default_exchange_rate" attrs="{'invisible': [('currency_flag', '=', False)]}" readonly="1" force_save="1"/>
+                <field name="tax_exchange_rate_flag"  invisible="1" force_save="1"/>
+                <field name="exchange_rate" attrs="{'invisible': [('currency_flag', '=', False)]}"/>
+                <field name="tax_exchange_rate" attrs="{'invisible': [('currency_flag', '=', False)]}"/>
+                <field name="bank_total_amount" attrs="{'invisible': [('currency_flag', '=', False)]}"/>
+                <field name="tax_calculation_rounding_method"
+                       attrs="{'readonly': [('state', '!=', 'draft')],
+                               'invisible': ['|', ('currency_flag', '=', False), ('move_type', 'not in', ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'))]}"/>
+            </xpath>
+
+
+        </field>
+    </record>
+
+
+    <record model="ir.ui.view" id="view_account_payment_currency_rate">
+        <field name="name">account.payment.currency.rate</field>
+        <field name="model">account.payment.register</field>
+        <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='journal_id']" position="after">
+                <field name="currency_flag" invisible="1"/>
+                <field name="exchange_rate" required="1" attrs="{'invisible': [('currency_flag', '=', False)]}"/>
+            </xpath>
+
+
+        </field>
+    </record>
+
+</odoo>

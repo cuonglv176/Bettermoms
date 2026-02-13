@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_so_to_sliced_invoices_manager,sale.order.manager,model_so_to_sliced_invoices,sales_team.group_sale_manager,1,1,1,1
+access_so_to_sliced_invoices_readonly,sale.order.accountant,model_so_to_sliced_invoices,account.group_account_readonly,1,0,0,0
+access_so_to_sliced_invoices_accountant,sale.order.accountant,model_so_to_sliced_invoices,account.group_account_user,1,1,0,0
+access_so_to_sliced_invoices_default_manager,sale.order.manager,model_so_to_sliced_invoices_default,sales_team.group_sale_manager,1,1,1,1
+access_so_to_sliced_invoices_default_readonly,sale.order.accountant,model_so_to_sliced_invoices_default,account.group_account_readonly,1,0,0,0
+access_so_to_sliced_invoices_default_accountant,sale.order.accountant,model_so_to_sliced_invoices_default,account.group_account_user,1,1,0,0

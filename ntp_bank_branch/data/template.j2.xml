@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data noupdate="1">
+        {% for item in bank_items %}
+        <record id="res_bank_{{item.bank_ref}}" model="res.bank">
+            <field name="short_name">{{item.bank_short_name}}</field>
+            <field name="name">{{item.bank_name}}</field>
+            <field name="version">shinhan-2022May12</field>
+            <field name="country" ref="base.vn"/>
+        </record>
+        {% endfor %}
+    </data>
+
+    <data noupdate="1">
+        {% for item in branch_items %}
+        <record id="ntp_bank_branch_{{item.citad_code}}" model="ntp.bank.branch">
+            <field name="bank_id" ref="res_bank_{{item.bank_ref}}" />
+            <field name="citad_code">{{item.citad_code}}</field>
+            <field name="region_name">{{item.region_name}}</field>
+            <field name="citad_bank_branch">{{item.citad_bank_branch}}</field>
+            <field name="detail_info">CITAD: {{item.citad_code}}
+NAME: {{item.bank_name}}
+REGION: {{item.region_name}}
+CFM_NAME: {{item.cfm_bank_name}}
+ABBR_NAME: {{item.bank_short_name}}</field>
+        </record>
+        {% endfor %}
+    </data>
+
+</odoo>

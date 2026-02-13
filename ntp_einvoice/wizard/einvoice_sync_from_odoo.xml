@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_einvoice_sync_from_odoo_view_form" model="ir.ui.view">
+        <field name="name">ntp.einvoice.sync.from.odoo.view.form</field>
+        <field name="model">ntp.einvoice.sync.from.odoo</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <group>
+                        <field name="update_product_label" string="Product Label" widget="boolean_toggle" />
+                        <field name="update_buyer_info" string="Buyer Info" widget="boolean_toggle" />
+                        <field name="update_invoice_monetary_data" string="Monetary Fields" widget="boolean_toggle" />
+                    </group>
+                    <footer>
+                        <button string="Update" name="button_perform_update" type="object" class="oe_highlight"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel" />
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

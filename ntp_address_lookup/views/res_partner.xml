@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_res_partner_form_inherit_address_lookup" model="ir.ui.view">
+            <field name="name">res.partner.form.inherit.address.lookup</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+
+                <!-- Add Auto-detect + Address Lookup buttons before address block -->
+                <xpath expr="//div[hasclass('o_address_format')]" position="before">
+                    <div class="mb-2">
+                        <button name="button_auto_detect_address" type="object"
+                                string="Auto-detect Address" icon="fa-magic"
+                                class="btn btn-primary btn-sm mr-1"
+                                title="Automatically detect Province/District/Ward from address text"
+                                attrs="{'invisible': ['|', ('street', '=', False), ('street', '=', '')]}" />
+                        <button name="button_verify_address" type="object"
+                                string="Address Lookup" icon="fa-map-marker"
+                                class="btn btn-link btn-sm"
+                                title="Open address lookup wizard for manual search" />
+                    </div>
+                </xpath>
+
+                <!-- Add province/district/ward fields after address block -->
+                <xpath expr="//div[hasclass('o_address_format')]" position="after">
+                    <field name="x_province_id" placeholder="Province/City"
+                           options="{'no_create': True}" />
+                    <field name="x_district_id" placeholder="District"
+                           options="{'no_create': True}" />
+                    <field name="x_ward_id" placeholder="Ward/Commune"
+                           options="{'no_create': True}" />
+                    <field name="x_address_verified" invisible="1" />
+                </xpath>
+
+            </field>
+        </record>
+    </data>
+</odoo>

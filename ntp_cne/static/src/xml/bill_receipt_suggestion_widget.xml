@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+    <t t-name="BillReceiptSuggestion">
+        <div>
+            <t t-if="true">
+                <div>
+                    <strong class="float-left">
+                        <t t-esc="title"></t>
+                    </strong>
+                </div>
+            </t>
+            <table style="width: 100%;">
+                <t t-foreach="lines" t-as="line">
+                    <tr>
+                        <td>
+                            <a title="Link to invoice" role="button" class="oe_form_field btn btn-link bill_receipt_assign" t-att-data-id="line.id" style="margin-right: 2px; padding: 0" href="#" data-toggle="tooltip">Link</a>
+                            /
+                            <a title="View" role="button" class="oe_form_field btn btn-link bill_receipt_open" t-att-data-id="line.id" style="margin-left: 2px; margin-right: 10px; padding: 0" href="#" data-toggle="tooltip">View</a>
+                        </td>
+                        <td>
+                            <t t-esc="line.date" />
+                        </td>
+                        <td>
+                            <t t-esc="line.journal_name" />
+                        </td>
+                        <td style="max-width: 30em;">
+                            <div class="oe_form_field" style="margin-right: 30px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" t-att-title="line.date" data-toggle="tooltip">
+                                <t t-esc="line.name"></t>
+                            </div>
+                        </td>
+                        <td>
+                            <t t-esc="line.tax_invoices_count" t-att-title="Linked Tax Invoice Count"/> (TaxInv.)
+                        </td>
+                        <td style="text-align:right;">
+                            <span class="oe_form_field oe_form_field_float oe_form_field_monetary" style="margin-left: -10px;">
+                                <t t-if="line.position === 'before'">
+                                    <t t-esc="line.currency" />
+                                </t>
+                                <t t-esc="line.amount_total"></t>
+                                <t t-if="line.position === 'after'">
+                                    <t t-esc="line.currency" />
+                                </t>
+                            </span>
+                        </td>
+                    </tr>
+                </t>
+            </table>
+        </div>
+    </t>
+</templates>

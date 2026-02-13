@@ -1,0 +1,93 @@
+<odoo>
+    <record id="view_is_dashboard_form_sql" model="ir.ui.view">
+        <field name="name">view_is_dashboard_form_python</field>
+        <field name="model">is.dashboard.widget</field>
+        <field name="inherit_id" ref="view_is_dashboard_form_count"/>
+        <field name="arch" type="xml">
+            <page name="query_1" position="after">
+                <page name="query_1_sql" string="SQL" attrs="{'invisible': [('datasource', '!=', 'sql')]}">
+                    <group>
+                        <label for="query_1_config_sql" colspan="2" string="Query #1"/>
+                        <field name="query_1_config_sql" attrs="{'invisible': [('datasource', '!=', 'sql')]}" nolabel="1" widget="ace" />
+                        <label for="query_2_config_sql" colspan="2" string="Query #2"/>
+                        <field name="query_2_config_sql" attrs="{'invisible': [('datasource', '!=', 'sql'),('display_mode', '!=', 'graph')]}" nolabel="1" widget="ace" />
+                        <div colspan="2" class="alert alert-info" role="alert" attrs="{'invisible': [('datasource', '!=', 'sql')]}">
+                            <p>
+                                <strong>Note: </strong>SQL Query datasource is experimental and not all options are supported
+                            </p>
+                            <p>
+                                <strong>KPI Card:</strong><br />
+                                Columns required:
+                                <ul>
+                                    <li>count</li>
+                                    <li>total</li>
+                                </ul>
+                                <p>
+                                    <strong>Example</strong>
+<pre>
+SELECT
+    count(DISTINCT partner_id) AS count,
+    count(*) AS total
+FROM sale_order
+</pre>
+                                </p>
+                            </p>
+                            <p>
+                                <strong>Chart/Graph:</strong><br />
+                                Columns required:
+                                <ul>
+                                    <li>Column 1: Label for columns in the chart</li>
+                                    <li>Column 2+: A column for each data series. The column name will be the series name </li>
+                                </ul>
+                                <p>
+                                    <strong>Examples</strong>
+                                    <p>Show sale order untaxed total vs. untaxed total</p>
+<pre>
+
+SELECT
+    CONCAT(TRIM(TO_CHAR(date_order, 'Month')), ', ', EXTRACT(YEAR FROM date_order)) AS "Month",
+    sum(amount_untaxed) AS "Untaxed Amount",
+    sum(amount_total) AS "Total"
+FROM
+    sale_order
+GROUP BY
+    CONCAT(TRIM(TO_CHAR(date_order, 'Month')), ', ', EXTRACT(YEAR FROM date_order))
+</pre>
+                                    <p>Show sale order untaxed total vs. purchase order untaxed total per month for the last 12 months</p>
+<pre>
+
+SELECT
+    CONCAT(TRIM(TO_CHAR(start_date, 'Month')), ', ', EXTRACT(YEAR FROM start_date)) AS "Month",
+
+    (SELECT
+        SUM(amount_untaxed)
+    FROM sale_order
+    WHERE
+        date_order &gt;= start_date
+        AND date_order &lt; end_date
+    ) AS "Sale Orders",
+
+    (SELECT
+        SUM(amount_untaxed)
+    FROM purchase_order
+    WHERE
+        date_order &gt;= start_date
+        AND date_order &lt; end_date
+    ) AS "Purchase Orders"
+
+FROM
+  (SELECT
+      date AS start_date,
+      date + interval '1 month' AS end_date
+  FROM GENERATE_SERIES(date_trunc('month', NOW()) - interval '1 year', date_trunc('month', NOW()), '1 month') as date) as dates
+</pre>
+                                </p>
+                            </p>
+                        </div>
+                    </group>
+                </page>
+            </page>
+        </field>
+    </record>
+
+</odoo>

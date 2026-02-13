@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="transfer_content_export_wizard_view_form" model="ir.ui.view">
+        <field name="name">ntp.transfer.content.export.wizard.view.form</field>
+        <field name="model">ntp.transfer.content.export.wizard</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <group>
+                    <!-- hidden -->
+                    <!-- <field name="attachment_id" readonly="1"></field> -->
+                    <field name="filename" />
+                    <field name="export_type" invisible="1" />
+                    <field name="export_format" />
+                    <!-- <field name="transfer_status" attrs="{'invisible': [('export_type', '!=', 'payment')]}" /> -->
+                    <!-- <field name="set_payment_post" attrs="{'invisible': [('export_type', '!=', 'payment')]}" /> -->
+                    <!-- <field name="url" /> -->
+                </group>
+
+                <footer>
+                    <button string="Download" name="button_download" type="object" class="oe_highlight" />
+                    <!-- <button string="Set Status" name="button_set_payment_status" type="object" class="oe_highlight" attrs="{'invisible': [('export_type', '!=', 'payment')]}" /> -->
+                    <button string="Set Payment Posted" name="button_set_payment_post" type="object" class="oe_highlight" attrs="{'invisible': [('export_type', '!=', 'payment')]}" />
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+
+        </field>
+    </record>
+
+
+</odoo>

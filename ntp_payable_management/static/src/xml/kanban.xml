@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-extend="KanbanView.Group">
+        <!--
+            # Refer this, need to use t-if and t-jquery in 2 commands
+            https://www.odoo.com/vi_VN/forum/tro-giup-1/conditionally-extend-template-with-odoo-qweb-114487
+            # original post
+            https://minhng.info/odoo/them-button-list-view-odoo.html
+         -->
+        <t t-jquery="div.o_kanban_header_title" t-operation="after">
+            <t t-if="widget.modelName=='account.payment' and (widget.groupedBy=='plan_week_id' or widget.groupedBy=='plan_month_id')">
+                <t t-if="widget.title!='Undefined'">
+                    <t t-set="plan_id" t-value="widget.id"/>
+                    <t t-set="plan_model" t-value="widget.groupedBy"/>
+                    <div class="o_kanban_plan_info">
+                        Cash In Flow Forcast: <span t-att="{'class':'o-span-plan-payment-income'}" t-att-plan-model="plan_model" t-att-plan-id="plan_id"><t t-esc="widget.data.plan_payment_income"/></span>
+                    </div>
+                    <div class="o_kanban_plan_info">
+                        Cash Out Flow Budget: <span t-att="{'class':'o-span-plan-payment-outcome'}" t-att-plan-model="plan_model" t-att-plan-id="plan_id"><t t-esc="widget.data.plan_payment_outcome"/></span>
+                    </div>
+                </t>
+                <t t-else="">
+                    <div class="o_kanban_plan_info">
+                        Cash In Flow Forcast: -/-
+                    </div>
+                    <div class="o_kanban_plan_info">
+                        Cash Out Flow Budget: -/-
+                    </div>
+                </t>
+            </t>
+        </t>
+        <!-- modify for downloading bulk transfer -->
+        <!--         
+        <t t-jquery="div.dropdown-menu" t-operation="append">
+            <t t-if="widget.modelName=='account.payment' and (widget.groupedBy=='plan_week_id' or widget.groupedBy=='plan_month_id')">
+                <t t-if="widget.title!='Undefined'">
+                    <a role="menuitem" href="#" class="dropdown-item o_column_download_bulk">Download Bulk Transfer File</a>
+                </t>
+            </t>
+        </t>
+         -->
+    </t>
+</templates>

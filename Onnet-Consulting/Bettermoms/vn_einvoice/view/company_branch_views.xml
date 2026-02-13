@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record model="ir.ui.view" id="view_company_branch_form">
+    <field name="name">company.branch.form</field>
+    <field name="model">company.branch</field>
+    <field name="arch" type="xml">
+      <form string="Logs of Revenue Recognize">
+        <sheet>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="vsi_tin"/>
+              <field name="vsi_template"/>
+              <field name="vsi_template_type"/>
+              <field name="vsi_series"/>
+              <field name="account"/>
+              <field name="password" widget="password"/>
+              <field name="swap"/>
+            </group>
+            <group>
+              <field name="code"/>
+              <field name="vsi_domain"/>
+              <field name="business_service_domain"/>
+              <field name="portal_service_domain"/>
+              <field name="vsi_username"/>
+              <field name="vsi_password" widget="password"/>
+            </group>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record model="ir.ui.view" id="view_company_branch_tree">
+    <field name="name">company.branch.tree</field>
+    <field name="model">company.branch</field>
+    <field name="arch" type="xml">
+      <tree>
+        <field name="name"/>
+        <field name="code"/>
+        <field name="vsi_tin"/>
+        <field name="vsi_template"/>
+        <field name="vsi_series"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="action_company_branch" model="ir.actions.act_window">
+    <field name="name">Company Branch</field>
+    <field name="res_model">company.branch</field>
+    <field name="view_mode">tree,form</field>
+    <field name="help" type="html">
+      <p>
+        Create New Company Branch
+      </p>
+    </field>
+  </record>
+
+  <menuitem parent="account.menu_finance_entries_management" id="menu_action_company_branch"
+    action="action_company_branch"
+    sequence="86" groups="account.group_account_readonly"
+    name="Chi nhánh"/>
+</odoo>

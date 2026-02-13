@@ -1,0 +1,14 @@
+Value Required ACCOUNT (.+(\s+)?\(\*\*\d+\))
+Value PAYMENT_TYPE ([\-+]|debit|credit)
+Value AMOUNT ((\d+,?)+)
+Value AMOUNT_CURRENCY ([A-Z]{3})
+Value BALANCE ((\d+,?)+)
+Value BALANCE_CURRENCY ([A-Z]{3})
+Value MESSAGE (.+)
+Value DATE (\d{2}\-\d{2}\-\d{4}/\d{2}:\d{2})
+
+
+Start
+  ^(\s+|.+Message text:\s+)?Transaction Approved(\s+)?${ACCOUNT}(\s+)?${DATE}/${AMOUNT}/${MESSAGE},(Remaining Credit limit|Available balance):(\s+)?${BALANCE}(\s+)?(\(${BALANCE_CURRENCY}\)?)? -> Record
+
+EOF

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="invoice_viettel_validate_confirm_view_form" model="ir.ui.view">
+        <field name="name">invoice.viettel.validate.confirm.view.form</field>
+        <field name="model">invoice.viettel.validate.confirm</field>
+        <field name="arch" type="xml">
+            <form string="Confirm Vendor Bill / Purchase Receipt">
+                <p class="oe_grey">
+                    Are you sure this S-Invoice is valid and link to below Customer Invoices ?
+                </p>
+                <group>
+                    <group string="General Info" colspan="2">
+                        <field name="currency_id" />
+                        <field name="sinvoice_id" readonly="1" />
+                    </group>
+                    <group string="Customer Invoice(s)" colspan="2">
+                        <field name="account_move_ids" readonly="1" nolabel="1" />
+                    </group>
+                    <group string="Differences" colspan="2">
+                        <field name="difference_amount_without_vat" readonly="1" string="# Amount (Exc. VAT)" decoration-danger="difference_amount_without_vat != 0"  />
+                        <field name="difference_amount_with_vat" readonly="1" string="# Amount (Inc. VAT)" decoration-danger="difference_amount_with_vat != 0" />
+                    </group>
+                    <group string="Customer Invoice(s)">
+                        <field name="invoice_total_amount_without_vat" string="Untaxed Amount" readonly="1" />
+                        <field name="invoice_total_amount_with_vat" string="Taxed Amount" readonly="1" />
+                    </group>
+                    <group string="S-Invoice">
+                        <field name="total_amount_without_vat" string="Untaxed Amount" readonly="1" />
+                        <field name="total_amount_with_vat" string="Taxed Amount" readonly="1" />
+                    </group>
+                </group>
+                <footer>
+                    <button name="button_set_validated" string="Validate" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_view_invoice_viettel_validate_confirm" model="ir.actions.act_window">
+        <field name="name">S-Invoice Confirm</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">invoice.viettel.validate.confirm</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <!-- TODO: check if we need this -->
+        <field name="binding_model_id" ref="vn_einvoice.model_invoice_viettel" />
+        <field name="binding_view_types">list</field>
+    </record>
+
+</odoo>

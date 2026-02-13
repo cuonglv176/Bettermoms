@@ -1,0 +1,2 @@
+class FeatureNotSupportException(Exception):
+    pass

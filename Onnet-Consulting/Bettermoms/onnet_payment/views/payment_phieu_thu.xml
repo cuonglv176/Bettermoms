@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record model="ir.ui.view" id="onnet_payment_tree">
+            <field name="name">Phiếu thu</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='ref']" position="after">
+                    <field name="move_type"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="onnet_payment_phieu_thu_form">
+            <field name="name">Phiếu thu</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='ref']" position="after">
+                    <field name="move_type"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="onnet_payment_phieu_thu_act">
+            <field name="name">Phiếu Thu</field>
+            <field name="res_model">account.move</field>
+            <field name="domain">[('move_type','=','inbound')]</field>
+            <field name="context">{'default_move_type': 'inbound'}</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">Tạo Phiếu Thu
+                </p>
+            </field>
+        </record>
+
+
+    </data>
+</odoo>

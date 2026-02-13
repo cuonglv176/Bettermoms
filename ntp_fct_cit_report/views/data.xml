@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+         <record id="account_account_tag_fct_vat_code" model="account.account.tag">
+            <field name="name">FCT VAT</field>
+            <field name="applicability">taxes</field>
+            <field name="tax_type">fct_vat</field>
+         </record>
+
+        <record id="account_account_tag_fct_cit_code" model="account.account.tag">
+            <field name="name">FCT CIT</field>
+            <field name="applicability">taxes</field>
+            <field name="tax_type">fct_cit</field>
+         </record>
+
+        <record id="fct_business_line_code_1" model="fct.business.line">
+            <field name="name">Dịch vụ, cho thuê máy móc thiết bị, bảo hiểm</field>
+            <field name="code">01</field>
+        </record>
+
+        <record id="fct_business_line_code_2" model="fct.business.line">
+            <field name="name">Xây dựng, lắp đặt không bao thầu nguyên vật liệu, máy móc, thiết bị</field>
+            <field name="code">02</field>
+        </record>
+
+        <record id="fct_business_line_code_3" model="fct.business.line">
+            <field name="name">Sản xuất, vận tải, dịch vụ có gắn với hàng hóa</field>
+            <field name="code">03</field>
+        </record>
+
+        <record id="fct_business_line_code_4" model="fct.business.line">
+            <field name="name">Xây dựng, lắp đặt có bao thầu nguyên vật liệu, máy móc, thiết bị</field>
+            <field name="code">04</field>
+        </record>
+
+        <record id="fct_business_line_code_5" model="fct.business.line">
+            <field name="name">Hoạt động kinh doanh khác</field>
+            <field name="code">05</field>
+        </record>
+
+        <record id="fct_business_line_code_6" model="fct.business.line">
+            <field name="name">Thương mại: phân phối, cung cấp hàng hóa, nguyên liệu, vật tư, máy móc, thiết bị</field>
+            <field name="code">06</field>
+        </record>
+
+        <record id="fct_business_line_code_7" model="fct.business.line">
+            <field name="name">Thương mại: phân phối, cung cấp hàng hóa, nguyên liệu, vật tư, máy móc, thiết bị gắn với dịch vụ tại Việt Nam</field>
+            <field name="code">07</field>
+        </record>
+
+        <record id="fct_business_line_code_8" model="fct.business.line">
+            <field name="name">Dịch vụ, cho thuê máy móc thiết bị, bảo hiểm, thuê giàn khoan</field>
+            <field name="code">08</field>
+        </record>
+
+        <record id="fct_business_line_code_9" model="fct.business.line">
+            <field name="name">Dịch vụ quản lý nhà hàng, khách sạn, casino</field>
+            <field name="code">09</field>
+        </record>
+
+        <record id="fct_business_line_code_10" model="fct.business.line">
+            <field name="name">Dịch vụ tài chính phái sinh</field>
+            <field name="code">10</field>
+        </record>
+
+        <record id="fct_business_line_code_11" model="fct.business.line">
+            <field name="name">Cho thuê tàu bay, động cơ tàu bay, phụ tùng tàu bay, tàu biển</field>
+            <field name="code">11</field>
+        </record>
+
+        <record id="fct_business_line_code_12" model="fct.business.line">
+            <field name="name">Xây dựng, lắp đặt có bao thầu hoặc không bao thầu nguyên vật liệu, máy móc, thiết bị</field>
+            <field name="code">12</field>
+        </record>
+
+        <record id="fct_business_line_code_13" model="fct.business.line">
+            <field name="name">Hoạt động sản xuất, kinh doanh khác, vận chuyển (bao gồm vận chuyển đường biển, vận chuyển hàng không)</field>
+            <field name="code">13</field>
+        </record>
+
+        <record id="fct_business_line_code_14" model="fct.business.line">
+            <field name="name">Chuyển nhượng chứng khoán, chứng chỉ tiền gửi, tái bảo hiểm ra nước ngoài, hoa hồng nhượng tái bảo hiểm</field>
+            <field name="code">14</field>
+        </record>
+
+        <record id="fct_business_line_code_15" model="fct.business.line">
+            <field name="name">Lãi tiền vay</field>
+            <field name="code">15</field>
+        </record>
+
+        <record id="fct_business_line_code_16" model="fct.business.line">
+            <field name="name">Thu nhập bản quyền</field>
+            <field name="code">16</field>
+        </record>
+
+    </data>
+</odoo>

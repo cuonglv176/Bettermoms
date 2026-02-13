@@ -1,0 +1,29 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* account_reports
+# 
+# Translators:
+# Tung Nguyen <tung.tung11191@gmail.com>, 2021
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server saas~13.5+e\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2021-06-01 07:39+0000\n"
+"PO-Revision-Date: 2021-06-07 08:17+0000\n"
+"Last-Translator: Tung Nguyen <tung.tung11191@gmail.com>, 2021\n"
+"Language-Team: Vietnamese (https://www.transifex.com/odoo/teams/41243/vi/)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: \n"
+"Language: vi\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. module: account_reports
+#: code:addons/account_reports/models/account_report.py:0
+#, python-format
+msgid ""
+"From %s\n"
+"to  %s"
+msgstr ""
+"Từ %s đến %s"

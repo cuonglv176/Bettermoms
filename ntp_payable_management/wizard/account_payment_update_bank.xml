@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="account_payment_update_bank_view_form" model="ir.ui.view">
+        <field name="name">account.payment.update.bank.view.form</field>
+        <field name="model">account.payment.update.bank</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <group>
+                        <field name="payment_id" invisible="1" />
+                        <field name="partner_id" invisible="1" />
+                        <field name="partner_bank_id" string="Bank Account" />
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Update" name="button_update" type="object" class="oe_highlight"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

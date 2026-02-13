@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="account_journal_form_inherit_ntp_pr" model="ir.ui.view">
+        <field name="name">account.journal.form.inherit.ntp.pr</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='bank_statements_source']" position="after">
+                <field name="bank_sms_id" attrs="{'invisible': [('bank_statements_source', '!=', 'bank_sms')]}" string="Bank Sms Feed"/>
+                <field name="bank_statement_creation_groupby" attrs="{'invisible': [('bank_statements_source', '!=', 'bank_sms')]}" string="Synchronization Frequency"/>
+                <field name="monthly_statement_start_date" string="(nth) Day To Start New Statement" attrs="{'invisible': ['|', ('bank_statements_source', '!=', 'bank_sms'), ('bank_statement_creation_groupby', '!=', 'month')]}" />
+                <field name="bank_statement_creation_custom" string="Custom New Statement At" attrs="{'invisible': ['|', ('bank_statements_source', '!=', 'bank_sms'), ('bank_statement_creation_groupby', '!=', 'custom')]}" />
+                <button string="Sms Sync Now" name="manual_sms_sync" type="object" class="oe_highlight" attrs="{'invisible': [('bank_statements_source', '!=', 'bank_sms')]}" />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

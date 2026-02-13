@@ -1,0 +1,25 @@
+<odoo>
+    <data>
+        <record id="view_account_tax_report_line_inherit" model="ir.ui.view">
+            <field name="model">account.tax.report.line</field>
+            <field name="inherit_id" ref="account.account_tax_report_line_form" />
+            <field name="arch" type="xml">
+                <field name="code" position="after">
+                    <field name="vas_tax_type" />
+                    <field name="vas_tax_field" />
+                </field>
+            </field>
+        </record>
+
+         <record id="view_account_tag_view_form_inherit" model="ir.ui.view">
+            <field name="model">account.account.tag</field>
+            <field name="inherit_id" ref="account.account_tag_view_form" />
+            <field name="arch" type="xml">
+                <field name="tax_negate" position="after">
+                    <field name="tax_group" />
+                </field>
+            </field>
+        </record>
+
+    </data>
+</odoo>

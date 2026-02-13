@@ -1,0 +1,40 @@
+<odoo>
+    <record id="view_dashboard_wizard_create_form" model="ir.ui.view">
+        <field name="name">Create Dashboard</field>
+        <field name="model">is.dashboard.widget.wizard.create</field>
+        <field name="arch" type="xml">
+            <form string="Create Dashboard">
+                <group>
+                    <field name="name"/>
+                    <field name="menu_id"/>
+                    <field name="group_ids" widget="many2many_tags"/>
+                    <field name="duplicate_dashboard_id"/>
+
+                </group>
+                <div class="alert alert-info" role="alert" attrs="{'invisible': [('duplicate_dashboard_id', '=', False)]}">
+                    When duplicating a dashboard the dashboard can be duplicated as a copy or as a link<br />
+                    <ul>
+                        <li><strong>Duplicate as copy</strong> - All dashboard tiles are copied and any changes to tiles do not change the original dashboard</li>
+                        <li><strong>Duplicate as link</strong> - All dashboard tiles are copied and linked to the original dashboard. Any changes to tiles will be updated in the linked/original dashboards</li>
+                    </ul>
+                </div>
+                <footer>
+                    <button string="Create Dashboard" name="action_create" type="object" class="btn-primary" attrs="{'invisible': [('duplicate_dashboard_id', '!=', False)]}"/>
+                    <button string="Duplicate as copy" name="action_duplicate_copy" type="object" class="btn-primary" attrs="{'invisible': [('duplicate_dashboard_id', '=', False)]}"/>
+                    <button string="Duplicate as link" name="action_duplicate_link" type="object" attrs="{'invisible': [('duplicate_dashboard_id', '=', False)]}"/>
+                    <button string="Cancel" class="btn-default" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dashboard_wizard_create" model="ir.actions.act_window">
+        <field name="name">Create Dashboard</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">is.dashboard.widget.wizard.create</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_dashboard_create" parent="menu_dashboard" name="Create Dashboard" action="action_dashboard_wizard_create" sequence="10"/>
+</odoo>

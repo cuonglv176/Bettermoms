@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data noupdate="1">
+
+        <record id="ntp_transfer_content_template_default10" model="ntp.transfer.content.template">
+            <field name="name">vendorpayment</field>
+            <field name="version">vendorpayment.v1.0</field>
+            <field name="template_type">payment</field>
+            <field name="delimiter">..</field>
+            <field name="transfer_content">{{DELIMITER}}{{VERSION}}{{DELIMITER}}{{SENDER}}{{DELIMITER}}{{RECEIVER}}{{DELIMITER}}{{PAYMENT_ID}}{{DELIMITER}}{{ACCOUNTING_MONTH}}{{DELIMITER}}{{BILL_REF}}</field>
+            <field name="config">DELIMITER:=lambda record, config: config.delimiter
+VERSION:=lambda record, config: config.version
+SENDER:=lambda record, config: "NTPTECH"
+RECEIVER:=lambda record, config: record.partner_id.company_group_code.name or ""
+PAYMENT_ID:=lambda record, config: record.name or ""
+ACCOUNTING_MONTH:=lambda record, config: record.date.strftime("%Y%b") if record.date else ""
+BILL_REF_OLD:=lambda record, config: record.ref
+BILL_REF:= lambda record, config: config.delimiter.join(x for x in [((config.delimiter).join(["INV" + str(inv_no) for inv_no in bill.tax_invoice_ids.mapped('invoice_number') if inv_no]) if bill.tax_invoice_ids else "") for bill in record.reconciled_bill_ids] if x)
+</field>
+
+        </record>
+
+        <record id="ntp_transfer_content_template_payslip10" model="ntp.transfer.content.template">
+            <field name="name">payslip</field>
+            <field name="version">payslip.v1.0</field>
+            <field name="template_type">payslip</field>
+            <field name="delimiter">..</field>
+            <field name="transfer_content">{{DELIMITER}}{{VERSION}}{{DELIMITER}}{{SENDER}}{{DELIMITER}}{{RECEIVER}}{{DELIMITER}}{{PAYSLIP_ID}}{{DELIMITER}}{{PAYSLIP_MONTH}}</field>
+            <field name="config">DELIMITER:=lambda record, config: config.delimiter
+PREFIX:=lambda record, config: "NTPTECH.SALARY"
+VERSION:=lambda record, config: config.version
+SENDER:=lambda record, config: "NTPTECH"
+RECEIVER:=lambda record, config: record.employee_id.bank_account_id.partner_id.company_group_code.name or record.employee_id.name or ""
+PAYSLIP_MONTH:=lambda record, config: record.number
+PAYSLIP_MONTH:=lambda record, config: record.date_from.strftime("%Y%b") if record.date_from else ""
+</field>
+        </record>
+
+    </data>
+
+</odoo>

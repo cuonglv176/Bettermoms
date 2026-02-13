@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="res_config_settings_view_form" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form</field>
+            <field name="model">res.config.settings</field>
+            <field name="inherit_id" ref="account.res_config_settings_view_form" />
+            <field name="priority" eval="999" />
+            <field name="arch" type="xml">
+                <xpath position="inside" expr="//div[@name='invoicing_setting_container']">
+                    <div class="col-12 col-lg-6 o_setting_box" id="sale_order_overdue">
+                        <div class="o_setting_right_pane">
+                            <label string="Users get Notified when 'Request Invoicing' is triggered" for="users_notify_to_create_invoice"/>
+                            <div class="text-muted">
+                               Below users will get notified if user click on 'Request Invocing' button in Sale Order/Delivery View.
+                            </div>
+                            <div>
+                                <field name="users_notify_to_create_invoice" widget="many2many_tags" />
+                            </div>
+                        </div>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

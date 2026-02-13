@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="base_view_res_bank_form_inherit_ntp_bank_branch" model="ir.ui.view">
+        <field name="name">res.bank.form.ntp.bank.branch.inherit</field>
+        <field name="model">res.bank</field>
+        <field name="inherit_id" ref="base.view_res_bank_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='bic']" position="after">
+                <field name="short_name" />
+                <field name="version" optional="hide" />
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <notebook>
+                    <page name="bank_branch" string="Bank Branches">
+                        <field name="bank_branch_ids" widget="many2many" context="{'default_bank_id': active_id}">
+                            <tree>
+                                <field name="citad_code" />
+                                <field name="region_name" />
+                                <field name="citad_bank_branch" />
+                            </tree>
+                        </field>
+                    </page>
+                </notebook>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="base_view_res_bank_tree_inherit_ntp_bank_branch" model="ir.ui.view">
+        <field name="name">res.bank.tree.ntp.bank.branch.inherit</field>
+        <field name="model">res.bank</field>
+        <field name="inherit_id" ref="base.view_res_bank_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='country']" position="after">
+                <field name="short_name" optional="hide" />
+                <field name="version" optional="hide" />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

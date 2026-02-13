@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_account_move_view_form" model="ir.ui.view">
+        <field name="name">account.move</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+           <xpath expr="//group[@id='other_tab_group']" position="inside">
+               <group string="Source Document" name="source_document_accounting">
+                   <field name="purchase_order_id" attrs="{'invisible': [('move_type', 'in', ('out_invoice', 'out_refund'))]}"/>
+                   <field name="purchase_subscription_id" attrs="{'invisible': [('move_type', 'in', ('out_invoice', 'out_refund'))]}"/>
+                   <field name="sale_id" attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund'))]}"/>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+
+
+</odoo>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_invoice_slicing_app_view_picking_form" model="ir.ui.view">
+        <field name="name">app.stock.picking.form</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet" position="before">
+                <field name="ready_to_invoice_from_so" invisible="1" />
+                <link rel="stylesheet" href="/ntp_communications/static/src/css/app.css"></link>
+                <div class="alert alert-warning oe_edit_only" role="alert" attrs="{'invisible': [('ready_to_invoice_from_so', '=', False)]}">
+                    Related Invoices for <field name="sale_id" readonly="1" /> DO NOT cover this Delivery. 
+                    <span>
+                        Click <button string="Request Invoicing" name="button_notify_to_create_invoice" type="object" /> to notify PICs to create it for you !!!
+                    </span>
+                  </div>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button string="Request Invoicing"
+                        name="button_notify_to_create_invoice"
+                        type="object"
+                        attrs="{'invisible': [('ready_to_invoice_from_so', '=', False)]}"
+                        class="oe_highlight" />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

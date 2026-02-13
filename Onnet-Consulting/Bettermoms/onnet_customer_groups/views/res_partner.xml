@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_partner_customer_group" model="ir.ui.view">
+            <field name="model">res.partner</field>
+            <field name="name">view.partner.customer.group.form</field>
+            <field name="inherit_id" ref="base.view_partner_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='vat']" position="after">
+                    <field name="company_group" invisible="1"/>
+                    <field name="group_type" attrs="{'invisible': [('company_type', '!=', 'group')]}"
+                           widget="radio" options="{'horizontal': true}"/>
+                    <field name="head_id" attrs="{'invisible': [('group_type', 'in', ('head', False))]}" domain="[('company_group', '=', True), ('group_type', '=', 'head')]"/>
+                    <field name="head_code" attrs="{'invisible': [('group_type', 'in', (False))]}"/>
+                    <field name="promotion" attrs="{'invisible': [('group_type', 'in', (False, 'sub'))]}"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
+

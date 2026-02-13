@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_invoice_slicing_sale_advance_payment_view_form" model="ir.ui.view">
+        <field name="name">ntp.invoice.slicing.sale.advance.payment.view.form</field>
+        <field name="model">sale.advance.payment.inv</field>
+        <field name="inherit_id" ref="sale.view_sale_advance_payment_inv"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <group>
+                    <field name="sliced_invoices_data_display" widget="html" nolabel="1" readonly="1" attrs="{'invisible': [('advance_payment_method', '!=', 'delivered_sliced')]}" />
+                </group>
+            </xpath>
+            <!-- 
+            <xpath expr="//form/footer" position="inside">
+                <button string="Preview Sliced Invoice" name="button_preview_sliced_invoice" type="object" class="oe_highlight"
+                        attrs="{'invisible': [('advance_payment_method', '!=', 'delivered_sliced')]}"/>
+            </xpath>
+            -->
+        </field>
+    </record>    
+
+</odoo>

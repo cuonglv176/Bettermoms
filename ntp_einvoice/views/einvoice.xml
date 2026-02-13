@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_einvoice_view_tree" model="ir.ui.view">
+        <field name="name">ntp.einvoice.view.tree</field>
+        <field name="model">ntp.einvoice</field>
+        <field name="arch" type="xml">
+            <tree string="EInvoice List" decoration-muted="provider_einvoice_status in ['canceled', 'be_replaced', 'be_adjusted']">
+                <header>
+                    <button string="Sync" name="button_sync_smart" type="object" class="oe_highlight"/>
+                    <button string="Find Customer" name="button_find_customer_and_address" type="object" class="oe_highlight"/>
+                    <button string="Update Invoice Amount" name="button_update_invoice_info" type="object"/>
+                </header>
+                <field name="name" />
+                <field name="number" optional="hide" />
+                <field name="issue_date" />
+                <field name="payment_type" />
+                <field name="einvoice_template_id" />
+                <field name="buyer_type" string="Invoice To" />
+                <field name="partner_id" string="Customer" />
+                <field name="account_move_ids" optional="hide" widget="many2many_tags" />
+                <field name="buyer_name" />
+                <field name="buyer_tax_code" optional="hide" />
+                <field name="buyer_company_name" />
+                <field name="buyer_address" optional="hide" />
+                <field name="total_amount_without_vat" string="Untaxed Amount" sum="Total Amount Without VAT" />
+                <field name="discount_amount" string="Discount Amount" optional="hide" />
+                <field name="vat_percent" />
+                <field name="total_vat_amount" string="VAT Amount" sum="Total VAT" />
+                <field name="total_amount_with_vat" string="Total" sum="Total Amount With VAT" />
+                <field name="currency_id" optional="hide" />
+                <field name="x_invoice_note" string="Note" />
+                <!-- be-adjusted -->
+                <field name="replaced_by_einvoice_id" string="Replaced By" optional="hide" />
+                <field name="adjusted_by_einvoice_id" string="Adjusted By" optional="hide" />
+                <!-- adjust -->
+                <field name="replace_einvoice_ids" string="Replace" widget="many2many_tags" optional="hide" />
+                <field name="adjust_einvoice_ids" string="Adjust" widget="many2many_tags" optional="hide" />
+                <field name="payment_status" widget="badge" decoration-success="payment_status == '1'" />
+                <field name="x_provider_request_mccqt" optional="hide" />
+                <field name="x_provider_mccqt" optional="hide" />
+                <field name="provider_einvoice_status" string="Status" widget="badge"
+                        decoration-success="provider_einvoice_status == 'created'"
+                        decoration-warning="provider_einvoice_status in ['replace', 'adjust']"
+                        decoration-muted="provider_einvoice_status in ['canceled', 'be_replaced', 'be_adjusted']" />
+                <!-- <field name="state" widget="badge" /> -->
+                <field name="active" invisible="1" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="ntp_einvoice_view_form" model="ir.ui.view">
+        <field name="name">ntp.einvoice.view.form</field>
+        <field name="model">ntp.einvoice</field>
+        <field name="arch" type="xml">
+            <form string="EInvoice Form">
+                <header>
+                    <button string="Issue Invoice"
+                            confirm="Are you sure? Better to click 'Preview' to see preview einvoice in prior to creation."
+                            attrs="{'invisible': [('provider_einvoice_status', '!=', 'draft')]}"
+                            name="button_issue_einvoice" type="object" class="oe_highlight" />
+                    <button string="Preview" name="button_preview_einvoice" type="object"
+                            attrs="{'invisible': [('provider_einvoice_status', '!=', 'draft')]}" />
+                    <button string="Update" icon="fa-pencil-square-o" name="button_update_invoice_status" type="object"
+                            attrs="{'invisible': [('provider_einvoice_status', '!=', 'draft')]}" />
+                    <button string="Provider Data" icon="fa-refresh" name="button_sync_provider_data" type="object" class="oe_highlight"
+                            attrs="{'invisible': [('provider_einvoice_status', '=', 'draft')]}" />
+                    <button string="Send Email" name="button_send_email" type="object" class="oe_highlight" attrs="{'invisible': [('provider_einvoice_status', 'in', ['draft', 'creating', 'canceled', 'be_adjusted', 'be_replaced'])]}" />
+                    <button string="Confirm Address" name="button_confirm_address" type="object" class="oe_highlight" attrs="{'invisible': ['|', ('x_invoice_address_confirm', '=', True), ('provider_einvoice_status', '!=', 'draft')]}" />
+                    <button string="Set Paid" name="button_set_invoice_paid" type="object" attrs="{'invisible': ['|', ('payment_status', '=', '1'), ('provider_einvoice_status', '=', 'draft')]}"/>
+                    <button string="Set Unpaid" name="button_set_invoice_unpaid" type="object" attrs="{'invisible': ['|', ('payment_status', '=', '0'), ('provider_einvoice_status', '=', 'draft')]}"/>
+                    <button string="Cancel Invoice" confirm="Are you sure ?" name="button_cancel_invoice" type="object" class="oe_highlight" attrs="{'invisible': [('provider_einvoice_status', 'in', ['draft', 'canceled'])]}" />
+                    <button string="Gen VAT Agreement Doc" name="button_gen_agreement_doc_vat" type="object" class="oe_highlight" attrs="{'invisible': [('provider_einvoice_status', 'not in', ['adjust'])]}" />
+                    <button string="Fillup Product Id" name="button_fillup_product_id" type="object" attrs="{'invisible': [('x_is_product_id_filled', '=', True)]}"/>
+                    <!-- <button icon="fa-refresh" string="Label" name="button_update_invoice_line_label" type="object"/> -->
+                    <!-- <button icon="fa-refresh" string="Buyer Data" name="button_update_buyer_info" type="object"/> -->
+                    <!-- <button icon="fa-refresh" string="Invoice Data" name="button_update_invoice_info" type="object"/> -->
+                    <button string="Manual Set EInvoice Number" name="button_manual_set_einvoice" type="object" class="oe_highlight" attrs="{'invisible': [('x_can_change_einvoice_no', '=', False)]}"/>
+                    <field name="provider_einvoice_status" widget="statusbar" statusbar_visible="draft,creating,created,canceled" />
+                </header>
+
+                <!-- Invisible Fields -->
+                <field name="x_can_change_einvoice_no" invisible="1" />
+                <field name="active" invisible="1" />
+
+                <sheet>
+
+                    <widget name="web_ribbon" title="Canceled" bg_color="bg-danger" attrs="{'invisible': [('provider_einvoice_status', '!=', 'canceled')]}"/>
+                    <widget name="web_ribbon" title="Be Adjusted" bg_color="bg-danger" attrs="{'invisible': [('provider_einvoice_status', '!=', 'adjusted')]}"/>
+                    <widget name="web_ribbon" title="Be Replaced" bg_color="bg-danger" attrs="{'invisible': [('provider_einvoice_status', '!=', 'be_replaced')]}"/>
+
+                    <div class="oe_title">
+                        <span class="o_form_label">
+                            <span class="o_readonly_modifier">Electronic Invoice</span>
+                        </span>
+                        <h1 class="mt0">
+                            <field name="name" readonly="1" />
+                        </h1>
+                    </div>
+                    <group name="general_info">
+                        <group string="(Ref.) Partner">
+                            <field name="buyer_type" string="Invoice To" widget="radio" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="partner_id" attrs="{'invisible': [('buyer_type', '=', 'unidentified')], 'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="invoice_address" attrs="{'invisible': [('buyer_type', '=', 'unidentified')], 'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                        </group>
+                        <group string="Invoice">
+                            <field name="issue_date" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="currency_id" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="payment_type" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="einvoice_template_id" string="EInvoice Template" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="payment_status" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+
+                            <!-- TODO: this may be changed in future -->
+                            <field name="replace_einvoice_ids" string="Replace" widget="many2many_tags" readonly="1" attrs="{'invisible': [('provider_einvoice_status', '!=', 'replace')]}" />
+                            <field name="adjust_einvoice_ids" string="Adjust" widget="many2many_tags" readonly="1" attrs="{'invisible': [('provider_einvoice_status', '!=', 'adjust')]}" />
+                            <field name="replaced_by_einvoice_id" string="Replaced By" readonly="1" attrs="{'invisible': [('provider_einvoice_status', '!=', 'be_replaced')]}" />
+                            <field name="adjusted_by_einvoice_id" string="Adjusted By" readonly="1" attrs="{'invisible': [('provider_einvoice_status', '!=', 'be_adjusted')]}" />
+                        </group>
+                    </group>
+                    <group name="buyer_info_anonymous" string="Buyer Info" attrs="{'invisible': [('buyer_type', '!=', 'unidentified')]}">
+                        <group>
+                            <field name="buyer_name" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                        </group>
+                        <group>
+                        </group>
+                    </group>
+                    <group name="buyer_info" string="Buyer Info" attrs="{'invisible': [('buyer_type', '=', 'unidentified')]}">
+                        <group>
+                            <field name="buyer_name" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="buyer_company_name" attrs="{'invisible': [('buyer_type', '=', 'individual')], 'required': [('buyer_type', '=', 'company')], 'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="buyer_tax_code" attrs="{'invisible': [('buyer_type', '=', 'individual')], 'required': [('buyer_type', '=', 'company')], 'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="buyer_address" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="buyer_code" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                        </group>
+                        <group>
+                            <field name="buyer_phone_number" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="buyer_email" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="buyer_bank_name" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            <field name="buyer_bank_account" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                        </group>
+                    </group>
+                    <group name="invoice_suggestion_widget"></group>
+                    <notebook>
+                        <page name="einvoice_lines" string="EInvoice Lines">
+                            <field name="einvoice_line_ids" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}">
+                                <tree editable="bottom">
+                                    <field name="line_number" widget="handle" />
+                                    <field name="line_type" optional="hide" />
+                                    <field name="product_id" />
+                                    <field name="product_code" optional="show" />
+                                    <field name="name" />
+                                    <field name="price_unit" optional="hide" />
+                                    <field name="tax_ids" widget="many2many_tags" optional="hide" />
+                                    <field name="product_uom_id" optional="hide" />
+                                    <field name="discount" optional="hide" />
+                                    <field name="price_unit_without_tax" />
+                                    <field name="quantity" />
+                                    <field name="product_uom" />
+                                    <field name="vat_percent" />
+                                    <field name="vat_amount" optional="hide" />
+                                    <field name="price_subtotal" />
+                                    <field name="price_total" optional="show" />
+                                    <field name="currency_id" optional="hide" />
+                                </tree>
+                            </field>
+                            <group col="4">
+                                <group colspan="3">
+                                    <field name="buyer_note" placeholder="Note To Buyer..." nolabel="1" />
+                                </group>
+                                <group class="oe_subtotal_footer oe_right">
+                                    <field name="total_amount_without_vat" readonly="1" string="Untaxed Amount"></field>
+                                    <field name="discount_amount" readonly="1" string="Discount Amount" ></field>
+                                    <field name="vat_percent"></field>
+                                    <field name="total_vat_amount" readonly="1" string="VAT Amount"></field>
+                                    <field name="total_amount_with_vat" readonly="1" string="Total" ></field>
+                                    <field name="total_amount_with_vat_in_words" readonly="1" string="Total In Words"></field>
+                                </group>
+                            </group>
+                        </page>
+                        <page name="reference_invoice" string="Reference Invoices">
+                            <field name="account_move_ids" mode="tree" widget='one2many_list'
+                                   nolabel="1" domain="[('move_type', '=', 'out_invoice')]"
+                                   context="{'search_default_partner_id': partner_id, 'search_default_name': name, 'search_default_posted': 1}">
+                                <tree>
+                                    <field name="name" />
+                                    <field name="invoice_origin" />
+                                    <field name="invoice_date" />
+                                    <field name="amount_untaxed_signed" string="Untaxed Amount" />
+                                    <field name="amount_tax_signed" string="Tax Amount" />
+                                    <field name="amount_total_signed" string="Total" />
+                                    <field name="currency_id" optional="hide" />
+                                    <field name="payment_state" />
+                                    <field name="state" />
+                                </tree>
+                            </field>
+                        </page>
+                        <page name="buyer_n_seller" string="Buyer &amp; Seller">
+                            <group>
+                                <group name="seller_info" string="Seller">
+                                    <field name="seller_name" readonly="1" />
+                                    <field name="seller_tax_code" readonly="1" />
+                                    <field name="seller_address" readonly="1" />
+                                    <field name="seller_phone_number" readonly="1" />
+                                    <field name="seller_email" readonly="1" />
+                                    <field name="seller_code" readonly="1" />
+                                    <field name="seller_bank_name" readonly="1" />
+                                    <field name="seller_bank_account" readonly="1" />
+                                    <field name="seller_website" readonly="1" />
+                                </group>
+                                <group name="buyer_info" string="Buyer">
+                                    <field name="buyer_name" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_company_name" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_tax_code" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_address" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_phone_number" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_email" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_code" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_bank_name" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                    <field name="buyer_bank_account" attrs="{'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                                </group>
+                            </group>
+                        </page>
+                        <page name="other_info" string="Other Info">
+                            <group string="Accounting">
+                                <field name="company_id" readonly="1" />
+                                <field name="partner_id" attrs="{'invisible': [('buyer_type', '=', 'unidentified')], 'readonly': [('provider_einvoice_status', '!=', 'draft')]}" />
+                            </group>
+                            <group string="Other">
+                                <field name="transaction_uuid" readonly="1" />
+                                <field name="x_invoice_data" readonly="1" />
+                                <field name="x_provider_data" readonly="1" />
+                                <field name="x_provider_xml_file" readonly="1" />
+                                <field name="x_provider_last_sync_time" readonly="1" string="Sync Time" />
+                                <field name="x_provider_last_error" readonly="1" string="Last Error" />
+                                <field name="x_is_product_id_filled" invisible="1" />
+                                <field name="x_invoice_note" readonly="1" />
+                                <field name="x_provider_mccqt" readonly="1" />
+                                <field name="x_provider_request_mccqt" readonly="1" />
+                                <field name="x_provider_display_data" readonly="1" widget="html" />
+                                <!-- Internal value -->
+                                <field name="x_invoice_address_confirm" />
+                            </group>
+                            <group string="Action">
+                                <button string="Request Code From Tax Authorities" name="button_send_tax_authority" type="object" class="oe_highlight" attrs="{'invisible': [('provider_einvoice_status', 'in', ['draft,', 'creating', 'unidentified'])]}" />
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="o_attachment_preview" />
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" groups="base.group_user" />
+                    <field name="activity_ids" />
+                    <field name="message_ids" />
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="ntp_einvoice_view_search" model="ir.ui.view">
+        <field name="name">ntp.einvoice.view.search</field>
+        <field name="model">ntp.einvoice</field>
+        <field name="arch" type="xml">
+            <search string="Search EInvoice">
+                <field name="name" string="EInvoice" filter_domain="[('name', 'ilike', self)]" />
+                <field name="partner_id" string="Customer" filter_domain="[('partner_id', 'ilike', self)]" />
+                <separator />
+                <filter name="no_partner" string="Missing Customer" domain="[('partner_id', '=', False)]" />
+                <separator />
+                <filter name="not_request_mccqt" string="Not Request MCCQT" domain="[('x_provider_request_mccqt', '=', False)]" />
+                <filter name="requested_mccqt" string="Requested MCCQT" domain="[('x_provider_request_mccqt', '=', True)]" />
+                <separator />
+                <filter name="no_mccqt" string="No MCCQT" domain="[('x_provider_mccqt', '=', False)]" />
+                <filter name="has_mccqt" string="Has MCCQT" domain="[('x_provider_mccqt', '!=', False)]" />
+                <separator />
+                <filter name="draft" string="Draft" domain="[('provider_einvoice_status', '=', 'draft')]" />
+                <filter name="creating" string="Requested" domain="[('provider_einvoice_status', '=', 'creating')]" />
+                <filter name="created" string="Issued" domain="[('provider_einvoice_status', '=', 'created')]" />
+                <filter name="replace" string="Replace" domain="[('provider_einvoice_status', '=', 'replace')]" />
+                <filter name="be_replaced" string="Be Replaced" domain="[('provider_einvoice_status', '=', 'be_replaced')]" />
+                <filter name="adjust" string="Adjust" domain="[('provider_einvoice_status', '=', 'adjust')]" />
+                <filter name="be_adjusted" string="Be Adjusted" domain="[('provider_einvoice_status', '=', 'be_adjusted')]" />
+                <filter name="canceled" string="Canceled" domain="[('provider_einvoice_status', '=', 'canceled')]" />
+                <filter name="unknown" string="Unknown" domain="[('provider_einvoice_status', '=', 'unknown')]" />
+                <separator />
+                <filter name="linked_invoices" string="Linked EInvoices" domain="[('account_move_ids', '!=', False)]" />
+                <filter name="not_linked_invoices" string="Not Linked EInvoices" domain="[('account_move_ids', '=', False)]" />
+                <separator />
+                <filter name="report_to_cqt" string="Report CQT"
+                        domain="[('provider_einvoice_status', 'in', ['creating', 'created', 'adjust', 'be_adjusted', 'replace'])]" />
+                <filter name="issue_date" string="Issue Date" date="issue_date" />
+                <separator />
+                <filter string="Archived" name="inactive" domain="[('active','=',False)]"/>
+            </search>
+        </field>
+    </record>
+</odoo>

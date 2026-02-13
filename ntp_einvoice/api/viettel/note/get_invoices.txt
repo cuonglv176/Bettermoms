@@ -1,0 +1,109 @@
+https://api-vinvoice.viettel.vn/services/einvoiceapplication/api/InvoiceAPI/InvoiceUtilsWS/getInvoices/0100109106-718
+
+{
+    "startDate": "2022-02-28",
+    "endDate": "2022-03-21",
+    "rowPerPage": 2,
+    "pageNum": 1
+}
+
+
+{
+    "errorCode": null,
+    "description": null,
+    "totalRows": 565,
+    "invoices": [
+        {
+            "invoiceId": 4572497,
+            "invoiceType": "1",
+            "adjustmentType": "1",
+            "templateCode": "1/099",
+            "invoiceSeri": "C22TMV",
+            "invoiceNumber": "0000140",
+            "invoiceNo": "C22TMV140",
+            "currency": "VND",
+            "total": 96955950.000000000,
+            "issueDate": null,
+            "issueDateStr": "2022-03-11T00:33:03Z",
+            "state": 1,
+            "requestDate": null,
+            "description": null,
+            "buyerIdNo": null,
+            "stateCode": 1,
+            "subscriberNumber": null,
+            "paymentStatus": 1,
+            "viewStatus": null,
+            "downloadStatus": null,
+            "exchangeStatus": 0,
+            "numOfExchange": null,
+            "createTime": null,
+            "contractId": null,
+            "contractNo": null,
+            "supplierTaxCode": "0100109106-718",
+            "buyerTaxCode": null,
+            "totalBeforeTax": 96955950.000000000,
+            "taxAmount": 0E-9,
+            "taxRate": null,
+            "paymentMethod": "5",
+            "paymentTime": null,
+            "customerId": null,
+            "no": null,
+            "paymentStatusName": "Đã thanh toán",
+            "buyerName": "Dương Tấn Thông"
+        },
+        {
+            "invoiceId": 4572573,
+            "invoiceType": "1",
+            "adjustmentType": "1",
+            "templateCode": "1/099",
+            "invoiceSeri": "C22TMV",
+            "invoiceNumber": "0000141",
+            "invoiceNo": "C22TMV141",
+            "currency": "VND",
+            "total": 23363820.000000000,
+            "issueDate": null,
+            "issueDateStr": "2022-03-11T00:47:49Z",
+            "state": 1,
+            "requestDate": null,
+            "description": null,
+            "buyerIdNo": null,
+            "stateCode": 1,
+            "subscriberNumber": null,
+            "paymentStatus": 1,
+            "viewStatus": null,
+            "downloadStatus": null,
+            "exchangeStatus": 0,
+            "numOfExchange": null,
+            "createTime": null,
+            "contractId": null,
+            "contractNo": null,
+            "supplierTaxCode": "0100109106-718",
+            "buyerTaxCode": null,
+            "totalBeforeTax": 23363820.000000000,
+            "taxAmount": 0E-9,
+            "taxRate": null,
+            "paymentMethod": "5",
+            "paymentTime": null,
+            "customerId": null,
+            "no": null,
+            "paymentStatusName": "Đã thanh toán",
+            "buyerName": "Dương Thị An"
+        }
+    ]
+}
+
+
+ERROR case
+
+{
+    "startDate": "2022-02-28",
+    "endDate": "2022-03-21",
+    "rowPerPage": 2,
+    "pageNum": 2000
+}
+
+{
+    "code": 400,
+    "message": "NOT_FOUND_DATA",
+    "data": "Không tìm thấy bản ghi"
+}

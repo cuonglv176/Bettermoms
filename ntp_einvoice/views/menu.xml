@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_ntp_einvoice" model="ir.actions.act_window">
+        <field name="name">EInvoice</field>
+        <field name="res_model">ntp.einvoice</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+            Create new Invoice
+          </p>
+            <p>
+            Tạo hóa đơn điện tử mới.
+          </p>
+        </field>
+    </record>
+
+    <record id="action_ntp_einvoice_template" model="ir.actions.act_window">
+        <field name="name">EInvoice Template</field>
+        <field name="res_model">ntp.einvoice.template</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+            Create Invoice Template
+          </p>
+            <p>
+            Tạo hóa đơn điện tử mới.
+          </p>
+        </field>
+    </record>
+
+    <record id="action_ntp_einvoice_line" model="ir.actions.act_window">
+      <field name="name">EInvoice Line</field>
+      <field name="res_model">ntp.einvoice.line</field>
+      <field name="view_mode">tree,form</field>
+      <field name="domain">[]</field>
+      <field name="context">
+        {
+          "search_default_product_line_only": 1
+        }
+      </field>
+      <field name="help" type="html">
+          <p class="o_view_nocontent_smiling_face">
+          No Inventory
+        </p>
+      </field>
+    </record>
+
+    <menuitem web_icon="ntp_einvoice,static/description/icon.png" id="ntp_einvoice" name="E-Invoice" sequence="2" />
+    <menuitem id="ntp_einvoice_menu" action="action_ntp_einvoice" name="E-Invoices" parent="ntp_einvoice" sequence="1" />
+    <menuitem id="ntp_einvoice_template_menu" action="action_ntp_einvoice_template" name="E-Invoice Template" parent="ntp_einvoice" sequence="1" />
+
+    <menuitem id="ntp_einvoice_line_menu" action="action_ntp_einvoice_line" name="E-Invoice Lines" parent="ntp_einvoice_menu" sequence="1" />
+</odoo>

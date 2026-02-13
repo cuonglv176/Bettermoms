@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data noupdate="1">
+    
+        <record id="tax_invoice_bizzi_api_url" model="ir.config_parameter">
+            <field name="key">tax_invoice.tax_invoice_bizzi_api_url</field>
+            <field name="value">https://api.bizzibots.com/</field>
+        </record>
+        <record id="tax_invoice_bizzi_view_url" model="ir.config_parameter">
+            <field name="key">tax_invoice.tax_invoice_bizzi_view_url</field>
+            <field name="value">https://hoadon.bizzi.vn/</field>
+        </record>
+
+    </data>
+    
+
+</odoo>

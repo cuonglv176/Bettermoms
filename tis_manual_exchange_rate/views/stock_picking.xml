@@ -1,0 +1,29 @@
+<odoo>
+    <data>
+        <record model="ir.ui.view" id="view_stock_picking_currency_rate">
+            <field name="name">stock.picking.currency.rate</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+
+                <xpath expr="//field[@name='location_dest_id']" position="after">
+
+                    <field name="currency_flag" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="accounting_date" attrs="{'invisible': [('currency_flag', '=', False)]}"/>
+                    <field name="default_exchange_rate" attrs="{'invisible': [('currency_flag', '=', False)]}" readonly="1"/>
+                    <label for="exchange_rate" attrs="{'invisible': [('currency_flag', '=', False)]}"/>
+                        <div attrs="{'invisible': [('currency_flag', '=', False)]}">
+                            <field name="exchange_rate" required="1" class="oe_inline"/>
+                            <button name="update_price_unit" string="⇒ Update Cost"
+                                attrs="{'invisible': ['|', ('state', 'in', ('done')),
+                                ('picking_type_code', '=', 'outgoing')]}"
+                                type="object" class="oe_link"/>
+                        </div>
+                </xpath>
+
+
+            </field>
+        </record>
+    </data>
+</odoo>

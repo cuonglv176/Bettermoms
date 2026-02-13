@@ -1,0 +1,23 @@
+# TK **0080 thay doi  - VND 990,000. So du kha dung: VND 118,737,599. CONG TY TNHH THUONG MAI VA DICH VU . NTP TECH TT TIEN KE TRUNG BAY SP..BILL/2022/01/0007 .NTP TECH PAY BRUSH MONSTER POP
+# From
+# January 28, 2022 at 09:34AM
+# via Android
+# Manage
+# Unsubscribe
+# from these notifications or sign in to manage your
+# Email service.
+Value Required ACCOUNT (\S+)
+Value PAYMENT_TYPE ([\-+]|debit|credit)
+Value AMOUNT ((\d+,?)+)
+Value AMOUNT_CURRENCY ([A-Z]{3})
+Value BALANCE ((\d+,?)+)
+Value BALANCE_CURRENCY ([A-Z]{3})
+Value MESSAGE (.+)
+Value DATE ((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(.+))
+
+
+Start
+  ^(\s+)?TK(\s+)${ACCOUNT}\s+(thay doi|thanh toan the Ghi no)\s+${PAYMENT_TYPE}\s+${AMOUNT_CURRENCY}\s+${AMOUNT}\.(.+)So du kha dung:(\s+)${BALANCE_CURRENCY}\s+${BALANCE}\.(\s+)?${MESSAGE}
+  ^(\s+)?${DATE}(\s+)? -> Record
+
+EOF

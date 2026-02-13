@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_account_journal_pos_user_form" model="ir.ui.view">
+      <field name="name">PT PC Journal</field>
+      <field name="model">account.journal</field>
+      <field name="inherit_id" ref="account.view_account_journal_form"></field>
+      <field name="arch" type="xml">
+        <xpath expr="//group[1]" position="after">
+          <group>
+            <group>
+              <field name="pt_sequence_id"/>
+              <field name="pt_code"/>
+            </group>
+            <group>
+              <field name="pc_sequence_id"/>
+              <field name="pc_code"/>
+            </group>
+          </group>
+           <group>
+              <field name="manager_id"/>
+              <field name="accountant_id"/>
+              <field name="treasurer_id"/>
+          </group>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="account_account_new_form" model="ir.ui.view">
+            <field name="name">account.account</field>
+            <field name="model">account.account</field>
+            <field name="inherit_id" ref="account.view_account_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='user_type_id']" position="before">
+                    <field name="type"/>
+                    <field name="parent_id"/>
+                </xpath>
+                <xpath expr="//field[@name='deprecated']" position="after">
+                    <field name="level"/>
+                    <field name="sequence"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="account_account_new_list" model="ir.ui.view">
+            <field name="name">account.account.list</field>
+            <field name="model">account.account</field>
+            <field name="inherit_id" ref="account.view_account_list"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='user_type_id']" position="after">
+                    <field name="level"/>
+                    <field name="type"/>
+                    <field name="parent_id"/>
+                    <field name="sequence"/>
+                </xpath>
+            </field>
+        </record>
+
+
+    </data>
+</odoo>

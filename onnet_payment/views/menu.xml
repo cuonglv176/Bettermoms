@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <menuitem id="quy_menu" name="Quỹ" sequence="3"
+                  parent="account_accountant.menu_accounting"/>
+
+        <!-- Cum menu Nghiep vu Quy -->
+        <menuitem id="onnet_payment_nghiep_vu_quy_menu"
+                  name="Nghiệp vụ Quỹ"
+                  sequence="5"
+                  parent="onnet_payment.quy_menu"/>
+
+        <!-- Cum menu Hach toan -->
+        <menuitem id="onnet_payment_hach_toan_menu"
+                  name="Hạch toán"
+                  sequence="6"
+                  parent="onnet_payment.quy_menu"/>
+
+        <menuitem id="onnet_payment_phieu_thu_menu"
+                  name="Phiếu Thu"
+                  sequence="7"
+                  parent="onnet_payment.onnet_payment_hach_toan_menu"
+                  action="onnet_payment_phieu_thu_act"/>
+
+        <menuitem id="onnet_payment_phieu_chi_menu" name="Phiếu Chi"
+                  parent="onnet_payment.onnet_payment_hach_toan_menu"
+                  sequence="8"
+                  action="onnet_payment_phieu_chi_act"/>
+
+        <menuitem id="onnet_payment_giay_bao_no_menu"
+                  name="Giấy báo nợ" sequence="9"
+                  parent="onnet_payment.onnet_payment_hach_toan_menu"
+                  action="onnet_payment_giay_bao_no_act"/>
+
+        <menuitem id="onnet_payment_giay_bao_co_act"
+                  name="Giấy báo có" sequence="10"
+                  parent="onnet_payment.onnet_payment_hach_toan_menu"
+                  action="giay_bao_co_act"/>
+
+    </data>
+</odoo>

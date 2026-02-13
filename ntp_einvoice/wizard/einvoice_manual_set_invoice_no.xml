@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_einvoice_manual_set_invoice_no_view_form" model="ir.ui.view">
+        <field name="name">ntp.einvoice.manual.set.invoice.no.form</field>
+        <field name="model">ntp.einvoice.manual.set.invoice.no</field>
+        <field name="arch" type="xml">
+            <form string="">
+
+                <sheet>
+                    <group>
+                        <field name="einvoice_no" />
+                        <field name="einvoice_id" readonly="1" />
+                        <field name="einvoice_template_id" readonly="1" />
+                        <field name="x_provider_find_msg" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page name="preview" string="Preview" attrs="{'invisible': [('x_provider_preview', '=', False)]}">
+                            <field name="x_provider_preview" readonly="1" widget="pdf_viewer" />
+                        </page>
+                    </notebook>
+                    <footer>
+                        <button string="Set" name="button_set_invoice" type="object" class="oe_highlight" confirm="This can't be undone. Are you sure ?" />
+                        <button string="Preview Invoice" name="button_preview" icon="fa-refresh" type="object" class="oe_highlight" />
+                        <button string="Cancel" class="btn-secondary" special="cancel" />
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

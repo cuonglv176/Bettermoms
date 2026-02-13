@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="import_bank_statement_lines_view_form" model="ir.ui.view">
+        <field name="name">import.bank.statement.lines.view.form</field>
+        <field name="model">account.bank.statement.line.import</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <p class="oe_grey">
+                    Import Bank Transactions in to current Bank Statement.
+                    <br />
+                    It is recommended you test your import file by using 'Test Import' button
+                </p>
+                <group>
+                    <field name="upload_file" filename="upload_file_name" />
+                    <field name="statement_type" />
+                    <field name="card_number" attrs="{'invisible': [('statement_type', 'in', ['bank', 'credit_card_final', 'dedit_card_final'])]}" />
+                </group>
+                <notebook>
+                    <page string="Result" attrs="{'invisible': [('result_preview', '=', False)]}">
+                        <field name="result_preview" widget="html" readonly="1"/>
+                    </page>
+                    <page string="Example">
+                        <code>Example For Bank Csv Upload</code>
+                        <table class="o_list_table table table-sm table-hover table-striped o_list_table_ungrouped">
+                            <thead>
+                                <tr>
+                                    <th>Transaction Date</th>
+                                    <th>Transaction Type</th>
+                                    <th>Debit</th>
+                                    <th>Credit</th>
+                                    <th>Balance</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>9/3/2022</td>
+                                    <td>Internet Banking</td>
+                                    <td>0</td>
+                                    <td>3,100,000</td>
+                                    <td>275,242,687</td>
+                                    <td>CONG TY TNHH HOYEON VINA/buy portable electric fogging</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <code>Example For Credit/Debit Card Csv Upload</code>
+                        <table class="o_list_table table table-sm table-hover table-striped o_list_table_ungrouped">
+                            <thead>
+                                <tr>
+                                    <th>Transaction Date</th>
+                                    <th>Transaction Description</th>
+                                    <th>Card Number</th>
+                                    <th>Transaction Currency</th>
+                                    <th>Transaction Amount</th>
+                                    <th>Country/City</th>
+                                    <th>Auth Code</th>
+                                    <th>Transaction Division</th>
+                                    <th>Acquiring Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>08/03/2022 00:00:05</td>
+                                    <td>N477FETZR2</td>
+                                    <td>2140</td>
+                                    <td>VND</td>
+                                    <td>6,292,073.00</td>
+                                    <td>Ireland Republic of/fb.me/ads</td>
+                                    <td>887934</td>
+                                    <td>Credit Purchase</td>
+                                    <td>Slip Acquired</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <code>Example For Credit/Debit Card FINAL Csv Upload</code>
+                        <table class="o_list_table table table-sm table-hover table-striped o_list_table_ungrouped">
+                            <thead>
+                                <tr>
+                                    <th>Transaction Date</th>
+                                    <th>Post Date</th>
+                                    <th>Merchant</th>
+                                    <th>Country/City</th>
+                                    <th>Origin Amount</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>12/02/2022</td>
+                                    <td>16/02/2022</td>
+                                    <td>CHA CHA CHA RESTAURANT</td>
+                                    <td>VN/HA NOI</td>
+                                    <td>VND 773,280.00</td>
+                                    <td>773,280</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </page>
+                </notebook>
+                <footer>
+                    <button string="Import" name="button_import" type="object" class="oe_highlight" />
+                    <button string="Test Import" name="button_preview" type="object" />
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+
+        </field>
+    </record>
+
+    <record id="action_view_import_bank_statement_lines" model="ir.actions.act_window">
+        <field name="name">Import Bank Transactions</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">account.bank.statement.line.import</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <!-- TODO: check if we need this -->
+        <field name="binding_model_id" ref="ntp_payment_remittance.model_account_bank_statement" />
+        <field name="binding_view_types">list</field>
+    </record>
+
+</odoo>

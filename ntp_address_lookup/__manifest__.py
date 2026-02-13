@@ -1,0 +1,25 @@
+# -*- coding: utf-8 -*-
+{
+    "name": "NTP Address Lookup",
+    "category": "Base",
+    "summary": "Smart Address Lookup and Validation for Vietnam",
+    "description": "Verify and auto-fill Vietnam addresses with offline Province/District/Ward data and online search.",
+    "version": "15.0.5.0.0",
+    "author": "NTP",
+    "website": "",
+    "depends": ["base", "account", "sale", "ntp_einvoice"],
+    "data": [
+        "security/ir.model.access.csv",
+        "wizard/address_lookup_wizard.xml",
+        "wizard/batch_address_wizard.xml",
+        "views/res_partner.xml",
+        "views/sale_order.xml",
+        "views/res_config_settings.xml",
+        "data/server_actions.xml",
+    ],
+    "post_init_hook": "post_init_hook",
+    "installable": True,
+    "application": False,
+    "auto_install": False,
+    "license": "OPL-1",
+}

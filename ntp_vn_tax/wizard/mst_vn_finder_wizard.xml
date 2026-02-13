@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+
+    <record id="mst_vn_finder_wizard_view" model="ir.ui.view">
+        <field name="name">mst.vn.finder.wizard.view</field>
+        <field name="model">mst.vn.finder.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Find MST Information">
+                <group>
+                    <field name="tax_code" readonly="1" />
+                    <field name="finder_type" readonly="1" />
+                    <field name="search_captcha" readonly="1" widget="image" />
+                    <field name="search_captcha_url" invisible="1" readonly="1" widget="url" string="" />
+                    <field name="search_captcha_code" />
+                    <field name="update_name" attrs="{'invisible': [('search_result', '=', False)]}" />
+                    <!-- <field name="search_result_html" readonly="1" widget="html" /> -->
+                    <field name="search_result" invisible="1" />
+                </group>
+                <notebook>
+                    <page name="result_parsed" string="Result" attrs="{'invisible': [('search_result', '=', False)]}">
+                        <field name="search_result_html" widget="html" readonly="1" />
+                    </page>
+                    <page name="result_pdf" string="Saved Pdf" attrs="{'invisible': [('search_result', '=', False)]}">
+                        <field name="search_result_pdf" widget="pdf_viewer" readonly="1" />
+                    </page>
+                </notebook>
+                <footer>
+                    <button name="button_find" icon="fa-search" string="Find" type="object" class="btn-primary" />
+                    <button name="button_save" icon="fa-floppy-o" string="Save To Invoice Address"
+                            type="object" class="btn-primary" attrs="{'invisible': [('search_result', '=', False)]}" />
+                    <button name="button_refresh_captcha" icon="fa-refresh" string="Captcha" type="object" />
+                    <button string="Cancel" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

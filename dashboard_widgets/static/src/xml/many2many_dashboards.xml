@@ -1,0 +1,63 @@
+<template>
+    <t t-name="FieldMany2ManyDashboard">
+        <t t-if="self.getParent().state.data.show_params or self.getParent().state.data.show_date_range" t-call="param_section"/>
+        <div class="grid-stack">
+        <t t-foreach="self.value.data" t-as="tile">
+            <div class="grid-stack-item" t-att-data-id="tile.id" t-att-data-gs-x="tile.data.pos_x" t-att-data-gs-y="tile.data.pos_y" t-att-data-gs-width="tile.data.size_x" t-att-data-gs-height="tile.data.size_y" style="position: absolute;">
+                <div class="grid-stack-item-content" t-attf-style="background-color: #{tile.data.background_color}">
+                    <div class="dashboard-title"><span t-esc="tile.data.display_name"/></div>
+                    <div class="click-record-actions" t-if="self.mode == 'edit'">
+                        <a class="click-open-record" href="#" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"><i class="fa fa-pencil" role="img" aria-label="Manage" title="Manage" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"/></a>
+                        <a class="click-remove-record" href="#" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"><i class="fa fa-trash" role="img" aria-label="Remove" title="Remove" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"/></a>
+                    </div>
+                    <div class="click-record-actions" t-elif="self.mode != 'edit' and self.name != 'available_widget_ids'">
+                        <a class="click-open-record-list" style="color: lightgray;" href="#" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id" t-if="tile.data.display_mode == 'record_list'"><i class="fa fa-external-link" role="img" aria-label="Open List" title="Open List" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"/></a>
+                        <a class="click-export-data" style="color: lightgray;" href="#" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"><i class="fa fa-download" role="img" aria-label="Download export" title="Download export" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"/></a>
+                    </div>
+                    <div class="click-record-actions" t-elif="self.name == 'available_widget_ids'">
+                        <t t-if="tile.data.is_template">
+                            <a class="click-select-template-copy" href="#" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"><i class="fa fa-check" role="img" aria-label="Select" title="Select" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"/>Add to dashboard</a>
+                        </t>
+                        <t t-else="">
+                            <a class="click-select-template-copy" href="#" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"><i class="fa fa-plus" role="img" aria-label="Add Copy" title="Add Copy" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"/> Copy to dashboard</a>
+                            <a class="click-select-template-link" href="#" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"><i class="fa fa-link" role="img" aria-label="Add Link" title="Add Link" t-att-data-record-id="tile.data.id" t-att-data-id="tile.id"/> Link to dashboard</a>
+                        </t>
+                    </div>
+                    <div class="dashboard-content" t-att-data-dashboard-content-id="tile.data.id" t-att-style="tile.data.display_allow_scrolling ? 'overflow: auto;': ''" />
+                </div>
+            </div>
+        </t>
+        </div>
+    </t>
+
+
+    <t t-name="param_section">
+        <div class="param_section_container">
+            <div class="param_section">
+                <t t-if="self.getParent().state.data.show_params">
+                    <t t-foreach="JSON.parse(self.getParent().state.data.parameter_render_data)" t-as="p">
+                        <label t-att-for="p_value['id']"><t t-esc="p_value['name']"/></label>
+                        <t t-if="p_value['control_type'] == 'selection'">
+                            <select t-att-name="p_value['id']" class="parameter_selection">
+                                <t t-foreach="p_value['selection_options']" t-as="opt">
+                                    <option t-att-value="opt[0]" t-att-selected="opt[0] == p_value['value'] ? 'selected' : undefined"><t t-esc="opt[1]"/></option>
+                                </t>
+                            </select>
+                        </t>
+                        <t t-else="">
+                            <input type="text" t-att-name="p_value['id']" t-att-value="p_value['value']" class="parameter_selection"/>
+                        </t>
+                    </t>
+                </t>
+                <t t-if="self.getParent().state.data.show_date_range">
+                    <label for="date_range_type">Date Range:</label>
+                    <select name="date_range_type" class="date_range_type_selection">
+                        <t t-foreach="self.getParent().state.fields.date_range_type.selection" t-as="opt">
+                            <option t-att-value="opt[0]" t-att-selected="opt[0] == self.getParent().state.data.date_range_type ? 'selected' : undefined"><t t-esc="opt[1]"/></option>
+                        </t>
+                    </select>
+                </t>
+            </div>
+        </div>
+    </t>
+</template>

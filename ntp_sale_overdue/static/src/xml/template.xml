@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="OverDue_Template">
+    <!--  <span class="o_stat_value"><t t-esc="value"/></span>-->
+        <span class="o_stat_text"><t t-esc="text"/></span>
+    </t>
+
+    <t t-name="ViewOverDue">
+        <div id="view_over_due">
+            <t t-esc="html" />
+        </div>
+    </t>
+
+    <t t-name="ntp_sale_overdue.dashboard_list_header">
+        <div class="o_overdue_sale_container d-flex o_form_statusbar text-center">
+            <t t-foreach="overdue_data" t-as="data">
+                <div t-attf-class="o_overdue_card o_arrow_button flex-grow-1 d-flex flex-column border-right-0">
+                    <div class="content_center">
+                        <div>
+                            <span t-esc="data.value" class="h2 o_overdue_purple"/>
+                        </div>
+                        <b class="m-2 " data-toggle="tooltip" t-att-title="data.tooltip">
+                            <span t-esc="data.title" />
+                        </b>
+                    </div>
+                </div>
+<!--                <div t-attf-class="o_expense_card o_arrow_button flex-grow-1 d-flex flex-column border-right-0">-->
+<!--                    <div class="content_center">-->
+<!--                        <div>-->
+<!--                            <span t-esc="overdue_data.avg_indue_day" class="h2 o_expense_purple"/>-->
+<!--                        </div>-->
+<!--                        <b class="m-2">Avg In-due days</b>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--                <div t-attf-class="o_expense_card o_arrow_button flex-grow-1 d-flex flex-column border-right-0">-->
+<!--                    <div class="content_center">-->
+<!--                        <div>-->
+<!--                            <span t-esc="overdue_data.percent_overdue" class="h2 o_expense_purple"/>-->
+<!--                        </div>-->
+<!--                        <b class="m-2">% of Over-due</b>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--                 <div t-attf-class="o_expense_card o_arrow_button flex-grow-1 d-flex flex-column border-right-0">-->
+<!--                    <div class="content_center">-->
+<!--                        <div>-->
+<!--                            <span t-esc="overdue_data.percent_indue" class="h2 o_expense_purple"/>-->
+<!--                        </div>-->
+<!--                        <b class="m-2">% of In-due</b>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--                <div t-attf-class="o_expense_card o_arrow_button flex-grow-1 d-flex flex-column border-right-0">-->
+<!--                    <div class="content_center">-->
+<!--                        <div>-->
+<!--                            <span t-esc="overdue_data.max_overdue_day" class="h2 o_expense_purple"/>-->
+<!--                        </div>-->
+<!--                        <b class="m-2">Max Over-due days</b>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--                <div t-attf-class="o_expense_card o_arrow_button flex-grow-1 d-flex flex-column border-right-0">-->
+<!--                    <div class="content_center">-->
+<!--                        <div>-->
+<!--                            <span t-esc="overdue_data.min_indue_day" class="h2 o_expense_purple"/>-->
+<!--                        </div>-->
+<!--                        <b class="m-2">Min In-due days</b>-->
+<!--                    </div>-->
+<!--                </div>-->
+            </t>
+        </div>
+    </t>
+</templates>

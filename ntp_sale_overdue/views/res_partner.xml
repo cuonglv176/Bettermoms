@@ -1,0 +1,61 @@
+<odoo>
+    <data>
+        <record id="view_partner_overdue_form" model="ir.ui.view">
+            <field name="name">res.partner.geolocation.inherit</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook[last()]" position="inside">
+                    <page string="Partner Overdue" name="partner_overdue">
+                      <group>
+                          <field name="max_overdue_day" />
+                          <label for="late_amount_due"/>
+                        <div>
+
+                            <field name="late_amount_due" class="oe_inline"/>
+                            <button name="get_sale_detail_late_amount" type="object" class="oe_inline btn btn-secondary" string="View Sale Details"/>
+                        </div>
+                      <field name="period"/>
+                      </group>
+                        <field name="payment_summary" widget="html" nolabel="1"/>
+                      <field name="saleoverdue_summary" widget="html" nolabel="1"/>
+                        <div>
+                            <field name="bokeh_chart" widget="bokeh_chart" nolabel="1" attrs="{'invisible': [('max_overdue_day', '=', 0)]}"/>
+                        </div>
+                    </page>
+                </xpath>
+            </field>
+
+        </record>
+
+        <record id="partner_overdue_form" model="ir.ui.view">
+            <field name="name">res.partner.overdue</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='company_id']"  position="after">
+                        <field name="late_amount_due"/>
+                </xpath>
+            </field>
+
+        </record>
+
+        <!-- Partner kanban view inherte -->
+        <record model="ir.ui.view" id="partner_overdue_kanban_view">
+            <field name="name">res.partner.kanban.inherit</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.res_partner_kanban_view"/>
+            <field name="priority" eval="20"/>
+            <field name="arch" type="xml">
+                <field name="mobile" position="after">
+                    <field name="late_amount_due"/>
+                    <field name="max_overdue_day"/>
+                </field>
+                <xpath expr="//span[hasclass('oe_kanban_partner_links')]" position="inside">
+                    <span t-if="record.max_overdue_day.value>0" class="badge badge-pill">Late <i class="" role="img" aria-label="Sale orders" title="Sales orders"/><t t-esc="record.max_overdue_day.value"/> days</span>
+                    <span t-if="record.late_amount_due.value!=0" class="badge badge-pill"><i class="fa fa-fw fa-usd" role="img" aria-label="Sale orders" title="Sales orders"/><t t-esc="record.late_amount_due.value"/></span>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

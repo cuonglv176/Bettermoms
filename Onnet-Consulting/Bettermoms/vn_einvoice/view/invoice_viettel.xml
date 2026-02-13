@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_invoice_viettel_form" model="ir.ui.view">
+      <field name="name">Hoá đơn điện tử EInvoice</field>
+      <field name="model">invoice.viettel</field>
+      <field name="arch" type="xml">
+        <form>
+          <header>
+            <button name="sendeinvoice" string="Phát Hành Hóa Đơn" type="object" class="oe_highlight" attrs="{'invisible': ['|', ('vsi_status', '=', 'created'),'|', ('vsi_status', '=', 'canceled'), ('is_adjustment_invoice', '=', True)]}"/>
+            <button name="adjust_einvoice" string="Phát Hành Hóa Đơn Điều Chỉnh" type="object" class="oe_highlight" attrs="{'invisible': [('is_adjustment_invoice', '=', False)]}"/>
+            <button confirm="Bạn có chắc chắn hủy hóa đơn này?" name="cancel_invoice_comfirm" string="Huỷ hoá đơn" type="object" class="oe_highlight" attrs="{'invisible': [('vsi_status', '=', 'canceled')]}"/>
+            <button name="resend_vnpt_email" string="Download và Gửi Lại Hóa Đơn" type="object" class="oe_highlight"/>
+            <button name="reset_einvoice_status" string="Reset trạng thái" type="object" class="oe_highlight" attrs="{'invisible': ['|', '|', ('vsi_status', '=', 'created'), ('vsi_status', '=', 'canceled'), ('vsi_status', '=', 'draft')]}"/>
+          </header>
+          <sheet>
+            <h1 class="mt0">
+              <field name="name" readonly="True"/>
+            </h1>
+            <group>
+              <group>
+                <h4>Thông tin hóa đơn</h4>
+                <field name="date_invoice"/>
+                <field name="company_branch_id"/>
+                <field name="vsi_tin"/>
+                <field name="vsi_template"/>
+                <field name="vsi_series"/>
+                <field name="invoiceStatus"/>
+                <field name="currency_id" string="Đơn vị tiền tệ"/>
+                <field name="vsi_status" readonly="True"/>
+                <field name="origin_invoice" />
+                <field name="is_adjustment_invoice"/>
+                <field name="adjustment_type"/>
+                <field name="adjustment_desc"/>
+                <field name="adjustment_date"/>
+              </group>
+              <group>
+                <h4>Thông tin khách hàng</h4>
+                <field name="partner_id"/>
+                <field name="buyerName"/>
+                <field name="street_partner"/>
+                <field name="email_partner"/>
+                <field name="phone_partner"/>
+                <field name="VAT"/>
+                <field name="paymentType"/>
+                <field name="pdf_file"/>
+              </group>
+            </group>
+            <notebook>
+              <page string="Chi tiết hoá đơn">
+                <field name="invoice_line_ids" widget="one2many_list" mode="tree" string="Chi tiết các mặt hàng">
+                  <tree string="Các mặt hàng" editable="bottom">
+                    <field name="product_id"/>
+                    <field name="name"/>
+                    <field name="quantity"/>
+                    <field name="price_unit"/>
+                    <field name="uom_id"/>
+                    <field name="invoice_uom_id"/>
+                    <field name="invoice_line_tax_ids" string="Thuế"/>
+                    <field name="vat_amount"/>
+                    <field name="vat_rate"/>
+                    <field name="price_total"/>
+                    <field name="price_subtotal"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="is_adjustment_line" invisible="1"/>
+                    <field name="is_increase_adj" attrs="{'invisible': [('is_adjustment_line','=', False)]}"/>
+                  </tree>
+                </field>
+                <group>
+                  <group>
+                    <field name="amountinwords"/>
+                    <field name="grossvalue"/>
+                    <field name="grossvalue5"/>
+                    <field name="grossvalue10"/>
+                    <field name="vatamount5"/>
+                    <field name="vatamount10"/>
+                  </group>
+                  <group>
+                    <field name="amount_untaxed"/>
+                    <field name="amount_tax"/>
+                    <field name="amount_total"/>
+                    <field name="taxRate"/>
+                  </group>
+                </group>
+
+              </page>
+              <page string="Hoá đơn tham chiếu">
+                <group>
+                  <field name="account_move_ids" mode="tree" widget='one2many_list'>
+                    <tree>
+                      <field name="name"/>
+                      <field name="invoice_origin"/>
+                      <field name="amount_untaxed_signed"/>
+                    </tree>
+                  </field>
+                </group>
+
+              </page>
+              <page string="Follow up">
+                <group>
+                  <group>
+                    <field name="company_id" string="Công ty"/>
+                    <field name="tax_company"/>
+                    <field name="street_company"/>
+                  </group>
+                  <group>
+                    <field name="additionalReferenceDesc"/>
+                    <field name="additionalReferenceDate"/>
+                  </group>
+                </group>
+              </page>
+              <page string="Thông tin khác">
+                <group>
+                  <group>
+                    <field name="fkey"/>
+                    <field name="reservation_code"/>
+                    <field name="transaction_id"/>
+                    <field name="invoiceId"/>
+                    <field name="invoiceType"/>
+                    <field name="adjustmentType"/>
+                    <field name="total"/>
+                    <field name="issueDate"/>
+                    <field name="issueDateStr"/>
+                    <field name="requestDate"/>
+                    <field name="description"/>
+                    <field name="buyerCode"/>
+                    <field name="paymentStatus"/>
+                  </group>
+                  <group>
+                    <field name="viewStatus"/>
+                    <field name="exchangeStatus"/>
+                    <field name="numOfExchange"/>
+                    <field name="createTime"/>
+                    <field name="contractId"/>
+                    <field name="contractNo"/>
+                    <field name="totalBeforeTax"/>
+                    <field name="taxRate"/>
+                    <field name="paymentMethod"/>
+                    <field name="paymentTime"/>
+                    <field name="paymentStatusName"/>
+                  </group>
+                </group>
+              </page>
+            </notebook>
+          </sheet>
+          <div class="oe_chatter">
+              <field name="message_follower_ids"/>
+              <field name="activity_ids"/>
+              <field name="message_ids" options="{'post_refresh': 'recipients'}"/>
+          </div>
+        </form>
+      </field>
+    </record>
+
+    <record id="view_invoice_viettel_list" model="ir.ui.view">
+      <field name="name">Hoá đơn điện tử</field>
+      <field name="model">invoice.viettel</field>
+      <field name="arch" type="xml">
+        <tree string="EInvoice" default_order="date_invoice desc">
+          <field name="name"/>
+          <field name="vsi_series"/>
+          <field name="account_move_ids" widget="many2many_tags"/>
+          <field name="company_branch_id"/>
+          <field name="partner_id"/>
+          <field name="VAT"/>
+          <field name="is_adjustment_invoice"/>
+          <field name="vsi_status"/>
+          <field name="date_invoice"/>
+          <field name="amount_untaxed"/>
+          <field name="amount_tax"/>
+          <field name="amount_total"/>
+          <field name="currency_id"/>
+          <field name="company_id" invisible="1"/>
+        </tree>
+      </field>
+    </record>
+
+    <record id="action_invoice_viettel" model="ir.actions.act_window">
+      <field name="name">Hoá đơn điện tử EInvoice</field>
+      <field name="res_model">invoice.viettel</field>
+      <field name="view_mode">tree,form</field>
+      <field name="help" type="html">
+        <p class="o_view_nocontent_smiling_face">
+          Create new Invoice
+        </p>
+        <p>
+          Tạo hóa đơn điện tử mới.
+        </p>
+      </field>
+    </record>
+    
+    <record id="action_invoice_viettel_context" model="ir.actions.act_window">
+      <field name="name">Hoá đơn điện tử EInvoice</field>
+      <field name="res_model">invoice.viettel</field>
+      <field name="domain">[(context.get('leaf_field',1),'=', context.get('right_leaf',1))]</field>
+      <field name="view_mode">tree,form</field>
+    </record>
+
+
+    <menuitem web_icon="vn_einvoice,static/description/hoadon.jpg" id="invoice_viettel" name="VAT-Invoice" sequence="2"/>
+
+    <menuitem id="invoice_viettel_menu" action="action_invoice_viettel" name="VAT Invoices" parent="invoice_viettel" sequence="1"/>
+
+    <record id="ir_actions_server_mass_create_invoice" model="ir.actions.server">
+       <field name="name">Phát hành đồng loạt</field>
+       <field name="model_id" ref="vn_einvoice.model_invoice_viettel"/>
+       <field name="binding_model_id" ref="vn_einvoice.model_invoice_viettel"/>
+        <field name="sequence" >1</field>
+       <field name="state">code</field>
+       <field name="code">
+             if records:
+               for record in records:
+                   action = record.sendeinvoice()
+       </field>
+   </record>
+
+  </data>
+</odoo>

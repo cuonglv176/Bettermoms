@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <data>
+        <record id="view_move_form_asset_inherit_invoice_address" model="ir.ui.view">
+            <field name="name">view.move.form.asset.inherit.invoice.address</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="vn_einvoice.view_move_form_asset_inherit"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='invoice_address']" position="replace">
+                    <label for="invoice_address" string="Invoice Address"/>
+                    <div name="invoice_address">
+                        <field name="invoice_address" class="oe_inline"
+                               attrs="{'readonly': [('state', '!=', 'draft')]}"
+
+                        />
+                        <button name="btn_update_street" icon="fa-pencil-square-o"
+                                attrs="{'invisible': [('state', '!=', 'draft')]}"
+                                type="object" class="oe_inline">
+                            <span>
+                                Update Street
+                            </span>
+
+                        </button>
+                    </div>
+
+
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

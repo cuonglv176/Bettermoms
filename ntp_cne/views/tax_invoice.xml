@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data>
+        <!-- <record id="action_request_verify_invoice" model="ir.actions.server">
+            <field name="name">Request Verify Invoice</field>
+            <field name="type">ir.actions.server</field>
+            <field name="state">code</field>
+            <field name="groups_id" eval="[(4, ref('account.group_account_invoice'))]" />
+            <field name="model_id" ref="ntp_cne.model_tax_invoice" />
+            <field name="binding_model_id" ref="ntp_cne.model_tax_invoice" />
+            <field name="binding_view_types">form</field>
+            <field name="code">
+                action = records.action_request_verify_invoice()
+            </field>
+            <field name="sequence">201</field>
+        </record> -->
+
+        <!-- Form View -->
+        <record id="view_tax_invoice_form" model="ir.ui.view">
+            <field name="name">Tax Invoice</field>
+            <field name="model">tax.invoice</field>
+            <field name="arch" type="xml">
+                <form create="false">
+                    <header>
+                        <button name="action_sync_single" string="Sync" type="object" class="oe_highlight"></button>
+                        <button name="button_set_validated" string="Admin Approve" type="object" class="oe_highlight" attrs="{'invisible': [('state', 'in', ['rejected', 'draft', 'validated'])]}"></button>
+                        <button name="button_set_to_validate" string="Back To Validate" type="object" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'validated')]}"></button>
+                        <button name="action_unlink_bill_or_receipt" string="Unlink Bill/Receipt" type="object" class="oe_highlight" attrs="{'invisible': [('state', 'in', ['rejected', 'draft', 'validated'])]}"></button>
+                        <!-- Support action -->
+                        <button name="action_create_vendor_contact" type="object" string="Create Vendor Contact" attrs="{'invisible': [('vendor_match_cnt', '!=', 0)]}"></button>
+                        <button name="%(action_view_bill_receipt_from_tax_invoice)d" string="Create Bill/PR" type="action" class="btn-primary" attrs="{'invisible': [('state', '!=', 'draft')]}" />
+                        <field name="state" widget="statusbar" attrs="{'invisible': [('state', '=', 'rejected')]}" statusbar_visible="draft,to_validate,validated" decoration-info="state == 'draft'" decoration-danger="state == 'rejected'" decoration-success="state == 'validated'" />
+                    </header>
+                    <!-- invisible fields -->
+                    <field name="active" invisible="1" />
+                    <sheet>
+                        <div class="oe_button_box" name="button_box" position="inside">
+                            <button name="button_open_linked_bill_receipt"
+                                    type="object" class="oe_stat_button" icon="fa-pencil-square-o" >
+                                    <field name="account_move_count" string="Bill/Receipt" widget="statinfo"/>
+                            </button>
+                        </div>
+                        <widget name="web_ribbon" title="Rejected" bg_color="bg-danger" attrs="{'invisible': [('state', '!=', 'rejected')]}"/>
+                        <div class="oe_title">
+                            <span class="o_form_label">
+                                <span>Tax Invoice</span>
+                            </span>
+                            <!-- Number -->
+                            <h1 class="mt0">
+                                <field name="invoice_name" nolabel="1" readonly="1" />
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="vendor_id"></field>
+                                <field name="vendor_address" string=""></field>
+                                <field name="vendor_vat" string=""></field>
+                                <field name="seller_legal_name" string="Seller (For Reference)" readonly="1"></field>
+                                <field name="seller_tax_code" string="" readonly="1"></field>
+                                <field name="seller_address_line" string="" readonly="1"></field>
+
+                                <field name="account_move_id" 
+                                        string="Main Invoice Ref." options="{'no_create': True}"
+                                        attrs="{'readonly': [('state', '=', 'validated')]}"></field>
+                                <field name="account_move_type" string=""></field>
+                                <field name="account_move_total_untaxed_amount" string="Invoice Ref. (Untaxed)"></field>
+                                <field name="account_move_total_taxed_amount" string="Invoice Ref. (Total)"></field>
+                            </group>
+                            <group>
+                                <field name="currency_id" readonly="1"></field>
+                                <field name="name" readonly="1"></field>
+                                <field name="template_code" readonly="1"></field>
+                                <field name="invoice_series" readonly="1"></field>
+                                <field name="invoice_number" readonly="1"></field>
+                                <field name="payment_method_name" readonly="1"></field>
+                                <field name="signed_date" widget="date" readonly="1"></field>
+                                <field name="issued_date" widget="date" readonly="1"></field>
+                                <field name="received_at" widget="date" readonly="1"></field>
+                                <field name="x_tax_invoice_valid" string="Invoice Valid" readonly="1" />
+                            </group>
+                        </group>
+                        <group>
+                            <field name="bill_receipt_suggestion_widget"
+                                   widget="bill_receipt_suggestion" nolabel="1"
+                                   attrs="{'invisible': [('state', '=', 'rejected')]}"></field>
+                        </group>
+                        <notebook>
+                            <page name="tax_invoice_detail" string="Detail">
+                                <field name="tax_invoice_lines" string="" attrs="{'readonly': 1}">
+                                    <tree>
+                                        <field name="line_number" widget="handle" />
+                                        <field name="item_name" />
+                                        <field name="unit_price" />
+                                        <field name="unit" />
+                                        <field name="quantity" />
+                                        <field name="total_price_before_vat" />
+                                        <field name="vat_percentage" />
+                                        <field name="total_price_after_vat" />
+                                    </tree>
+                                </field>
+                                <group>
+                                    <group></group>
+                                    <group class="oe_subtotal_footer oe_right">
+                                        <field name="total_amount_without_vat" readonly="1"></field>
+                                        <field name="discount_amount" readonly="1"></field>
+                                        <field name="vat_percent" readonly="1"></field>
+                                        <field name="total_vat_amount" readonly="1"></field>
+                                        <field name="total_amount_with_vat" readonly="1"></field>
+                                        <field name="total_amount_with_vat_in_words" readonly="1"></field>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Linked Bills">
+                                <field name="account_move_ids" widget="many2many" attrs="{'readonly': [('state', '=', 'validated')]}" >
+                                </field>
+                            </page>
+                            <page name="tax_invoice_specific" string="Other Info">
+                                <group string="Accounting Related">
+                                    <field name="company_id"></field>
+                                    <field name="company_address"></field>
+                                    <field name="company_vat"></field>
+                                </group>
+                                <group string="External Info">
+                                    <group>
+                                        <field name="seller_legal_name" string="Seller" readonly="1"></field>
+                                        <field name="seller_tax_code" string="" readonly="1"></field>
+                                        <field name="seller_address_line" string="" readonly="1"></field>
+                                        <field name="buyer_legal_name" string="Buyer" readonly="1"></field>
+                                        <field name="buyer_tax_code" string="" readonly="1"></field>
+                                        <field name="buyer_address_line" string="" readonly="1"></field>
+                                    </group>
+                                    <group>
+                                        <field name="x_external_invoice_link" string="Invoice URL" widget="url"></field>
+                                        <field name="invoice_id" readonly="1"></field>
+                                        <field name="x_company_id" readonly="1"></field>
+                                        <field name="approval_status" readonly="1"></field>
+                                        <field name="approved_at" widget="date" readonly="1"></field>
+                                        <field name="approved_by" readonly="1"></field>
+                                        <field name="is_voided" readonly="1"></field>
+                                        <field name="vat_rate" readonly="1"></field>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group string="Auto Detect Vendor/Company">
+                                        <field name="vendor_match_cnt" readonly="1" />
+                                        <field name="company_match_cnt" readonly="1" />
+                                        <field name="auto_created_account_move_id" string="Auto Created Bill/PR Id" readonly="1" />
+                                    </group>
+                                    <group string="Invoice Validation">
+                                        <field name="x_tax_invoice_valid" readonly="1" />
+                                        <field name="x_buyer_tax_code_valid" readonly="1" />
+                                        <field name="x_buyer_legal_name_valid" readonly="1" />
+                                        <field name="x_buyer_address_line_valid" readonly="1" />
+                                        <field name="x_certificate_valid" readonly="1" />
+                                        <field name="x_digest_valid" readonly="1" />
+                                        <field name="x_has_xml" readonly="1" />
+                                    </group>
+                                </group>
+                                <group>
+                                    <group></group>
+                                    <group>
+                                        <group>
+                                            <!-- Reject / Un-Reject -->
+                                            <button name="action_reject_single" string="Reject" type="object" class="oe_highlight btn-danger" attrs="{'invisible': ['|', ('state', '=', 'validated'), ('approval_status', 'in', ['APPROVED', 'REJECTED'])]}" confirm="Are you sure you want to do this?"></button>
+                                            <button name="action_unreject_single" string="Un-Reject" type="object" class="oe_highlight btn-danger" attrs="{'invisible': ['|', ('state', '=', 'validated'), ('approval_status', 'in', ['APPROVED', 'PENDING'])]}" confirm="Are you sure you want to do this?"></button>
+                                        </group>
+                                        <group>
+                                            <!-- Approve / Un-Approve -->
+                                            <button name="action_approve_single" string="Approve" type="object" class="oe_highlight btn-success" attrs="{'invisible': ['|', ('state', '=', 'validated'), ('approval_status', 'in', ['APPROVED', 'REJECTED'])]}" confirm="Are you sure you want to do this?"></button>
+                                            <button name="action_unapprove_single" string="Un-Approve" type="object" class="oe_highlight btn-success" attrs="{'invisible': ['|', ('state', '=', 'validated'), ('approval_status', 'in', ['REJECTED', 'PENDING'])]}" confirm="Are you sure you want to do this?"></button>
+                                        </group>
+                                    </group>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <div class="o_attachment_preview" />
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids" groups="base.group_user" />
+                        <field name="activity_ids" />
+                        <field name="message_ids" />
+                    </div>
+                </form>
+            </field>
+        </record>
+        <record id="tax_invoice_view_search" model="ir.ui.view">
+            <field name="name">tax.invoice.view.search</field>
+            <field name="model">tax.invoice</field>
+            <field name="arch" type="xml">
+                <search string="Search Tax Invoice">
+                    <field name="name" string="Tax Invoice" filter_domain="[('name', 'ilike', self)]" />
+                    <field name="vendor_id" string="Vendor" filter_domain="[('vendor_id', 'ilike', self)]" />
+                    <field name="account_move_id" string="Bill/Receipt" filter_domain="[('account_move_id', 'ilike', self)]" />
+                    <separator />
+                    <filter name="no_company" string="Missing Company" domain="[('company_id', '=', False)]" />
+                    <filter name="no_vendor" string="Missing Vendor" domain="[('vendor_id', '=', False)]" />
+                    <separator />
+                    <filter name="valid_invoice" string="Valid Invoices" domain="[('x_tax_invoice_valid', '=', 'success')]" />
+                    <filter name="invalid_invoice" string="Invalid Invoices" domain="[('x_tax_invoice_valid', '!=', 'success')]" />
+                    <separator />
+                    <filter name="linked_invoices" string="Linked Invoices" domain="[('account_move_ids', '!=', False)]" />
+                    <filter name="not_linked_invoices" string="Not Linked Invoices" domain="[('account_move_ids', '=', False)]" />
+                    <separator />
+                    <filter string="Archived" name="inactive" domain="[('active','=',False)]"/>
+                    <separator />
+                    <filter name="issued_date_filter" invisible="context.get('default_move_type') in ('out_invoice', 'out_refund', 'out_receipt')" string="Issue Date" date="issued_date"/>
+                    <separator />
+                    <group expand="0" string="Group By">
+                        <filter string="State" name="filter_state" domain="" context="{'group_by':'state'}"/>
+                        <filter string="Vendor" name="filter_vendor" domain="[]" context="{'group_by':'vendor_id'}"/>
+                        <filter string="Issue Date" context="{'group_by':'issued_date:month'}" name="issued_date"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+        <!-- Tree View -->
+        <record id="view_tax_invoice_tree" model="ir.ui.view">
+            <field name="name">Tax Invoice</field>
+            <field name="model">tax.invoice</field>
+            <field name="arch" type="xml">
+                <tree create="false">
+                    <header>
+                        <button string="Update Matched Vendor" name="auto_match_vendor" type="object" class="oe_highlight" />
+                        <button string="Sync Selected" name="sync_multi" type="object" class="oe_highlight" />
+                    </header>
+                    <field name="issued_date" widget="date" />
+                    <field name="name"></field>
+                    <field name="vendor_id"></field>
+                    <field name="account_move_ids" widget="many2many_tags" string="Linked Bills" optional="show" />
+                    <field name="template_code" optional="show"></field>
+                    <field name="invoice_series" optional="show"></field>
+                    <field name="invoice_number" optional="show"></field>
+                    <field name="vat_percent"></field>
+                    <field name="total_vat_amount" widget="monetary" decoration-bf="1" sum="Total VAT"></field>
+                    <field name="total_amount_without_vat" widget="monetary" decoration-bf="1" sum="Total Amount Without VAT"></field>
+                    <field name="total_amount_with_vat" widget="monetary" decoration-bf="1" sum="Total Amount With VAT"></field>
+                    <field name="currency_id" optional="hide" />
+                    <field name="vendor_match_cnt" decoration-bf="vendor_match_cnt != 1" decoration-danger="vendor_match_cnt != 1" readonly="1" optional="hide" />
+                    <field name="company_match_cnt" optional="hide" />
+                    <field name="x_tax_invoice_valid" string="Valid Invoice" widget="badge" optional="show" decoration-danger="x_tax_invoice_valid != 'success'" decoration-success="x_tax_invoice_valid == 'success'" />
+                    <field name="state" widget="badge" decoration-danger="state == 'rejected'" decoration-info="state == 'draft'" decoration-success="state == 'validated'"></field>
+                </tree>
+            </field>
+        </record>
+        <!-- Action -->
+        <record id="action_tax_invoice" model="ir.actions.act_window">
+            <field name="name">Tax Invoice</field>
+            <field name="res_model">tax.invoice</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[]</field>
+            <field name="context">{}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No Tax Invoice
+                  </p>
+                <p>
+                    May be need to connect to 3rd party company to get invoice ?
+                  </p>
+            </field>
+        </record>
+        <record id="action_tax_invoice_context" model="ir.actions.act_window">
+            <field name="name">Tax Invoice</field>
+            <field name="res_model">tax.invoice</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[(context.get('field', 1), '=', context.get('value', 1)]</field>
+        </record>
+        <!-- Menu -->
+        <!-- Under Accounting/Vendor -->
+        <menuitem id="tax_invoice_menu" action="action_tax_invoice" name="Tax Invoices" parent="account.menu_finance_payables" sequence="201" />
+
+    </data>
+
+
+</odoo>

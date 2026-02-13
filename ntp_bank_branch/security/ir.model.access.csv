@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ntp_bank_branch_group_system,ntp_bank_branch_group_system,model_ntp_bank_branch,base.group_system,1,1,1,1
+access_ntp_bank_branch_group_partner_manager,ntp_bank_branch_group_partner_manager,model_ntp_bank_branch,base.group_partner_manager,1,1,1,1
+access_ntp_bank_branch_user,ntp_bank_branch_user,model_ntp_bank_branch,base.group_user,1,0,0,0

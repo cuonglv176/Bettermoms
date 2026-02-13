@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<odoo>
+	<record model="ir.ui.view"
+		id="view_stock_landed_cost_form_extends_to_add_cancel_button">
+		<field name="name">view.stock.landed.cost.form.extends.to.add.cancel.button
+		</field>
+		<field name="model">stock.landed.cost</field>
+		<field name="inherit_id" ref="stock_landed_costs.view_stock_landed_cost_form" />
+		<field name="arch" type="xml">
+			<button name="button_cancel" position="attributes">
+				<attribute name="states">draft,done</attribute>
+			</button>
+			<button name="button_cancel" position="after">
+				<button name="action_set_to_draft" type="object" class="oe_highlight" string="Set to Draft" states='cancel'/>
+			</button>
+		</field>
+	</record>
+
+</odoo>

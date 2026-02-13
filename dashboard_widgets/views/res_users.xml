@@ -1,0 +1,13 @@
+<odoo>
+    <record id="view_users_form_inherit_dashboard_widgets" model="ir.ui.view">
+        <field name="name">view_users_form_inherit_dashboard_widgets</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='preferences']" position="inside">
+                <field name="chart_color" widget="color"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

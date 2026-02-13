@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_partner_form_inherit_ntp_payment_support" model="ir.ui.view">
+        <field name="name">res.partner.view.form.inherit</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='accounting']//group[@name='accounting_entries']" position="after">
+                <group name="transfer_content_gernate" string="Transfer Template Configuration (Payment/Payslip)" attrs="{'invisible': [('company_type', '=', 'person')]}">
+                    <field name="transfer_content_template_id" string='Template' />
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

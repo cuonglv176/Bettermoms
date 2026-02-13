@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="batch_address_wizard_view_form" model="ir.ui.view">
+        <field name="name">address.batch.wizard.form</field>
+        <field name="model">address.batch.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Batch Address Auto-detect">
+                <field name="state" invisible="1" />
+
+                <!-- State: Ready -->
+                <group attrs="{'invisible': [('state', '!=', 'draft')]}">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fa fa-magic mr-1" />
+                        <strong>Auto-detect addresses for
+                            <field name="partner_count" nolabel="1" class="oe_inline" />
+                            partners.
+                        </strong>
+                        <br />
+                        The system will analyze each partner's street/city fields
+                        and attempt to match Province, District, and Ward automatically.
+                    </div>
+                </group>
+
+                <!-- State: Done / Review -->
+                <group attrs="{'invisible': [('state', '!=', 'done')]}">
+                    <div class="alert alert-success" role="alert">
+                        <i class="fa fa-check-circle mr-1" />
+                        <strong>Results:</strong>
+                        <field name="matched_count" nolabel="1" class="oe_inline" /> auto-matched,
+                        <field name="uncertain_count" nolabel="1" class="oe_inline" /> need review,
+                        <field name="unmatched_count" nolabel="1" class="oe_inline" /> no match,
+                        <field name="skipped_count" nolabel="1" class="oe_inline" /> skipped
+                    </div>
+                    <field name="line_ids" nolabel="1">
+                        <tree editable="bottom" create="false" delete="false"
+                              decoration-success="status == 'matched'"
+                              decoration-warning="status == 'uncertain'"
+                              decoration-danger="status == 'unmatched'"
+                              decoration-muted="status == 'skipped'">
+                            <field name="apply" string="Apply?" />
+                            <field name="partner_name" string="Partner" readonly="1" />
+                            <field name="current_address" string="Current Address"
+                                   readonly="1" optional="show" />
+                            <field name="suggested_display" string="Suggested Address"
+                                   readonly="1" />
+                            <field name="confidence" string="Match %"
+                                   readonly="1" />
+                            <field name="status" string="Status" readonly="1" />
+                            <field name="province_id" invisible="1" />
+                            <field name="district_id" invisible="1" />
+                            <field name="ward_id" invisible="1" />
+                        </tree>
+                    </field>
+                </group>
+
+                <footer>
+                    <button name="button_process" string="Start Processing" type="object"
+                            class="btn-primary" icon="fa-magic"
+                            attrs="{'invisible': [('state', '!=', 'draft')]}" />
+                    <button name="button_apply" string="Apply Selected" type="object"
+                            class="btn-primary" icon="fa-check"
+                            attrs="{'invisible': [('state', '!=', 'done')]}" />
+                    <button string="Close" class="btn-secondary" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

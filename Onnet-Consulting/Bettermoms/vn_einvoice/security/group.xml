@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record model="ir.module.category" id="group_invoice_viettel">
+            <field name="name">S Invoice</field>
+            <field name="description">Phân quyền</field>
+            <field name="sequence">5</field>
+        </record>
+        <record id="manager_s_invoice" model="res.groups">
+            <field name="name">Quản lý</field>
+            <field name="category_id" ref="group_invoice_viettel"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        </record>
+    </data>
+</odoo>

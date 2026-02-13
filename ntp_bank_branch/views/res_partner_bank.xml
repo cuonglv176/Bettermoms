@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="base_view_partner_bank_form_inherit_ntp_bank_branch" model="ir.ui.view">
+        <field name="name">view_partner_bank_form.view.form.inherit.ntp.bank.branch</field>
+        <field name="model">res.partner.bank</field>
+        <field name="inherit_id" ref="base.view_partner_bank_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='bank_id']" position="after">
+                <field name="bank_branch_id" attrs="{'invisible': [('bank_id', '=', False)]}" options="{'no_create': True, 'no_create_edit':True}" />
+                <field name="bank_branch_detail" string="" attrs="{'invisible': [('bank_branch_id', '=', False)]}" />
+            </xpath>
+        </field>
+    </record>
+
+    <record id="base_view_partner_bank_tree_inherit_ntp_bank_branch" model="ir.ui.view">
+        <field name="name">view_partner_bank_form.view.tree.inherit.ntp.bank.branch</field>
+        <field name="model">res.partner.bank</field>
+        <field name="inherit_id" ref="base.view_partner_bank_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='bank_name']" position="after">
+                <field name="bank_branch_id" />
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

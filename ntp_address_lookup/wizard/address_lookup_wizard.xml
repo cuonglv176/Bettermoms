@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="address_lookup_wizard_view" model="ir.ui.view">
+        <field name="name">address.lookup.wizard.view</field>
+        <field name="model">address.lookup.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Verify Address">
+                <field name="search_performed" invisible="1" />
+
+                <group>
+                    <field name="partner_id" readonly="1" />
+                </group>
+
+                <notebook>
+                    <!-- Tab 1: Select from dropdowns (primary method) -->
+                    <page string="Select Address" name="dropdown_tab">
+                        <group>
+                            <group string="Administrative Division">
+                                <field name="province_id" options="{'no_create': True}" />
+                                <field name="district_id" options="{'no_create': True}" />
+                                <field name="ward_id" options="{'no_create': True}" />
+                            </group>
+                            <group string="Street Details">
+                                <field name="street_input" placeholder="e.g. 123 Nguyen Hue" />
+                            </group>
+                        </group>
+                        <footer>
+                            <button name="button_apply_dropdown" icon="fa-check"
+                                    string="Apply Address" type="object" class="btn-primary" />
+                            <button string="Cancel" class="btn-secondary" special="cancel" />
+                        </footer>
+                    </page>
+
+                    <!-- Tab 2: Search (secondary method) -->
+                    <page string="Search Address" name="search_tab">
+                        <group>
+                            <field name="search_query" placeholder="Type to search, e.g. Ba Dinh Ha Noi..." />
+                        </group>
+                        <group string="Search Results" attrs="{'invisible': [('search_performed', '=', False)]}">
+                            <field name="result_line_ids" nolabel="1">
+                                <tree editable="bottom" create="false" delete="false">
+                                    <field name="is_selected" string="Select" />
+                                    <field name="description" string="Full Address" readonly="1" />
+                                    <field name="ward_name" string="Ward" readonly="1" />
+                                    <field name="district_name" string="District" readonly="1" />
+                                    <field name="province_name" string="Province" readonly="1" />
+                                    <field name="confidence" string="Match %" readonly="1" />
+                                    <field name="ward_id" invisible="1" />
+                                    <field name="district_id" invisible="1" />
+                                    <field name="province_id" invisible="1" />
+                                    <field name="sequence" invisible="1" />
+                                </tree>
+                            </field>
+                        </group>
+                        <footer>
+                            <button name="button_search" icon="fa-search"
+                                    string="Search" type="object" class="btn-primary" />
+                            <button name="button_apply_search" icon="fa-check"
+                                    string="Apply Selected" type="object"
+                                    class="btn-primary"
+                                    attrs="{'invisible': [('search_performed', '=', False)]}" />
+                            <button string="Cancel" class="btn-secondary" special="cancel" />
+                        </footer>
+                    </page>
+                </notebook>
+            </form>
+        </field>
+    </record>
+
+</odoo>

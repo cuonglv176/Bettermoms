@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="delete_incorrect_moves_view" model="ir.ui.view">
+        <field name="name">Delete Incorrect Moves</field>
+        <field name="model">reset.incorrect.moves</field>
+        <field name="arch" type="xml">
+            <form string="Delete Incorrect Moves">
+                <group string="Are you sure to delete/cancel incorrect moves?" />
+                <h2>1) When You Delete Stock Moves,</h2>
+                <h6>- Delete all related quants movements,</h6>
+                <h6>- Delete all selected stock moves.</h6>
+                <h6>- Delete stock valuation layers related to moves.</h6>
+                <h6>Note : Moves will permanently delete from database, you cannot undo it.</h6>
+                <h2>2) When You Cancel Stock Moves,</h2>
+                <h6>- Delete related quants movements,</h6>
+                <h6>- Cancel all selected stock moves.</h6>
+                <h6>- Delete stock valuation layers related to moves.</h6>
+                <h6>Note :Moves will stay into system with cancel states.</h6>
+                <footer>
+                    <button name="bt_delete_incorrect_moves"
+                        string="Delete Moves" type="object" class="btn-primary"
+                        help="When you delete any moves , it will completely delete from database so you cannot undo it.Please make sure before deleting." />
+                    or
+                    <button name="bt_cancel_incorrect_moves"
+                        string="Cancel Moves" type="object" class="btn-primary"
+                        help="When you cancel any moves , it will keep data into odoo so you can see in future that those moves we were cancelled before." />
+                    or
+                    <button string="Skip" class="oe_link"
+                        special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+	<record id="delete_incorrect_moves_window" model="ir.actions.act_window">
+		<field name="name">Delete/Cancel Moves</field>
+		<field name="res_model">reset.incorrect.moves</field>
+		<field name="binding_model_id" ref="stock.model_stock_move"/>
+		<field name="view_mode">form</field>
+		<field name="target">new</field>
+	</record>
+
+</odoo>
+

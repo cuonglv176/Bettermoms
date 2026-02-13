@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-extend="ListView.buttons">
+        <!--
+            # Refer this, need to use t-if and t-jquery in 2 commands
+            https://www.odoo.com/vi_VN/forum/tro-giup-1/conditionally-extend-template-with-odoo-qweb-114487
+            # original post
+            https://minhng.info/odoo/them-button-list-view-odoo.html
+         -->
+        <t t-jquery="div.o_list_buttons" t-operation="prepend">
+            <t t-if="widget.modelName=='account.payment.plan.week'">
+                <button type="button" class="btn btn-primary o_list_button_plan_create">
+                    Initiate Plan
+                </button>
+                <!-- <button type="button" class="btn btn-primary o_list_button_auto_match_vendor">
+                    Auto Match Vendor
+                </button> -->
+            </t>
+        </t>
+    </t>
+</templates>

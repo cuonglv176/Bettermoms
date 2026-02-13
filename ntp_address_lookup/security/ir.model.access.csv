@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_vn_province_user,vn.province.user,model_vn_province,base.group_user,1,0,0,0
+access_vn_district_user,vn.district.user,model_vn_district,base.group_user,1,0,0,0
+access_vn_ward_user,vn.ward.user,model_vn_ward,base.group_user,1,0,0,0
+access_vn_province_admin,vn.province.admin,model_vn_province,base.group_system,1,1,1,1
+access_vn_district_admin,vn.district.admin,model_vn_district,base.group_system,1,1,1,1
+access_vn_ward_admin,vn.ward.admin,model_vn_ward,base.group_system,1,1,1,1
+access_address_lookup_wizard_user,address.lookup.wizard.user,model_address_lookup_wizard,base.group_user,1,1,1,1
+access_address_lookup_wizard_line_user,address.lookup.wizard.line.user,model_address_lookup_wizard_line,base.group_user,1,1,1,1
+access_address_batch_wizard_user,address.batch.wizard.user,model_address_batch_wizard,base.group_user,1,1,1,1
+access_address_batch_wizard_line_user,address.batch.wizard.line.user,model_address_batch_wizard_line,base.group_user,1,1,1,1

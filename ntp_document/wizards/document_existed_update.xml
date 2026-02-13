@@ -1,0 +1,33 @@
+<odoo>
+    <data>
+        <record id="document_existed_update_view_form" model="ir.ui.view">
+            <field name="name">document.exist.update.view.form</field>
+            <field name="model">document.exist.update</field>
+            <field name="arch" type="xml">
+                <form string="">
+                    <sheet>
+                        <div>This function will update all attachment in Model to Document</div>
+<!--                        <group>-->
+<!--                            <field name="ir_model" widget="many2many_tags"/>-->
+<!--                        </group>-->
+                        <footer>
+                            <button string="Update Document" name="button_create_document_from_attachment_exist" type="object" class="oe_highlight"/>
+                            <button string="Cancel" class="btn-secondary" special="cancel" />
+                        </footer>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+        <record id="action_document_exist_update" model="ir.actions.act_window">
+            <field name="name">Document Exist Update</field>
+            <field name="res_model">document.exist.update</field>
+            <field name="view_mode">form</field>
+            <field name="domain">[]</field>
+            <field name="context">{}</field>
+            <field name="target">new</field>
+        </record>
+        <menuitem id="ntp_document_exist_update_menu" action="action_document_exist_update" name="Document Exist Update"
+                  parent="documents.Config" sequence="10" />
+
+    </data>
+</odoo>

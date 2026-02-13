@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<odoo>
+    <record id="ir_actions_server_mass_separate_contra_account" model="ir.actions.server">
+       <field name="name">Split</field>
+       <field name="model_id" ref="tas_contra_account_separation.model_account_move"/>
+       <field name="binding_model_id" ref="tas_contra_account_separation.model_account_move"/>
+        <field name="sequence" >1</field>
+       <field name="state">code</field>
+       <field name="code">
+             if records:
+               action = records.separate_contra_account()
+       </field>
+    </record>
+    <record id="view_tas_contra_account_separation_account_move_form_inherit" model="ir.ui.view">
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@id='other_tab_entry']" position="after">
+                <page id="separation" string="Counterpart Account">
+                    <field name="is_separated"/>
+                    <field name="separation_ids">
+                        <tree>
+                            <field name="debit_account" string="Debit Account"/>
+                            <field name="credit_account" string="Credit Account"/>
+                            <field name="amount"/>
+                        </tree>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_tas_contra_account_separation_account_move_tree_inherit" model="ir.ui.view">
+        <field name="name">account.move.line.tree</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_move_line_tree"/>
+        <field name="mode">extension</field>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='account_id']" position="after">
+               <field name="countered_accounts"/>
+            </xpath>
+        </field>
+    </record>
+
+
+    <record id="view_tas_contra_account_separation_account_move_line_separation_tree" model="ir.ui.view">
+      <field name="name">Counterpart Account</field>
+      <field name="model">account.move.line.separation</field>
+      <field name="arch" type="xml">
+        <tree string="Counterpart account" create="false" delete="false">
+          <field name="move_id"/>
+          <field name="debit_account" string="Debit Account"/>
+          <field name="credit_account" string="Credit Account"/>
+          <field name="amount"/>
+          <field name="company_id"/>
+          <!--<field name="company_branch"/>-->
+          <!--<field name="company_branch_vat"/>-->
+        </tree>
+      </field>
+    </record>
+
+    <record id="action_tas_contra_account_separation_account_move_line_separation" model="ir.actions.act_window">
+      <field name="name">Counterpart Account</field>
+      <field name="res_model">account.move.line.separation</field>
+      <field name="view_mode">tree</field>
+      <field name="help" type="html">
+        <p class="o_view_nocontent_smiling_face">
+          Create new Line
+        </p>
+      </field>
+    </record>
+
+    <menuitem action="action_tas_contra_account_separation_account_move_line_separation" id="menu_tas_contra_account_separation_account_move_line_separation" parent="account.menu_finance_entries" name="Counterpart Account" sequence="10"/>
+
+</odoo>

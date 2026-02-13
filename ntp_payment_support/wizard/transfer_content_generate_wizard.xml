@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_transfer_content_generate_wizard_view_form" model="ir.ui.view">
+        <field name="name">ntp.transfer.content.generate.wizard.view.form</field>
+        <field name="model">ntp.transfer.content.generate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <group>
+                        <field name="template_type" invisible="1" />
+                        <field name="transfer_content_template_id" />
+                        <field name="override_option" />
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="generate_transfer_content" string="Generate" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

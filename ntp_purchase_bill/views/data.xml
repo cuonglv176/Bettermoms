@@ -1,0 +1,10 @@
+<odoo>
+    <data noupdate="1">
+        <record model="vat.type" id="thue_nk">
+            <field name="name">Thuế NK</field>
+        </record>
+        <record model="vat.type" id="thue_gtgt">
+            <field name="name">Thuế GTGT</field>
+        </record>
+    </data>
+</odoo>

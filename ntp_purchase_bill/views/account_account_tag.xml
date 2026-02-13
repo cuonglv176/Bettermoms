@@ -1,0 +1,22 @@
+<odoo>
+    <data>
+         <record id="ntp_account_tag_view_form_inherit" model="ir.ui.view">
+            <field name="model">account.account.tag</field>
+            <field name="inherit_id" ref="account.account_tag_view_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//sheet" position="inside">
+                    <notebook>
+                        <page name="vat_summary" string="Vat Summary">
+                            <group>
+
+                                <field name="vat_type" />
+                                <field name="account_id" attrs="{'invisible': [('vat_type', '=', False)]}"/>
+                                <field name="product_id" attrs="{'invisible': [('vat_type', '=', False)]}"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

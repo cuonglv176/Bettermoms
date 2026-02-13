@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+
+    <record model="ir.actions.act_window" id="tas_payment_giay_bao_no_act">
+      <field name="name">Giấy báo nợ</field>
+      <field name="res_model">account.move</field>
+      <field name="domain">[('tas_type','=','debit')]</field>
+      <field name="context">{'default_tas_type': 'debit'}</field>
+      <field name="view_mode">tree,form</field>
+      <field name="help" type="html">
+        <p class="oe_view_nocontent_create">Tạo Giấy báo nợ
+        </p>
+      </field>
+    </record>
+
+  </data>
+</odoo>

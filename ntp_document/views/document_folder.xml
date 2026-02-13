@@ -1,0 +1,15 @@
+<odoo>
+    <data>
+        <record id="view_documents_folder_form_inherit" model="ir.ui.view">
+            <field name="name">documents.folder.form.inherit</field>
+            <field name="model">documents.folder</field>
+            <field name="inherit_id" ref="documents.folder_view_form"/>
+            <field name="arch" type="xml">
+                <field name="parent_folder_id" position="after">
+                     <field name="ir_model"/>
+                </field>
+            </field>
+
+        </record>
+    </data>
+</odoo>

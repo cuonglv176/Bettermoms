@@ -1,0 +1,24 @@
+<odoo>
+    <data>
+        <record id="ntp_hr_employee_view_form_inherit" model="ir.ui.view">
+            <field name="name">hr.employee.view.form.inherit</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr.view_employee_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_open_documents']" position="before">
+                    <button name="action_open_payments" class="oe_stat_button" icon="fa-money" type="object" help="Generated Payments" attrs="{'invisible': [('payment_count', '=', 0)]}">
+                        <div class="o_field_widget o_stat_info">
+                            <span class="o_stat_value"><field name="payment_count"/></span>
+                            <span class="o_stat_text">Payments</span>
+                         </div>
+                    </button>
+                    <field name="payment_count" invisible="1"/>
+                </xpath>
+                <xpath expr="//field[@name='user_id']" position="after">
+                   <field name="partner_id"/>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>

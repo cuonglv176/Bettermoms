@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Action -->
+        <record id="bank_sms_action" model="ir.actions.act_window">
+            <field name="name">Bank Sms Email Config</field>
+            <field name="res_model">bank.sms</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No Data
+                  </p>
+                <p>
+                    Add new configuration to use now
+                </p>
+            </field>
+        </record>
+
+        <record id="bank_sms_mail_action" model="ir.actions.act_window">
+            <field name="name">Bank Mails</field>
+            <field name="res_model">bank.sms.mail</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No Data
+                  </p>
+            </field>
+        </record>
+
+        <record id="bank_sms_transaction_action" model="ir.actions.act_window">
+            <field name="name">Bank Transactions</field>
+            <field name="res_model">bank.sms.transaction</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No Data
+                  </p>
+            </field>
+        </record>
+
+
+        <!-- Bank Account -->
+        <record id="action_bank_sms_tree" model="ir.ui.view">
+            <field name="name">Bank Sms Email Config</field>
+            <field name="model">bank.sms</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="fetchmail_server_id"></field>
+                    <field name="name"></field>
+                    <field name="bank_sms_aliases"></field>
+                    <field name="filter_from"></field>
+                    <field name="last_fetch_server_side" />
+                    <field name="last_fetch_client_side" />
+                    <field name="bank_sms_mail_count" string="Message Count"/>
+                    <field name="auto_sync" />
+                    <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-success="state == 'done'"></field>
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_bank_sms_form" model="ir.ui.view">
+            <field name="name">Bank Sms Email Config</field>
+            <field name="model">bank.sms</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <button string="Fetch Now" name="fetch_mail" type="object" attrs="{'invisible': [('state', '=', 'draft')]}" class="oe_highlight" />
+                        <button string="Confirm" name="action_set_confirm" type="object" class="oe_highlight" attrs="{'invisible': [('state', '=', 'done')]}" />
+                        <button string="Reset Confirm" name="action_set_draft" type="object" attrs="{'invisible': [('state', '=', 'draft')]}" />
+                        <field name="state" widget="statusbar" decoration-info="state == 'draft'" decoration-success="state == 'done'" />
+                    </header>
+                    <sheet>
+                        <div class="oe_button_box" name="button_box" position="inside">
+                            <button name="%(bank_sms_mail_action)d"
+                                    context="{'search_default_bank_sms_id': active_id}"
+                                    type="action" class="oe_stat_button" icon="fa-pencil-square-o" >
+                                    <field name="bank_sms_mail_count" string="Mails" widget="statinfo"/>
+                            </button>
+                        </div>
+                        <div class="oe_title">
+                            <span class="o_form_label">
+                                <span>Bank Sms Email Config</span>
+                            </span>
+                            <!-- Number -->
+                            <h1 class="mt0">
+                                <field name="name" nolabel="1" />
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="fetchmail_server_id" create="false" attrs="{'readonly': [('state', '=', 'done')]}"></field>
+                                <!-- <field name="journal_ids" widget="many2many" attrs="{'readonly': [('state', '=', 'done')]}"></field> -->
+                                <field name="filter_from" attrs="{'readonly': [('state', '=', 'done')]}"></field>
+                                <field name="last_fetch_client_side" readonly="1" attrs="{'readonly': [('state', '=', 'done')]}"/>
+                                <field name="last_fetch_server_side"/>
+                                <field name="auto_sync" />
+                            </group>
+                        </group>
+                        <notebook>
+                            <page name="bank_sms_alias" string="Alias">
+                                <field name="bank_sms_aliases">
+                                    <tree>
+                                        <field name="name" />
+                                        <field name="journal_id" />
+                                        <field name="default_currency_id"/>
+                                        <field name="bank_account_type" />
+                                    </tree>
+                                </field>
+                            </page>
+                            <page name="bank_sms_transaction_parser" string="Transaction Parser Engine">
+                                <field name="bank_sms_transaction_parser_ids" string="" widget="many2many">
+                                    <tree>
+                                        <field name="name" />
+                                    </tree>
+                                </field>
+                            </page>
+                            <page name="other_info" string="Other Info">
+                                <p>
+                                    You can change to 01/01/1970 and Fetch Now to full re-sync again all mails
+                                </p>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <div class="o_attachment_preview" />
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids" groups="base.group_user" />
+                        <field name="activity_ids" />
+                        <field name="message_ids" />
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <record id="bank_sms_alias_view_form" model="ir.ui.view">
+            <field name="name">Bank Account Alias</field>
+            <field name="model">bank.sms.alias</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <field name="name" />
+                            <field name="journal_id" />
+                            <field name="default_currency_id"/>
+                            <field name="bank_account_type" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="bank_sms_transaction_parser_view_form" model="ir.ui.view">
+            <field name="name">Bank Sms Transaction Parser</field>
+            <field name="model">bank.sms.transaction.parser</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <div class="oe_title">
+                            <span class="o_form_label">
+                                <span>Bank Transaction Parser</span>
+                            </span>
+                        </div>
+                        <group>
+                            <field name="name" string=""/>
+                        </group>
+                        <notebook>
+                            <page name="text_fsm_config" string="Text Fsm">
+                                <field name="text_fsm" widget="ace" options="{'mode': 'python'}" string="" />
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+
+        <!-- Bank Transaction Message -->
+        <record id="action_bank_sms_mail_search" model="ir.ui.view">
+            <field name="name">Bank Transaction Message Search</field>
+            <field name="model">bank.sms.mail</field>
+            <field name="arch" type="xml">
+                <search>
+                    <field name="bank_sms_id" />
+                </search>
+            </field>
+        </record>
+
+        <record id="action_bank_sms_mail_tree" model="ir.ui.view">
+            <field name="name">Bank Transaction Message</field>
+            <field name="model">bank.sms.mail</field>
+            <field name="arch" type="xml">
+                <tree create="false" edit="false">
+                    <field name="received_date" readonly="1" />
+                    <field name="bank_sms_id" readonly="1"></field>
+                    <field name="message_id" readonly="1" optional="hide" />
+                    <field name="from_address" string="From" readonly="1" optional="hide" />
+                    <field name="subject" readonly="1" />
+                    <field name="bank_sms_transaction_count" readonly="1" />
+                    <field name="state" widget="badge" decoration-info="state == 'new'" decoration-success="state == 'done'" />
+                </tree>
+            </field>
+        </record>
+
+        <record id="action_bank_sms_mail_form" model="ir.ui.view">
+            <field name="name">Bank Transaction Message</field>
+            <field name="model">bank.sms.mail</field>
+            <field name="arch" type="xml">
+                <form create="false">
+                    <header>
+                        <button string="Parse Transaction" name="parse" type="object" attrs="{'invisible': [('bank_sms_transaction_count', '!=', 0)]}" class="oe_highlight"/>
+                        <field name="state" widget="statusbar" decoration-info="state == 'new'" decoration-success="state == 'done'" />
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <span class="o_form_label">
+                                <span>Bank Transaction Message</span>
+                            </span>
+                            <!-- Number -->
+                            <h1 class="mt0">
+                                <!-- <field name="invoice_name" nolabel="1" readonly="1" /> -->
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="received_date" readonly="1" />
+                                <field name="message_id" readonly="1" />
+                                <field name="from_address" string="From" readonly="1" />
+                                <field name="subject" readonly="1" />
+                                <field name="bank_sms_id" readonly="1"></field>
+                                <field name="bank_sms_transaction_count" invisible="1"/>
+                            </group>
+                            <group></group>
+                        </group>
+                        <notebook>
+                            <page name="body" string="Html Body">
+                                <field name="html_body" widget="html" options="{'style-inline': true}" readonly="1" />
+                            </page>
+                            <page name="text_body" string="Text Body">
+                                <field name="cleaned_text_body" readonly="1" />
+                            </page>
+                            <page name="text_body" string="Transactions">
+                                <field name="bank_sms_transaction_ids" widget="many2many"/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Menuitem -->
+        <menuitem id="bank_sms_menu" action="bank_sms_action" name="Bank Sms Email Config" parent="account.account_banks_menu" sequence="201" />
+
+    </data>
+</odoo>

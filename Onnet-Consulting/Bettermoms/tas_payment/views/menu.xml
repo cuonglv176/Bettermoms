@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+
+    <menuitem id="tas_quy_menu" name="Budget" sequence="3"
+          parent="account_accountant.menu_accounting"/>
+
+    <!-- Cum menu Nghiep vu Quy -->
+    <menuitem id="tas_payment_nghiep_vu_quy_menu"
+      name="Budget"
+      sequence="5"
+      parent="tas_payment.tas_quy_menu"/>
+
+    <!-- Cum menu Hach toan -->
+    <menuitem id="tas_payment_hach_toan_menu"
+      name="Accounting"
+      sequence="6"
+      parent="tas_payment.tas_quy_menu"/>
+
+    <menuitem id="tas_payment_phieu_thu_menu"
+      name="Payment Receipts"
+      sequence="7"
+      parent="tas_payment.tas_payment_hach_toan_menu"
+      action="tas_payment_phieu_thu_act"/>
+
+    <menuitem id="tas_payment_phieu_chi_menu" name="Payment Voucher"
+      parent="tas_payment.tas_payment_hach_toan_menu"
+      sequence="8"
+      action="tas_payment_phieu_chi_act"/>
+
+    <menuitem id="tas_payment_giay_bao_no_menu"
+      name="Debit Note" sequence="9"
+      parent="tas_payment.tas_payment_hach_toan_menu"
+      action="tas_payment_giay_bao_no_act"/>
+
+    <menuitem id="tas_payment_giay_bao_co_act"
+      name="Credit Note" sequence="10"
+      parent="tas_payment.tas_payment_hach_toan_menu"
+      action="tas_giay_bao_co_act"/>
+
+  </data>
+</odoo>

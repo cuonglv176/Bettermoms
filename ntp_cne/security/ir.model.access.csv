@@ -1,0 +1,19 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tax_invoice,tax.invoice,model_tax_invoice,account.group_account_readonly,1,0,0,0
+access_tax_invoice_invoice,tax.invoice,model_tax_invoice,account.group_account_invoice,1,0,0,0
+access_tax_invoice_user,tax.invoice,model_tax_invoice,account.group_account_user,1,0,0,0
+access_tax_invoice_manager,tax.invoice,model_tax_invoice,account.group_account_manager,1,1,1,1
+access_tax_invoice_line,tax.invoice,model_tax_invoice_line,account.group_account_readonly,1,0,0,0
+access_tax_invoice_line_invoice,tax.invoice,model_tax_invoice_line,account.group_account_invoice,1,0,0,0
+access_tax_invoice_line_user,tax.invoice,model_tax_invoice_line,account.group_account_user,1,0,0,0
+access_tax_invoice_line_manager,tax.invoice,model_tax_invoice_line,account.group_account_manager,1,1,1,1
+access_bill_receipt_from_tax_invoice,tax.invoice,model_bill_receipt_from_tax_invoice,account.group_account_readonly,1,0,0,0
+access_bill_receipt_from_tax_invoice_invoice,tax.invoice,model_bill_receipt_from_tax_invoice,account.group_account_invoice,1,0,0,0
+access_bill_receipt_from_tax_invoice_user,tax.invoice,model_bill_receipt_from_tax_invoice,account.group_account_user,1,0,0,0
+access_bill_receipt_from_tax_invoice_manager,tax.invoice,model_bill_receipt_from_tax_invoice,account.group_account_manager,1,1,1,1
+access_tax_invoice_validate_confirm,tax.invoice,model_tax_invoice_validate_confirm,account.group_account_readonly,1,0,0,0
+access_tax_invoice_validate_confirm_invoice,tax.invoice,model_tax_invoice_validate_confirm,account.group_account_invoice,1,0,0,0
+access_tax_invoice_validate_confirm_user,tax.invoice,model_tax_invoice_validate_confirm,account.group_account_user,1,0,0,0
+access_tax_invoice_validate_confirm_manager,tax.invoice,model_tax_invoice_validate_confirm,account.group_account_manager,1,1,1,1
+access_product_label_in_tax_invoice,product.label.in.tax.invoice,model_product_label_in_tax_invoice,base.group_user,1,0,0,0
+access_product_label_in_tax_invoice_manager,product.label.in.tax.invoice manager,model_product_label_in_tax_invoice,base.group_system,1,1,1,1

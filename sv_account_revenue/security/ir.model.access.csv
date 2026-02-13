@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_revenue_recognize,revenue.recognize,model_revenue_recognize,account.group_account_readonly,1,0,0,0
+access_revenue_recognize_manager,revenue.recognize,model_revenue_recognize,account.group_account_manager,1,1,1,1
+access_revenue_recognize_log,revenue.recognize.log,model_revenue_recognize_log,account.group_account_readonly,1,0,0,0
+access_revenue_recognize_log_manager,revenue.recognize.log,model_revenue_recognize_log,account.group_account_manager,1,1,1,1
+access_company_branch,company.branch,model_company_branch,account.group_account_readonly,1,0,0,0
+access_company_branch_manager,company.branch,model_company_branch,account.group_account_manager,1,1,1,1

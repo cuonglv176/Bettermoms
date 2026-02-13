@@ -1,0 +1,57 @@
+<odoo>
+    <data>
+        <record id="view_vas_account_move_tree_inherit" model="ir.ui.view">
+            <field name="name">account.move.line.tree</field>
+            <field name="model">account.move.line</field>
+            <field name="inherit_id" ref="account.view_move_line_tree"/>
+            <field name="mode">extension</field>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_reconcile']" position="after">
+                    <button name="action_open_ignore_mismatch" type="object" string="Ignore Mismatch"/>
+                </xpath>
+                <xpath expr="//field[@name='move_id']" position="before">
+                   <field name="residual_mismatch" sum="EUNTAX"/>
+<!--                   <field name="tax_bill_total_vat_amount" sum="EVAT"/>-->
+<!--                   <field name="tax_bill_total_amount_with_vat"/>-->
+<!--                   <field name="registered_date" invisible="1"/>-->
+                   <field name="registered_mismatch"/>
+                   <field name="ignore_mismatch"/>
+                   <field name="reason_ignore_mismatch"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_vas_account_move_form_inherit" model="ir.ui.view">
+            <field name="name">account.move.line.form</field>
+            <field name="model">account.move.line</field>
+            <field name="inherit_id" ref="account.view_move_line_form"/>
+            <field name="mode">extension</field>
+            <field name="arch" type="xml">
+                <xpath expr="//page[@name='information']" position="inside">
+                    <group name="vn_tax_compare" string="VN Tax Compare">
+                        <field name="odoo_amount"/>
+                        <field name="einvoice_amount"/>
+                        <field name="residual_mismatch"/>
+                        <label for="ignore_mismatch"/>
+                        <div>
+                            <field name="ignore_mismatch" readonly="1"/>
+                            <button string="Ignore Mismatch" name="action_open_ignore_mismatch" type="object" class="btn btn-link pt-0"/>
+                        </div>
+                        <field name="reason_ignore_mismatch" readonly="1"/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="ntp_view_account_move_line_filter" model="ir.ui.view">
+            <field name="name">account.move.line.filter</field>
+            <field name="model">account.move.line</field>
+            <field name="inherit_id" ref="account.view_account_move_line_filter"/>
+            <field name="arch" type="xml">
+                <group>
+                    <filter string="Mismatch" name="mismatch" domain="[]" context="{'group_by': 'registered_mismatch'}"/>
+                </group>
+            </field>
+        </record>
+    </data>
+</odoo>

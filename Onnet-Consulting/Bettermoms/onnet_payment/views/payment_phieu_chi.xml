@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record model="ir.ui.view" id="onnet_payment_tree">
+            <field name="name">Phiếu chi</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='ref']" position="after">
+                    <field name="move_type"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="onnet_payment_phieu_thu_form">
+            <field name="name">Phiếu chi</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_form"/>
+
+            <field name="arch" type="xml">
+                <xpath expr="//header" position="inside">
+                    <button name="action_create_ma_phieu"
+                            type="object"
+                            class="oe_highlight" string="Lấy Mã Phiếu" invisible="1"/>
+                </xpath>
+
+                <xpath expr="//field[@name='ref']" position="after">
+                    <field name="move_type"/>
+                </xpath>
+                <xpath expr="//group[1]" position="after">
+                    <group>
+                        <group>
+                            <field name="nguoi_lap"/>
+                            <field name="accountant_id"/>
+                            <field name="treasurer_id"/>
+                            <field name="manager_id"/>
+                            <field name="nguoi_nhan"/>
+                            <field name="address"/>
+                        </group>
+                        <group>
+                            <field name="ma_phieu_in" readonly="1"/>
+                            <field name="amount_total"/>
+                            <field name="money_char"/>
+                            <field name="kemtheo"/>
+                            <field name="origin"/>
+                            <field name="lydo"/>
+                        </group>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="onnet_payment_phieu_chi_act">
+            <field name="name">Phiếu Chi</field>
+            <field name="res_model">account.move</field>
+            <field name="domain">[('move_type','=','outbound')]</field>
+            <field name="context">{'default_move_type': 'outbound'}</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">Tạo Phiếu Chi
+                </p>
+            </field>
+        </record>
+
+    </data>
+</odoo>

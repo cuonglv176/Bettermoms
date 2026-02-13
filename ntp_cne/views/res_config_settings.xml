@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="res_config_settings_view_form" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form</field>
+            <field name="model">res.config.settings</field>
+            <field name="inherit_id" ref="account.res_config_settings_view_form" />
+            <field name="priority" eval="999" />
+            <field name="arch" type="xml">
+                <xpath position="inside" expr="//div[@data-key='account']">
+                    <h2>Tax Invoice</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-9 o_setting_box">
+                            <div class="o_setting_left_pane" />
+                            <div class="o_setting_right_pane">
+                                <span class="o_form_label">Bizzi Config</span>
+                                <div class="content-group mt16">
+                                    <div class="row">
+                                        <label string="Api URL" for="tax_invoice_bizzi_api_url" class="col-lg-2 o_light_label"/>
+                                        <field name="tax_invoice_bizzi_api_url" />
+                                    </div>
+                                    <div class="row">
+                                        <label string="Api Key" for="tax_invoice_bizzi_api_key" class="col-lg-2 o_light_label"/>
+                                        <field name="tax_invoice_bizzi_api_key" />
+                                    </div>
+                                    <div class="row">
+                                        <label string="View URL" for="tax_invoice_bizzi_view_url" class="col-lg-2 o_light_label"/>
+                                        <field name="tax_invoice_bizzi_view_url" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

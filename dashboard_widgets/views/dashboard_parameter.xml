@@ -1,0 +1,129 @@
+<odoo>
+    <record id="dashboard_parameter_tree" model="ir.ui.view">
+        <field name="name">is.dashboard.parameter.tree</field>
+        <field name="model">is.dashboard.parameter</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="sequence" widget="handle"/>
+                <field name="dashboard_id" invisible="1"/>
+                <field name="user_editable"/>
+                <field name="name"/>
+                <field name="parameter_type" string="Type"/>
+                <field name="value_display" string="Value"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="dashboard_parameter_form" model="ir.ui.view">
+        <field name="name">.is.dashboard.parameter.form</field>
+        <field name="model">is.dashboard.parameter</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="name"/>
+                    <field name="parameter_type" string="Type"/>
+                    <field name="value_char" string="Value" attrs="{'invisible': [('parameter_type', '!=', 'char')], 'required': [('parameter_type', '=', 'char')]}"/>
+                    <field name="value_date" string="Value" attrs="{'invisible': [('parameter_type', '!=', 'date')], 'required': [('parameter_type', '=', 'date')]}"/>
+                    <field name="value_datetime" string="Value" attrs="{'invisible': [('parameter_type', '!=', 'datetime')], 'required': [('parameter_type', '=', 'datetime')]}"/>
+                    <field name="value_integer" string="Value" attrs="{'invisible': [('parameter_type', '!=', 'integer')], 'required': [('parameter_type', '=', 'integer')]}"/>
+                    <field name="value_float" string="Value" attrs="{'invisible': [('parameter_type', '!=', 'float')], 'required': [('parameter_type', '=', 'float')]}"/>
+                    <field name="value_reference" string="Value" attrs="{'invisible': [('parameter_type', '!=', 'one2many')], 'required': [('parameter_type', '=', 'one2many')]}"/>
+                    <field name="value_eval" string="Value" attrs="{'invisible': [('parameter_type', '!=', 'eval')], 'required': [('parameter_type', '=', 'eval')]}" widget="ace" options="{'mode': 'python'}"/>
+                    <field name="user_editable" attrs="{'invisible': [('parameter_type', '=', 'eval')]}"/>
+                </group>
+                <group>
+                    <div class="alert alert-info" role="alert">
+                        <field name="help_message"/>
+                    </div>
+                    <div colspan="2" class="alert alert-info" role="alert" attrs="{'invisible': [('parameter_type', '!=', 'eval')]}">
+                        <p>
+                            <strong>Python Eval Options</strong>
+                        </p>
+                        <p>
+                            <strong>Locals:</strong> Use the following variables to retrieve data required to update the dashboard item
+                            <ul>
+                                <li>dashboard</li>
+<!--                                <li>model</li>-->
+                                <li>uid (current user)</li>
+<!--                                <li>date_range_start</li>-->
+<!--                                <li>date_range_end</li>-->
+<!--                                <br/>-->
+<!--                                <li>dom1 (Does not include any additional conditional domains)</li>-->
+<!--                                <li>dom2 (Does not include any additional conditional domains)</li>-->
+                                <br/>
+                                <li>env</li>
+                                <li>datetime</li>
+                                <li>dateutil</li>
+                                <li>format_date(date, format_string)</li>
+                                <br />
+                                <li>DEFAULT_SERVER_DATE_FORMAT</li>
+                                <li>DEFAULT_SERVER_DATETIME_FORMAT</li>
+                                <br />
+<!--                                <li>-->
+<!--                                    dom = get_query_domain_1()  # Domain for query 1 including any additional conditional domains<br />-->
+<!--                                    dom = get_query_domain_2()  # Domain for query 1 including any additional conditional domains-->
+<!--                                </li>-->
+<!--                                <br />-->
+<!--                                <li>-->
+<!--                                    goal_value = get_custom_goal_1(target_value, custom_data_separator=':', user_id=None)<br/>-->
+<!--                                    goal_value = get_custom_goal_2(target_value, custom_data_separator=':', user_id=None)<br/>-->
+<!--                                    <p>-->
+<!--                                        <strong>Returns: </strong>goal value-->
+<!--                                    </p>-->
+<!--                                    <p>-->
+<!--                                        <strong>target_value: </strong>-->
+<!--                                        Goal custom filter data value that is looked for. Value is split by custom_data_separator and the first match is returned-->
+<!--                                    </p>-->
+<!--                                    <p>-->
+<!--                                        <strong>custom_data_separator: </strong>-->
+<!--                                        Optionally split the Custom Filter Data value in the goal by this value and match on the first part of the split.-->
+<!--                                        eg. allows a filter value to be "123: Main warehouse" where main warehouse is a comment and 123 is what the match is done with a separator value of ':'-->
+<!--                                    </p>-->
+<!--                                    <p>-->
+<!--                                        <strong>default: </strong>-->
+<!--                                        Value to return when there is no match-->
+<!--                                    </p>-->
+<!--                                    <p>-->
+<!--                                        <strong>user_id: </strong>-->
+<!--                                        Optionally filter goals for a specific user-->
+<!--                                    </p>-->
+<!--                                </li>-->
+<!--                                <br />-->
+<!--                                <li>-->
+<!--                                    start, end, is_datetime = get_date_range(model, field, range_type, date_range_x=0)<br/>-->
+<!--                                    start, end, is_datetime = get_date_range_query_1()<br/>-->
+<!--                                    start, end, is_datetime = get_date_range_query_2()-->
+<!--                                    <p>-->
+<!--                                        <strong>Returns: </strong>start, end, is_datetime-->
+<!--                                    </p>-->
+<!--                                    <p>-->
+<!--                                        <strong>date_range_x: </strong>-->
+<!--                                        Last 'x' days, months, years, etc-->
+<!--                                    </p>-->
+<!--                                    <p>-->
+<!--                                        <strong>Range Type: </strong>-->
+<!--                                        <field name="help_date_range_types_display"/>-->
+<!--                                    </p>-->
+
+<!--                                </li>-->
+<!--                                <br />-->
+<!--                                <li>-->
+<!--                                    current_goal_line, next_goal_line, current_goal_value = dashboard.get_1_goal_for_date(start_date, end_date, lambda_filter_data={'user_id': 4}, lambda_filter=lambda g, d: g.custom_filter_data == d['user_id'])-->
+<!--                                    <p>-->
+<!--                                        <strong>Returns: </strong>start, end, is_datetime-->
+<!--                                    </p>-->
+<!--                                </li>-->
+                            </ul>
+                        </p>
+                        <p>
+                            <strong>Return:</strong> Write to the following variables to update the dashboard item
+                            <ul>
+                                <li>value (For parameter value)</li>
+                            </ul>
+                        </p>
+                    </div>
+                </group>
+            </form>
+        </field>
+    </record>
+</odoo>

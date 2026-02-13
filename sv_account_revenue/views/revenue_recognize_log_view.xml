@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record model="ir.ui.view" id="view_revenue_recognize_log_form">
+    <field name="name">revenue.recognize.log.form</field>
+    <field name="model">revenue.recognize.log</field>
+    <field name="arch" type="xml">
+      <form string="Logs of Revenue Recognize">
+        <sheet>
+          <group>
+            <group>
+              <field name="name"/>
+            </group>
+            <group>
+              <field name="log_status"/>
+              <field name="traceback"/>
+            </group>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record model="ir.ui.view" id="view_revenue_recognize_log_tree">
+    <field name="name">revenue.recognize.log.tree</field>
+    <field name="model">revenue.recognize.log</field>
+    <field name="arch" type="xml">
+      <tree>
+        <field name="name"/>
+        <field name="log_status"/>
+        <field name="traceback" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="action_revenue_recognize_log" model="ir.actions.act_window">
+    <field name="name">Logs of Revenue Recognize</field>
+    <field name="res_model">revenue.recognize.log</field>
+    <field name="view_mode">tree,form</field>
+    <field name="help" type="html">
+      <p>
+        Logs of Revenue Recognize
+      </p>
+    </field>
+  </record>
+
+  <menuitem parent="account.menu_finance_entries_management" id="menu_action_revenue_recognize_log"
+    action="action_revenue_recognize_log"
+    sequence="85" groups="account.group_account_readonly"/>
+
+</odoo>

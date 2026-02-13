@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2016-Present Webkul Software Pvt. Ltd. (<https://webkul.com/>) -->
+<!-- See LICENSE file for full copyright and licensing details. -->
+<!-- License URL : https://store.webkul.com/license.html/ -->
+<odoo>
+  <data>
+<!--    <template id="fb_messenger_chat_assets_frontend" inherit_id="website.assets_frontend"-->
+<!--        name="Facebook Messenger Chat">-->
+<!--        <xpath expr="." position="inside">-->
+<!--            <script type="text/javascript" src="/facebook_messenger_chat/static/src/js/fb_messenger_chat.js"/>-->
+<!--        </xpath>-->
+<!--    </template>-->
+
+    <template id="fb_messenger_chat_inherit_layout" inherit_id="website.layout">
+        <xpath expr="//div[@id='wrapwrap']" position="before">
+            <t t-if="website.enable_fb_chat">
+                <!-- Load Facebook SDK for JavaScript -->
+                <div id="fb-root"></div>
+                <!-- Facebook customer chat code -->
+                <div class="fb-customerchat"
+                    attribution="setup_tool"
+                    t-att-page_id="website.fb_page_id"
+                    t-att-theme_color="website.fb_messenger_theme_color"
+                    t-att-logged_in_greeting="website.log_in_msg"
+                    t-att-logged_out_greeting="website.log_out_msg">
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+  </data>
+</odoo>

@@ -1,0 +1,524 @@
+id,name,code,user_type_id/id,chart_template_id/id,reconcile
+chart1121,Vietnamese Dong,1121,account.data_account_type_liquidity,vn_template,False
+chart1122,Foreign currencies,1122,account.data_account_type_liquidity,vn_template,False
+chart1123,Monetary Gold,1123,account.data_account_type_liquidity,vn_template,False
+chart1211,Shares,1211,account.data_account_type_current_assets,vn_template,False
+chart1212,Bonds,1212,account.data_account_type_current_assets,vn_template,False
+chart1218,Other securities and financial instruments,1218,account.data_account_type_current_assets,vn_template,False
+chart1281,Term deposits,1281,account.data_account_type_current_assets,vn_template,False
+chart1282,Bonds,1282,account.data_account_type_current_assets,vn_template,False
+chart1283,Lending loans,1283,account.data_account_type_current_assets,vn_template,False
+chart1288,Other held to maturity investments,1288,account.data_account_type_current_assets,vn_template,False
+chart131,Trade receivables,131,account.data_account_type_receivable,vn_template,True
+chart1331,VAT on purchase of goods and services,1331,account.data_account_type_current_assets,vn_template,False
+chart1332,VAT on purchase of fixed assets,1332,account.data_account_type_current_assets,vn_template,False
+chart1361,Working capital provided to sub-units,1361,account.data_account_type_receivable,vn_template,True
+chart1362,Intra-company receivables on foreign exchange,1362,account.data_account_type_receivable,vn_template,True
+chart1363,Intra-company receivables on borrowing costs eligible to be capitalized,1363,account.data_account_type_receivable,vn_template,True
+chart1368,Other intra-company receivables,1368,account.data_account_type_receivable,vn_template,True
+chart1381,Shortage of assets awaiting resolution,1381,account.data_account_type_receivable,vn_template,True
+chart1385,Receivables from privatization,1385,account.data_account_type_receivable,vn_template,True
+chart1388,Others receivables,1388,account.data_account_type_receivable,vn_template,True
+chart141,Advances,141,account.data_account_type_receivable,vn_template,True
+chart151,Goods in transit,151,account.data_account_type_current_assets,vn_template,False
+chart152,Raw materials,152,account.data_account_type_current_assets,vn_template,False
+chart1531,Tools and supplies,1531,account.data_account_type_current_assets,vn_template,False
+chart1532,Reusable packaging materials,1532,account.data_account_type_current_assets,vn_template,False
+chart1533,Instruments for renting,1533,account.data_account_type_current_assets,vn_template,False
+chart1534,Equipment and spare parts for replacement,1534,account.data_account_type_current_assets,vn_template,False
+chart1541,Construction contracts,1541,account.data_account_type_current_assets,vn_template,False
+chart1542,Other products,1542,account.data_account_type_current_assets,vn_template,False
+chart1543,Services,1543,account.data_account_type_current_assets,vn_template,False
+chart1544,Warranty costs,1544,account.data_account_type_current_assets,vn_template,False
+chart1551,Finished products - inventory,1551,account.data_account_type_current_assets,vn_template,False
+chart1557,Finished products - real estates,1557,account.data_account_type_current_assets,vn_template,False
+chart1561,Purchase costs,1561,account.data_account_type_current_assets,vn_template,False
+chart1562,Incidental purchase costs,1562,account.data_account_type_current_assets,vn_template,False
+chart1567,Properties held for sale,1567,account.data_account_type_current_assets,vn_template,False
+chart157,Outward goods on consignment,157,account.data_account_type_current_assets,vn_template,False
+chart158,Goods in bonded warehouse,158,account.data_account_type_current_assets,vn_template,False
+chart1611,Expenditure brought forward,1611,account.data_account_type_current_assets,vn_template,False
+chart1612,Expenditure of current year,1612,account.data_account_type_current_assets,vn_template,False
+chart171,Government bonds purchased for resale,171,account.data_account_type_current_assets,vn_template,False
+chart2111,Buildings and structures,2111,account.data_account_type_non_current_assets,vn_template,False
+chart2112,Machinery and equipment,2112,account.data_account_type_non_current_assets,vn_template,False
+chart2113,Means of transportation and transmission,2113,account.data_account_type_non_current_assets,vn_template,False
+chart2114,Office equipment and furniture,2114,account.data_account_type_non_current_assets,vn_template,False
+chart2115,"Perennial plants, working animals and farm livestocks",2115,account.data_account_type_non_current_assets,vn_template,False
+chart2118,Other fixed assets,2118,account.data_account_type_non_current_assets,vn_template,False
+chart2121,Finance lease tangible fixed assets,2121,account.data_account_type_non_current_assets,vn_template,False
+chart2122,Finance lease intangible fixed assets,2122,account.data_account_type_non_current_assets,vn_template,False
+chart2131,Land use rights,2131,account.data_account_type_non_current_assets,vn_template,False
+chart2132,Copyrights,2132,account.data_account_type_non_current_assets,vn_template,False
+chart2133,Patents and inventions,2133,account.data_account_type_non_current_assets,vn_template,False
+chart2134,Product labels and trademarks,2134,account.data_account_type_non_current_assets,vn_template,False
+chart2135,Computer software,2135,account.data_account_type_non_current_assets,vn_template,False
+chart2136,Licenses and franchises,2136,account.data_account_type_non_current_assets,vn_template,False
+chart2138,Other intangible fixed assets,2138,account.data_account_type_non_current_assets,vn_template,False
+chart2141,Depreciation of tangible fixed assets,2141,account.data_account_type_non_current_assets,vn_template,False
+chart2142,Depreciation of finance lease assets,2142,account.data_account_type_non_current_assets,vn_template,False
+chart2143,Amortization of intangible assets,2143,account.data_account_type_non_current_assets,vn_template,False
+chart2147,Depreciation of investment properties,2147,account.data_account_type_non_current_assets,vn_template,False
+chart217,Investment properties,217,account.data_account_type_non_current_assets,vn_template,False
+chart221,Investment in subsidiaries,221,account.data_account_type_non_current_assets,vn_template,False
+chart222,Investment in joint ventures and associates,222,account.data_account_type_non_current_assets,vn_template,False
+chart2281,Equity investments in other entities Other investment,2281,account.data_account_type_non_current_assets,vn_template,False
+chart2291,Allowances for decline in value of trading securities,2291,account.data_account_type_non_current_assets,vn_template,False
+chart2292,Allowances for impairment of investments in other entities,2292,account.data_account_type_non_current_assets,vn_template,False
+chart2293,Allowances for doubtful debts,2293,account.data_account_type_non_current_assets,vn_template,False
+chart2294,Allowances for inventories,2294,account.data_account_type_non_current_assets,vn_template,False
+chart2411,Fixed assets prior to commissioning,2411,account.data_account_type_non_current_assets,vn_template,False
+chart2412,Construction works,2412,account.data_account_type_non_current_assets,vn_template,False
+chart2413,Major repairs of fixed assets,2413,account.data_account_type_non_current_assets,vn_template,False
+chart242,Prepaid expenses,242,account.data_account_type_non_current_assets,vn_template,False
+chart243,Deferred tax assets,243,account.data_account_type_non_current_assets,vn_template,False
+chart244,"Mortgage, collaterals and deposits",244,account.data_account_type_non_current_assets,vn_template,False
+chart331,Trade payables,331,account.data_account_type_payable,vn_template,True
+chart33311,Output VAT,33311,account.data_account_type_current_liabilities,vn_template,False
+chart33312,VAT on imported goods,33312,account.data_account_type_current_liabilities,vn_template,False
+chart3332,Special consumption tax,3332,account.data_account_type_current_liabilities,vn_template,False
+chart3333,Import and export tax,3333,account.data_account_type_current_liabilities,vn_template,False
+chart3334,Corporate income tax,3334,account.data_account_type_current_liabilities,vn_template,False
+chart3335,Personal income tax,3335,account.data_account_type_current_liabilities,vn_template,False
+chart3336,Tax on use of natural resources ,3336,account.data_account_type_current_liabilities,vn_template,False
+chart3337,"Land and housing tax, and rental charges",3337,account.data_account_type_current_liabilities,vn_template,False
+chart33381,Environment protection tax,33381,account.data_account_type_current_liabilities,vn_template,False
+chart33382,Other taxes,33382,account.data_account_type_current_liabilities,vn_template,False
+chart3339,"Fees, charges and other payables",3339,account.data_account_type_payable,vn_template,True
+chart3341,Payables to staff,3341,account.data_account_type_payable,vn_template,True
+chart3348,Payables to others,3348,account.data_account_type_payable,vn_template,True
+chart335,Accrued expenses,335,account.data_account_type_payable,vn_template,True
+chart3361,Intra-company payables for operating capital received,3361,account.data_account_type_payable,vn_template,True
+chart3362,Intra-company payables for foreign exchange differences,3362,account.data_account_type_payable,vn_template,True
+chart3363,Intra-company payables for borrowing costs eligible to be capitalized,3363,account.data_account_type_payable,vn_template,True
+chart3368,Other inter-company payables,3368,account.data_account_type_payable,vn_template,True
+chart337,Progress billings for construction contracts,337,account.data_account_type_payable,vn_template,True
+chart3381,Surplus of assets awaiting resolution,3381,account.data_account_type_payable,vn_template,True
+chart3382,Trade union fees,3382,account.data_account_type_payable,vn_template,True
+chart3383,Social insurance,3383,account.data_account_type_payable,vn_template,True
+chart3384,Health insurance,3384,account.data_account_type_payable,vn_template,True
+chart3385,Payables on equitization,3385,account.data_account_type_payable,vn_template,True
+chart3386,Unemployment insurance,3386,account.data_account_type_payable,vn_template,True
+chart3387,Unearned revenue,3387,account.data_account_type_payable,vn_template,True
+chart3388,Others,3388,account.data_account_type_payable,vn_template,True
+chart3411,Borrowing loans liabilities,3411,account.data_account_type_current_liabilities,vn_template,False
+chart3412,Finance lease liabilities,3412,account.data_account_type_current_liabilities,vn_template,False
+chart3431,Ordinary bonds,3431,account.data_account_type_current_liabilities,vn_template,False
+chart34311,Par value of bonds,34311,account.data_account_type_current_liabilities,vn_template,False
+chart34312,Bond discounts,34312,account.data_account_type_current_liabilities,vn_template,False
+chart34313,Bond premiums,34313,account.data_account_type_current_liabilities,vn_template,False
+chart3432,Convertible bonds,3432,account.data_account_type_current_liabilities,vn_template,False
+chart344,Deposits received,344,account.data_account_type_current_liabilities,vn_template,False
+chart347,Deferred tax liabilities,347,account.data_account_type_current_liabilities,vn_template,False
+chart3521,Product warranty provisions,3521,account.data_account_type_current_liabilities,vn_template,False
+chart3522,Construction warranty provisions,3522,account.data_account_type_current_liabilities,vn_template,False
+chart3523,Enterprise restructuring provisions,3523,account.data_account_type_current_liabilities,vn_template,False
+chart3524,Other provisions,3524,account.data_account_type_current_liabilities,vn_template,False
+chart3531,Bonus fund,3531,account.data_account_type_current_liabilities,vn_template,False
+chart3532,Welfare fund,3532,account.data_account_type_current_liabilities,vn_template,False
+chart3533,Welfare fund used for fixed asset acquisitions,3533,account.data_account_type_current_liabilities,vn_template,False
+chart3534,Management bonus fund,3534,account.data_account_type_current_liabilities,vn_template,False
+chart3561,Science and technology development fund,3561,account.data_account_type_current_liabilities,vn_template,False
+chart3562,Science and technology development fund used for fixed asset acquisition,3562,account.data_account_type_current_liabilities,vn_template,False
+chart357,Price stabilization fund,357,account.data_account_type_current_liabilities,vn_template,False
+chart41111,Ordinary shares with voting rights,41111,account.data_account_type_equity,vn_template,False
+chart41112,Preference shares,41112,account.data_account_type_equity,vn_template,False
+chart4112,Capital surplus,4112,account.data_account_type_equity,vn_template,False
+chart4113,Conversion options on convertible bonds,4113,account.data_account_type_equity,vn_template,False
+chart4118,Other capital,4118,account.data_account_type_equity,vn_template,False
+chart412,Differences upon asset revaluation,412,account.data_account_type_equity,vn_template,False
+chart4131,Exchange rate differences on revaluation of monetary items denominated in foreign currency ,4131,account.data_account_type_equity,vn_template,False
+chart4132,Exchange rate differences in pre-operating period,4132,account.data_account_type_equity,vn_template,False
+chart414,Investment and development fund,414,account.data_account_type_equity,vn_template,False
+chart417,Enterprise reorganization assistance fund,417,account.data_account_type_equity,vn_template,False
+chart418,Other equity funds,418,account.data_account_type_equity,vn_template,False
+chart419,Treasury shares,419,account.data_account_type_equity,vn_template,False
+chart4211,Undistributed profit after tax brought forward,4211,account.data_account_type_equity,vn_template,False
+chart4212,Undistributed profit(loss) after tax for the current year,4212,account.data_account_type_equity,vn_template,False
+chart441,Capital expenditure funds,441,account.data_account_type_equity,vn_template,False
+chart4611,Non-business funds bought forward,4611,account.data_account_type_equity,vn_template,False
+chart4612,Non-business funds for current year,4612,account.data_account_type_equity,vn_template,False
+chart466,Non-business funds used for fixed asset acquisitions,466,account.data_account_type_equity,vn_template,False
+chart5111,Revenue from sales of merchandises,5111,account.data_account_type_revenue,vn_template,False
+chart5112,Revenue from sales of finished goods,5112,account.data_account_type_revenue,vn_template,False
+chart5113,Revenue from services rendered,5113,account.data_account_type_revenue,vn_template,False
+chart5114,Revenue from government grants,5114,account.data_account_type_revenue,vn_template,False
+chart5117,Revenue from investment properties,5117,account.data_account_type_revenue,vn_template,False
+chart5118,Other revenue,5118,account.data_account_type_revenue,vn_template,False
+chart515,Financial income,515,account.data_account_type_revenue,vn_template,False
+chart5221,Trade discounts,5221,account.data_account_type_revenue,vn_template,False
+chart5222,Sales returns,5222,account.data_account_type_revenue,vn_template,False
+chart5223,Sales rebates,5223,account.data_account_type_revenue,vn_template,False
+chart6111,Purchases of raw materials,6111,account.data_account_type_direct_costs,vn_template,False
+chart621,Direct raw material costs,621,account.data_account_type_direct_costs,vn_template,False
+chart622,Direct labour costs,622,account.data_account_type_direct_costs,vn_template,False
+chart6231,Labour costs,6231,account.data_account_type_expenses,vn_template,False
+chart6232,Material costs,6232,account.data_account_type_expenses,vn_template,False
+chart6233,Tools and instruments,6233,account.data_account_type_expenses,vn_template,False
+chart6234,Depreciation expense,6234,account.data_account_type_expenses,vn_template,False
+chart6237,Outside services ,6237,account.data_account_type_expenses,vn_template,False
+chart6238,Other expenses,6238,account.data_account_type_expenses,vn_template,False
+chart6271,Factory staff costs,6271,account.data_account_type_expenses,vn_template,False
+chart6272,Material costs,6272,account.data_account_type_expenses,vn_template,False
+chart6273,Tools and instruments,6273,account.data_account_type_expenses,vn_template,False
+chart6274,Fixed asset depreciation,6274,account.data_account_type_expenses,vn_template,False
+chart6277,Outside services,6277,account.data_account_type_expenses,vn_template,False
+chart6278,Other expenses,6278,account.data_account_type_expenses,vn_template,False
+chart631,Production costs,631,account.data_account_type_direct_costs,vn_template,False
+chart632,Costs of goods sold,632,account.data_account_type_direct_costs,vn_template,False
+chart635,Financial expenses,635,account.data_account_type_expenses,vn_template,False
+chart6411,Staff expenses,6411,account.data_account_type_expenses,vn_template,False
+chart6412,Materials and packing materials,6412,account.data_account_type_expenses,vn_template,False
+chart6413,Tools and instruments,6413,account.data_account_type_expenses,vn_template,False
+chart6414,Fixed asset deprecation,6414,account.data_account_type_expenses,vn_template,False
+chart6415,Warranty expenses,6415,account.data_account_type_expenses,vn_template,False
+chart6417,Outside services,6417,account.data_account_type_expenses,vn_template,False
+chart6418,Other expenses,6418,account.data_account_type_expenses,vn_template,False
+chart6421,Staff expenses,6421,account.data_account_type_expenses,vn_template,False
+chart6422,Office supply expenses,6422,account.data_account_type_expenses,vn_template,False
+chart6423,Office equipment expenses,6423,account.data_account_type_expenses,vn_template,False
+chart6424,Fixed asset depreciation,6424,account.data_account_type_expenses,vn_template,False
+chart6425,"Taxes, fees and charges",6425,account.data_account_type_expenses,vn_template,False
+chart6426,Provision expenses,6426,account.data_account_type_expenses,vn_template,False
+chart6427,Outside services,6427,account.data_account_type_expenses,vn_template,False
+chart6428,Other expenses,6428,account.data_account_type_expenses,vn_template,False
+chart711,Other Income,711,account.data_account_type_other_income,vn_template,False
+chart8111,Other Expenses,8111,account.data_account_type_expenses,vn_template,False
+chart8211,Current tax expense,8211,account.data_account_type_expenses,vn_template,False
+chart8212,Deferred tax expense,8212,account.data_account_type_expenses,vn_template,False
+chart911,Income Summary,911,account.data_unaffected_earnings,vn_template,False
+chart11110001,Tiền mặt Việt Nam - VP HCM,11110001,account.data_account_type_liquidity,vn_template,False
+chart11110002,Tiền mặt Việt Nam - VP HN,11110002,account.data_account_type_liquidity,vn_template,False
+chart11120001,Tiền mặt ngoại tệ,11120001,account.data_account_type_liquidity,vn_template,False
+chart11130001,"Vàng, bạc, kim khí quý, đá quý",11130001,account.data_account_type_liquidity,vn_template,False
+chart11210001,Tiền gửi NH (VNĐ) _ BIDV_So TK 313.10.00.082306.7,11210001,account.data_account_type_liquidity,vn_template,False
+chart11210002,Tiền VND gởi NH TPB - 01888105801,11210002,account.data_account_type_liquidity,vn_template,False
+chart11210003,Tiền VND gởi NH Sacombank PGD NKKN - 060182594183,11210003,account.data_account_type_liquidity,vn_template,False
+chart11210004,Tiền VND gởi NH BIDV CN Bắc Sài Gòn - 31310000948960,11210004,account.data_account_type_liquidity,vn_template,False
+chart11210005,Tiền gửi NH (VNĐ)_VCB_So TK 0531002581252,11210005,account.data_account_type_liquidity,vn_template,False
+chart11220001,Tiền gửi ngân hàng - USD,11220001,account.data_account_type_liquidity,vn_template,False
+chart11310001,Tiền Việt nam,11310001,account.data_account_type_liquidity,vn_template,False
+chart11320001,Ngoại tệ,11320001,account.data_account_type_liquidity,vn_template,False
+chart12110001,Cổ phiếu,12110001,account.data_account_type_liquidity,vn_template,False
+chart12120001,"Trái phiếu, tín phiếu, kỳ phiếu",12120001,account.data_account_type_liquidity,vn_template,False
+chart12130001,Chứng khoán và công cụ tài chính khác,12130001,account.data_account_type_liquidity,vn_template,False
+chart12810001,Tiền gửi có kỳ hạn,12810001,account.data_account_type_liquidity,vn_template,False
+chart12820001,Đầu tư ngắn hạn khác,12820001,account.data_account_type_liquidity,vn_template,False
+chart12830001,Cho vay,12830001,account.data_account_type_liquidity,vn_template,False
+chart12880001,Các khoản đầu tư khác nắm giữ đến ngày đáo hạn,12880001,account.data_account_type_liquidity,vn_template,False
+chart13110001,Phải thu ngắn hạn của khách hàng,13110001,account.data_account_type_liquidity,vn_template,False
+chart13160001,Trade receivables(pos),13160001,account.data_account_type_liquidity,vn_template,False
+chart13310001,"Thuế GTGT được khấu trừ HH,DV- Hàng nội địa",13310001,account.data_account_type_liquidity,vn_template,False
+chart13310002,"Thuế GTGT được khấu trừ HH,DV-Hàng nhập khẩu",13310002,account.data_account_type_liquidity,vn_template,False
+chart13320001,Thuế GTGT được khấu trừ TSCĐ,13320001,account.data_account_type_liquidity,vn_template,False
+chart13390001,Thuế GTGT chưa kê khai khấu trừ,13390001,account.data_account_type_liquidity,vn_template,False
+chart13610001,Vốn kinh doanh ở các đơn vị trực thuộc,13610001,account.data_account_type_liquidity,vn_template,False
+chart13620001,Phải thu nội bộ về chênh lệch tỷ giá,13620001,account.data_account_type_liquidity,vn_template,False
+chart13630001,Phải thu nội bộ về chi phí đi vay đủ điều kiện được vốn hóa,13630001,account.data_account_type_liquidity,vn_template,False
+chart13680001,Phải thu nội bộ khác,13680001,account.data_account_type_liquidity,vn_template,False
+chart13810001,Tài sản thiếu chờ xử lý,13810001,account.data_account_type_liquidity,vn_template,False
+chart13850001,Phải thu về cổ phần hóa,13850001,account.data_account_type_liquidity,vn_template,False
+chart13880001,Phải thu khác,13880001,account.data_account_type_liquidity,vn_template,False
+chart14110001,Tạm ứng,14110001,account.data_account_type_liquidity,vn_template,False
+chart15110001,Hàng mua đang đi trên đường,15110001,account.data_account_type_liquidity,vn_template,False
+chart15210001,Nguyên liệu,15210001,account.data_account_type_liquidity,vn_template,False
+chart15220001,Phụ liệu,15220001,account.data_account_type_liquidity,vn_template,False
+chart15230001,Nhiên liệu,15230001,account.data_account_type_liquidity,vn_template,False
+chart15280001,Nguyên phụ liệu khác,15280001,account.data_account_type_liquidity,vn_template,False
+chart15310001,"Công cụ,dụng cụ sản xuất",15310001,account.data_account_type_liquidity,vn_template,False
+chart15320001,Đồ dùng văn phòng,15320001,account.data_account_type_liquidity,vn_template,False
+chart15330001,Bảo hộ lao động,15330001,account.data_account_type_liquidity,vn_template,False
+chart15340001,"Thiết bị, phụ tùng thay thế",15340001,account.data_account_type_liquidity,vn_template,False
+chart15410001,Chi phí SXKD sản phẩm dở dang,15410001,account.data_account_type_liquidity,vn_template,False
+chart15510001,Thành phẩm,15510001,account.data_account_type_liquidity,vn_template,False
+chart15610001,Giá mua hàng hóa,15610001,account.data_account_type_liquidity,vn_template,False
+chart15620001,Chi phí thu mua hàng,15620001,account.data_account_type_liquidity,vn_template,False
+chart15670001,Hàng hóa bất động sản,15670001,account.data_account_type_liquidity,vn_template,False
+chart15710001,Hàng gửi đi bán,15710001,account.data_account_type_liquidity,vn_template,False
+chart15810001,Hàng hóa kho bảo thuế,15810001,account.data_account_type_liquidity,vn_template,False
+chart16110001,Chi sự nghiệp,16110001,account.data_account_type_liquidity,vn_template,False
+chart21110001,"Nhà cửa,vật kiến trúc",21110001,account.data_account_type_liquidity,vn_template,False
+chart21120001,"Máy móc,thiết bị",21120001,account.data_account_type_liquidity,vn_template,False
+chart21130001,"Phương tiện vận tải,truyền dẫn",21130001,account.data_account_type_liquidity,vn_template,False
+chart21140001,"Thiết bị,dụng cụ quản lý",21140001,account.data_account_type_liquidity,vn_template,False
+chart21150001,"Cây lâu năm, súc vật làm việc cho sản phẩm",21150001,account.data_account_type_liquidity,vn_template,False
+chart21180001,Tài sản cố định khác,21180001,account.data_account_type_liquidity,vn_template,False
+chart21210001,Tài sản cố định thuê tài chính,21210001,account.data_account_type_liquidity,vn_template,False
+chart21310001,Quyền sử dụng đất,21310001,account.data_account_type_liquidity,vn_template,False
+chart21320001,Quyền phát hành,21320001,account.data_account_type_liquidity,vn_template,False
+chart21330001,"Bản quyền, bằng sáng chế",21330001,account.data_account_type_liquidity,vn_template,False
+chart21340001,Nhãn hiệu hàng hóa,21340001,account.data_account_type_liquidity,vn_template,False
+chart21350001,Chương trình phần mềm,21350001,account.data_account_type_liquidity,vn_template,False
+chart21360001,Giấy phép và giấy phép chuyển nhượng,21360001,account.data_account_type_liquidity,vn_template,False
+chart21380001,TSCĐ vô hình khác,21380001,account.data_account_type_liquidity,vn_template,False
+chart21410001,Hao mòn TSCĐ hữu hình,21410001,account.data_account_type_liquidity,vn_template,False
+chart21420001,Hao mòn TSCĐ đi thuê,21420001,account.data_account_type_liquidity,vn_template,False
+chart21430001,Hao mòn TSCĐ vô hình,21430001,account.data_account_type_liquidity,vn_template,False
+chart21470001,Hao mòn bất động sản đầu tư,21470001,account.data_account_type_liquidity,vn_template,False
+chart21710001,Quyền sử dụng đất,21710001,account.data_account_type_liquidity,vn_template,False
+chart21720001,Nhà,21720001,account.data_account_type_liquidity,vn_template,False
+chart21730001,Nhà và quyền sử dụng đất,21730001,account.data_account_type_liquidity,vn_template,False
+chart21740001,Cơ sở hạ tầng,21740001,account.data_account_type_liquidity,vn_template,False
+chart22110001,Đầu tư vào công ty con,22110001,account.data_account_type_liquidity,vn_template,False
+chart22210001,"Đầu tư vào công ty liên doanh, liên kết",22210001,account.data_account_type_liquidity,vn_template,False
+chart22810001,Đầu tư góp vốn vào đơn vị khác,22810001,account.data_account_type_liquidity,vn_template,False
+chart22820001,Trái phiếu,22820001,account.data_account_type_liquidity,vn_template,False
+chart22880001,Đầu tư dài hạn khác,22880001,account.data_account_type_liquidity,vn_template,False
+chart22910001,Dự phòng giảm giá chứng khoán kinh doanh,22910001,account.data_account_type_liquidity,vn_template,False
+chart22920001,Dự phòng tổn thất đầu tư vào đơn vị khác,22920001,account.data_account_type_liquidity,vn_template,False
+chart22930001,Dự phòng phải thu khó đòi,22930001,account.data_account_type_liquidity,vn_template,False
+chart22940001,Dự phòng giảm giá hàng tồn kho,22940001,account.data_account_type_liquidity,vn_template,False
+chart24110001,Mua sắm TSCĐ,24110001,account.data_account_type_liquidity,vn_template,False
+chart24120001,Xây dựng cơ bản,24120001,account.data_account_type_liquidity,vn_template,False
+chart24130001,Sửa chữa lớn TSCĐ,24130001,account.data_account_type_liquidity,vn_template,False
+chart24210001,Chi phí trả trước ngắn hạn,24210001,account.data_account_type_liquidity,vn_template,False
+chart24220001,Chi phí trả trước dài hạn,24220001,account.data_account_type_liquidity,vn_template,False
+chart24310001,Tài sản thuế thu nhập hoãn lại,24310001,account.data_account_type_liquidity,vn_template,False
+chart24410001,"Cầm cố, thế chấp, ký quỹ, ký cược - Ngắn hạn",24410001,account.data_account_type_liquidity,vn_template,False
+chart24420001,"Cầm cố, thế chấp, ký quỹ, ký cược - Dài hạn",24420001,account.data_account_type_liquidity,vn_template,False
+chart33110001,Phải trả cho người bán ngắn hạn,33110001,account.data_account_type_liquidity,vn_template,False
+chart33310001,"Thuế GTGT đầu ra HH, DV",33310001,account.data_account_type_liquidity,vn_template,False
+chart33310002,Thuế GTGT hàng nhập khẩu,33310002,account.data_account_type_liquidity,vn_template,False
+chart33320001,Thuế tiêu thụ đặc biệt,33320001,account.data_account_type_liquidity,vn_template,False
+chart33330001,"Thuế xuất, nhập khẩu",33330001,account.data_account_type_liquidity,vn_template,False
+chart33340001,Thuế thu nhập doanh nghiệp,33340001,account.data_account_type_liquidity,vn_template,False
+chart33350001,Thuế thu nhập cá nhân,33350001,account.data_account_type_liquidity,vn_template,False
+chart33360001,Thuế tài nguyên,33360001,account.data_account_type_liquidity,vn_template,False
+chart33370001,"Thuế nhà đất, tiền thuê đất",33370001,account.data_account_type_liquidity,vn_template,False
+chart33380001,Các loại thuế khác,33380001,account.data_account_type_liquidity,vn_template,False
+chart33390001,"Phí, lệ phí và các khoản phải nộp khác",33390001,account.data_account_type_liquidity,vn_template,False
+chart33410001,Phải trả công nhân viên,33410001,account.data_account_type_liquidity,vn_template,False
+chart33480001,Phải trả người lao động khác,33480001,account.data_account_type_liquidity,vn_template,False
+chart33510001,Trích trước tiền lương,33510001,account.data_account_type_liquidity,vn_template,False
+chart33580001,Chi phí phải trả khác,33580001,account.data_account_type_liquidity,vn_template,False
+chart33610001,Phải trả nội bộ,33610001,account.data_account_type_liquidity,vn_template,False
+chart33710001,Thanh toán theo tiến độ kế hoạch hợp đồng xây dựng,33710001,account.data_account_type_liquidity,vn_template,False
+chart33810001,Tài sản thừa chờ giải quyết,33810001,account.data_account_type_liquidity,vn_template,False
+chart33820001,Kinh phí công đoàn,33820001,account.data_account_type_liquidity,vn_template,False
+chart33830001,Bảo hiểm xã hội,33830001,account.data_account_type_liquidity,vn_template,False
+chart33840001,Bảo hiểm y tế,33840001,account.data_account_type_liquidity,vn_template,False
+chart33850001,Phải trả về cổ phần hóa,33850001,account.data_account_type_liquidity,vn_template,False
+chart33860001,Bảo hiểm thất nghiệp,33860001,account.data_account_type_liquidity,vn_template,False
+chart33870001,Doanh thu chưa thực hiện,33870001,account.data_account_type_liquidity,vn_template,False
+chart33880001,"Phải trả, phải nộp khác",33880001,account.data_account_type_liquidity,vn_template,False
+chart34110001,Các khoản đi vay,34110001,account.data_account_type_liquidity,vn_template,False
+chart34120001,Nợ thuê tài chính,34120001,account.data_account_type_liquidity,vn_template,False
+chart34310001,Mệnh giá trái phiếu,34310001,account.data_account_type_liquidity,vn_template,False
+chart34310002,Chiết khấu trái phiếu,34310002,account.data_account_type_liquidity,vn_template,False
+chart34310003,Phụ trội trái phiếu,34310003,account.data_account_type_liquidity,vn_template,False
+chart34320001,Trái phiếu chuyển đổi,34320001,account.data_account_type_liquidity,vn_template,False
+chart34410001,"Nhận ký quỹ, ký cựơc - Ngắn hạn",34410001,account.data_account_type_liquidity,vn_template,False
+chart34420001,"Nhận ký quỹ, ký cựơc - Dài hạn",34420001,account.data_account_type_liquidity,vn_template,False
+chart34710001,Thuế thu nhập hoãn lại phải trả,34710001,account.data_account_type_liquidity,vn_template,False
+chart35210001,Dự phòng phải trả,35210001,account.data_account_type_liquidity,vn_template,False
+chart35310001,Qũy khen thưởng,35310001,account.data_account_type_liquidity,vn_template,False
+chart35320001,Qũy phúc lợi,35320001,account.data_account_type_liquidity,vn_template,False
+chart35330001,Qũy phúc lợi đã hình thành TSCĐ,35330001,account.data_account_type_liquidity,vn_template,False
+chart35340001,Quỹ thưởng ban điều hành công ty,35340001,account.data_account_type_liquidity,vn_template,False
+chart35610001,Quỹ phát triển khoa học và công nghệ,35610001,account.data_account_type_liquidity,vn_template,False
+chart35710001,Qũy bình ổn giá,35710001,account.data_account_type_liquidity,vn_template,False
+chart41110001,Cổ phiếu phổ thông có quyền biểu quyết,41110001,account.data_account_type_liquidity,vn_template,False
+chart41110002,Cổ phiếu ưu đãi,41110002,account.data_account_type_liquidity,vn_template,False
+chart41120001,Thặng dư vốn cổ phần,41120001,account.data_account_type_liquidity,vn_template,False
+chart41130001,Quyền chọn chuyển đổi trái phiếu,41130001,account.data_account_type_liquidity,vn_template,False
+chart41180001,Vốn khác,41180001,account.data_account_type_liquidity,vn_template,False
+chart41210001,Chênh lệch đánh giá lại tài sản,41210001,account.data_account_type_liquidity,vn_template,False
+chart41310001,Chênh lệch tỷ giá hối đoái đánh giá lại cuối năm tài chính,41310001,account.data_account_type_liquidity,vn_template,False
+chart41320001,Chênh lệch tỷ giá hối đoái trong giai đoạn trước hoạt động,41320001,account.data_account_type_liquidity,vn_template,False
+chart41410001,Quỹ đầu tư phát triển,41410001,account.data_account_type_liquidity,vn_template,False
+chart41710001,Quỹ hỗ trợ sắp xếp doanh nghiệp,41710001,account.data_account_type_liquidity,vn_template,False
+chart41810001,Quỹ khác thuộc vốn chủ sở hữu,41810001,account.data_account_type_liquidity,vn_template,False
+chart41910001,Cổ phiếu quỹ,41910001,account.data_account_type_liquidity,vn_template,False
+chart42110001,Lợi nhuận chưa phân phối năm trước,42110001,account.data_account_type_liquidity,vn_template,False
+chart42120001,Lợi nhuận chưa phân phối năm nay,42120001,account.data_account_type_liquidity,vn_template,False
+chart44110001,Nguồn vốn đầu tư xây dựng cơ bản,44110001,account.data_account_type_liquidity,vn_template,False
+chart46110001,Nguồn kinh phí sự nghiệp năm trước,46110001,account.data_account_type_liquidity,vn_template,False
+chart46120001,Nguồn kinh phí sự nghiệp năm nay,46120001,account.data_account_type_liquidity,vn_template,False
+chart46610001,Nguồn kinh phí đã hình thành TSCĐ,46610001,account.data_account_type_liquidity,vn_template,False
+chart51110001,Doanh thu bán hàng hóa,51110001,account.data_account_type_liquidity,vn_template,False
+chart51120001,Doanh thu bán sản phẩm,51120001,account.data_account_type_liquidity,vn_template,False
+chart51130001,Doanh thu cung cấp dịch vụ,51130001,account.data_account_type_liquidity,vn_template,False
+chart51510001,"Lãi tiền gửi, tiền cho vay",51510001,account.data_account_type_liquidity,vn_template,False
+chart51520001,"Lãi đầu tư trái phiếu, kỳ phiếu, tín phiếu",51520001,account.data_account_type_liquidity,vn_template,False
+chart51530001,"Cổ tức, lợi nhuận được chia",51530001,account.data_account_type_liquidity,vn_template,False
+chart51540001,Lãi bán ngoại tệ,51540001,account.data_account_type_liquidity,vn_template,False
+chart51550001,Lãi chênh lệch tỷ giá đã thực hiện,51550001,account.data_account_type_liquidity,vn_template,False
+chart51560001,Lãi chênh lệch tỷ giá chưa thực hiện,51560001,account.data_account_type_liquidity,vn_template,False
+chart51570001,Lãi bán hàng trả chậm,51570001,account.data_account_type_liquidity,vn_template,False
+chart51580001,Doanh thu hoạt động tài chính khác,51580001,account.data_account_type_liquidity,vn_template,False
+chart52110001,Chiết khấu thương mại,52110001,account.data_account_type_liquidity,vn_template,False
+chart52120001,Giảm giá hàng bán,52120001,account.data_account_type_liquidity,vn_template,False
+chart52130001,Hàng bán bị trả lại,52130001,account.data_account_type_liquidity,vn_template,False
+chart61110001,"Mua nguyên liệu, vật liệu",61110001,account.data_account_type_liquidity,vn_template,False
+chart61120001,Mua hàng hóa,61120001,account.data_account_type_liquidity,vn_template,False
+chart62110001,Chi phí NVL trực tiếp,62110001,account.data_account_type_liquidity,vn_template,False
+chart62310001,Chi phí nhân công,62310001,account.data_account_type_liquidity,vn_template,False
+chart62320001,Chi phí vật liệu,62320001,account.data_account_type_liquidity,vn_template,False
+chart62330001,Chi phí dụng cụ sản xuất,62330001,account.data_account_type_liquidity,vn_template,False
+chart62340001,Chi phí khấu hao máy thi công,62340001,account.data_account_type_liquidity,vn_template,False
+chart62370001,Chi phí dịch vụ mua ngoài,62370001,account.data_account_type_liquidity,vn_template,False
+chart62380001,Chi phí bằng tiền khác,62380001,account.data_account_type_liquidity,vn_template,False
+chart62720001,Chi phí vật liệu sản xuất,62720001,account.data_account_type_liquidity,vn_template,False
+chart62740001,Chi phí khấu hao TSCĐ - SX,62740001,account.data_account_type_liquidity,vn_template,False
+chart62780001,Chi phí bằng tiền khác,62780001,account.data_account_type_liquidity,vn_template,False
+chart62790001,Chi phí bằng tiền khác,62790001,account.data_account_type_liquidity,vn_template,False
+chart63110001,Giá thành sản xuất,63110001,account.data_account_type_liquidity,vn_template,False
+chart63210001,Giá vốn sản phẩm hàng hóa,63210001,account.data_account_type_liquidity,vn_template,False
+chart63220001,Giá vốn thành phẩm đã bán,63220001,account.data_account_type_liquidity,vn_template,False
+chart63230001,Giá vốn dịch vụ đã cung cấp,63230001,account.data_account_type_liquidity,vn_template,False
+chart63510001,Lãi vay hoạt động tài chính,63510001,account.data_account_type_liquidity,vn_template,False
+chart63520001,"Chiết khấu thanh toán, lãi bán hàng trả chậm",63520001,account.data_account_type_liquidity,vn_template,False
+chart63530001,Lỗ do đầu tư vào các công ty con,63530001,account.data_account_type_liquidity,vn_template,False
+chart63540001,Lỗ bán ngoại tệ,63540001,account.data_account_type_liquidity,vn_template,False
+chart63550001,Lỗ chênh lệch tỷ giá đã thực hiện,63550001,account.data_account_type_liquidity,vn_template,False
+chart63560001,Lỗ chênh lệch tỷ giá chưa thực hiện,63560001,account.data_account_type_liquidity,vn_template,False
+chart63570001,"Dự phòng giảm giá các khoản đầu tư ngắn hạn, dài hạn",63570001,account.data_account_type_liquidity,vn_template,False
+chart63580001,Chi phí tài chính khác,63580001,account.data_account_type_liquidity,vn_template,False
+chart64120001,Chi phí vật liệu bao bì,64120001,account.data_account_type_liquidity,vn_template,False
+chart64150001,Chi phí bảo hành,64150001,account.data_account_type_liquidity,vn_template,False
+chart64190001,Chi phí bằng tiền khác,64190001,account.data_account_type_liquidity,vn_template,False
+chart64220001,Chi phí vật liệu quản lý,64220001,account.data_account_type_liquidity,vn_template,False
+chart64250001,"Thuế, phí và lệ phí",64250001,account.data_account_type_liquidity,vn_template,False
+chart64260001,Chi phí  Dự phòng,64260001,account.data_account_type_liquidity,vn_template,False
+chart71110001,"Lãi nhượng bán,thanh lý TSCĐ",71110001,account.data_account_type_liquidity,vn_template,False
+chart71120001,"Thu về thanh lý bao bì, CCLĐ,...",71120001,account.data_account_type_liquidity,vn_template,False
+chart71180001,Các khoản thu nhập khác,71180001,account.data_account_type_liquidity,vn_template,False
+chart81120001,"Giá vốn, phí thanh lý bao bì,CCLĐ",81120001,account.data_account_type_liquidity,vn_template,False
+chart81150001,Các khoản chi phí năm trước bị bỏ sót,81150001,account.data_account_type_liquidity,vn_template,False
+chart91110001,Xác định kết quả kinh doanh,91110001,account.data_account_type_liquidity,vn_template,False
+chart111,Tiền mặt,111,account.data_account_type_liquidity,vn_template,False
+chart1111,Cash,1111,account.data_account_type_liquidity,vn_template,False
+chart1112,Ngoại tệ,1112,account.data_account_type_liquidity,vn_template,False
+chart1113,Vàng ngoại tệ,1113,account.data_account_type_liquidity,vn_template,False
+chart112,Tiền gửi Ngân hàng,112,account.data_account_type_liquidity,vn_template,False
+chart11230001,Vàng tiền tệ,11230001,account.data_account_type_liquidity,vn_template,False
+chart113,Tiền đang chuyển,113,account.data_account_type_liquidity,vn_template,False
+chart1132,Ngoại tệ,1132,account.data_account_type_liquidity,vn_template,False
+chart121,Chứng khoán kinh doanh,121,account.data_account_type_liquidity,vn_template,False
+chart12180001,Chứng khoán và công cụ tài chính khác,12180001,account.data_account_type_liquidity,vn_template,False
+chart128,Đầu tư nắm giữ đến ngày đáo hạn,128,account.data_account_type_liquidity,vn_template,False
+chart1311,Phải thu của khách hàng ngắn hạn,1311,account.data_account_type_liquidity,vn_template,False
+chart1312,Phải thu của khách hàng dài hạn,1312,account.data_account_type_liquidity,vn_template,False
+chart13120001,Phải thu của khách hàng dài hạn,13120001,account.data_account_type_liquidity,vn_template,False
+chart1319,TK Phải thu trung gian ERP,1319,account.data_account_type_liquidity,vn_template,False
+chart13199999,TK Phải thu trung gian ERP,13199999,account.data_account_type_liquidity,vn_template,False
+chart133,Thuế GTGT được khấu trừ,133,account.data_account_type_liquidity,vn_template,False
+chart136,Phải thu nội bộ,136,account.data_account_type_liquidity,vn_template,False
+chart138,Phải thu khác,138,account.data_account_type_liquidity,vn_template,False
+chart1411,Tạm ứng,1411,account.data_account_type_liquidity,vn_template,False
+chart142,Chi phí trả trước ngắn hạn,142,account.data_account_type_liquidity,vn_template,False
+chart1421,Chi phí trả trước ngắn hạn,1421,account.data_account_type_liquidity,vn_template,False
+chart14210001,Chi phí trả trước ngắn hạn,14210001,account.data_account_type_liquidity,vn_template,False
+chart1511,Hàng hóa mua đang đi trên đường,1511,account.data_account_type_liquidity,vn_template,False
+chart1521,Nguyên liệu vật liệu,1521,account.data_account_type_liquidity,vn_template,False
+chart153,Công cụ dụng cụ,153,account.data_account_type_liquidity,vn_template,False
+chart154,Chi phí sản xuất kinh doanh dở dang,154,account.data_account_type_liquidity,vn_template,False
+chart155,Thành phẩm,155,account.data_account_type_liquidity,vn_template,False
+chart15570001,Thành phẩm bất động sản,15570001,account.data_account_type_liquidity,vn_template,False
+chart156,Hàng hóa,156,account.data_account_type_liquidity,vn_template,False
+chart1571,hàng gửi đi bán,1571,account.data_account_type_liquidity,vn_template,False
+chart1581,Hàng hóa kho bảo thuế,1581,account.data_account_type_liquidity,vn_template,False
+chart161,Chi sự nghiệp,161,account.data_account_type_liquidity,vn_template,False
+chart16120001,Chi sự nghiệp năm nay,16120001,account.data_account_type_liquidity,vn_template,False
+chart1711,Giao dịch mua bán lại trái phiếu chính phủ,1711,account.data_account_type_liquidity,vn_template,False
+chart17110001,Giao dịch mua bán lại trái phiếu chính phủ,17110001,account.data_account_type_liquidity,vn_template,False
+chart211,Tài sản cố định hữu,211,account.data_account_type_liquidity,vn_template,False
+chart212,Tài sản cố định thuê tài chính,212,account.data_account_type_liquidity,vn_template,False
+chart21220001,Tài sản cố định vô hình thuê tài chính,21220001,account.data_account_type_liquidity,vn_template,False
+chart213,Tài sản cố định vô hình thuê tài chính,213,account.data_account_type_liquidity,vn_template,False
+chart214,Hào mòn tài sản cố,214,account.data_account_type_liquidity,vn_template,False
+chart2171,Bất động sản đầu tư,2171,account.data_account_type_liquidity,vn_template,False
+chart2211,Đầu tư vào công ty con,2211,account.data_account_type_liquidity,vn_template,False
+chart2221,Đầu tư vào công ty liên doanh,2221,account.data_account_type_liquidity,vn_template,False
+chart228,Đầu tư khác,228,account.data_account_type_liquidity,vn_template,False
+chart2288,Đầu tư dài hạn khác,2288,account.data_account_type_liquidity,vn_template,False
+chart229,Dự phòng tôn thất tài sản,229,account.data_account_type_liquidity,vn_template,False
+chart241,Xây dựng cơ bản dở,241,account.data_account_type_liquidity,vn_template,False
+chart2421,Chi phí trả trước dài hạn,2421,account.data_account_type_liquidity,vn_template,False
+chart2431,Tài sản thuế thu nhập hoãn lại,2431,account.data_account_type_liquidity,vn_template,False
+chart2441,Cầm cố thế chấp ký quỹ ký cược,2441,account.data_account_type_liquidity,vn_template,False
+chart3311,Công nợ khách hàng,3311,account.data_account_type_liquidity,vn_template,False
+chart3312,Phải trả cho người bán dài hạn,3312,account.data_account_type_liquidity,vn_template,False
+chart33120001,Phải trả cho người bán dài hạn,33120001,account.data_account_type_liquidity,vn_template,False
+chart3319,Tạm tính công nợ Nhà cung cấp,3319,account.data_account_type_liquidity,vn_template,False
+chart33190001,Tạm tính công nợ Nhà cung cấp,33190001,account.data_account_type_liquidity,vn_template,False
+chart333,Thuế và các khoản phải nộp Nhà nước,333,account.data_account_type_liquidity,vn_template,False
+chart3331,Thuế giá trị gia tăng phải nộp,3331,account.data_account_type_liquidity,vn_template,False
+chart3338,Các loại thuế môi trường và các loại thuế khác,3338,account.data_account_type_liquidity,vn_template,False
+chart33380002,Các loại thuế khác,33380002,account.data_account_type_liquidity,vn_template,False
+chart334,Phải trả người lao động,334,account.data_account_type_liquidity,vn_template,False
+chart3351,Chi phí phải trả,3351,account.data_account_type_liquidity,vn_template,False
+chart336,Phải trả nội bộ,336,account.data_account_type_liquidity,vn_template,False
+chart33620001,Phải trả nội bộ về vốn chênh lệch tỷ giá,33620001,account.data_account_type_liquidity,vn_template,False
+chart33630001,Phải trả nội bộ về chi phí đi vay đủ điều kiện được vốn hoá,33630001,account.data_account_type_liquidity,vn_template,False
+chart33680001,Phải trả nội bộ khác,33680001,account.data_account_type_liquidity,vn_template,False
+chart3371,Thanh toán theo tiến độ kế hoạch hợp đồng xây dựng,3371,account.data_account_type_liquidity,vn_template,False
+chart338,Phải trả phải nộp khác,338,account.data_account_type_liquidity,vn_template,False
+chart341,Vay và nợ thuê tài chính,341,account.data_account_type_liquidity,vn_template,False
+chart342,Nợ dài hạn,342,account.data_account_type_liquidity,vn_template,False
+chart343,Trái phiếu phát hành,343,account.data_account_type_liquidity,vn_template,False
+chart3441,Nhận ký quỹ ký cược dài hạn,3441,account.data_account_type_liquidity,vn_template,False
+chart3471,Thuế thu nhập hoãn lại phải trả,3471,account.data_account_type_liquidity,vn_template,False
+chart352,Dự phòng phải trả,352,account.data_account_type_liquidity,vn_template,False
+chart35220001,Dự phòng bảo hành công trình xây dựng,35220001,account.data_account_type_liquidity,vn_template,False
+chart35230001,Dự phòng tái cơ cấu doanh nghiệp,35230001,account.data_account_type_liquidity,vn_template,False
+chart35240001,Dự phòng phải trả khác,35240001,account.data_account_type_liquidity,vn_template,False
+chart353,Quỹ khen thưởng phúc lợi,353,account.data_account_type_liquidity,vn_template,False
+chart356,Quỹ phát triển khoa học và công nghệ,356,account.data_account_type_liquidity,vn_template,False
+chart35620001,Quỹ phát triển khoa học và công nghệ đã hình thành TSCĐ,35620001,account.data_account_type_liquidity,vn_template,False
+chart3571,Quỹ bình ổn giá,3571,account.data_account_type_liquidity,vn_template,False
+chart369,Tạm tính công nợ Khách hàng,369,account.data_account_type_liquidity,vn_template,False
+chart411,Nguồn vốn kinh doanh,411,account.data_account_type_liquidity,vn_template,False
+chart4111,Vốn đầu tư chủ sỡ hữu,4111,account.data_account_type_liquidity,vn_template,False
+chart4121,Chênh lệch đánh giá lại tài sản,4121,account.data_account_type_liquidity,vn_template,False
+chart413,Chênh lệch tỷ giá hối đoái,413,account.data_account_type_liquidity,vn_template,False
+chart4141,Quỹ đầu tư phát triển,4141,account.data_account_type_liquidity,vn_template,False
+chart4171,Quỹ hỗ trợ sắp xếp doanh nghiệp,4171,account.data_account_type_liquidity,vn_template,False
+chart4181,Các quỹ khác thuộc vốn chủ sở hữu,4181,account.data_account_type_liquidity,vn_template,False
+chart4191,Cổ phiếu quỹ,4191,account.data_account_type_liquidity,vn_template,False
+chart421,Lợi nhuận sau thuế chưa phân phối,421,account.data_account_type_liquidity,vn_template,False
+chart4411,Nguồn vốn đầu tư xây dựng cơ bản,4411,account.data_account_type_liquidity,vn_template,False
+chart461,Nguồn kinh phí sự nghiệp,461,account.data_account_type_liquidity,vn_template,False
+chart4661,Nguồn kinh phí đã hình thành TSCĐ,4661,account.data_account_type_liquidity,vn_template,False
+chart511,Doanh thu bán hàng và cung cấp dịch vụ,511,account.data_account_type_liquidity,vn_template,False
+chart51140001,Doanh thu trợ cấp trợ giá,51140001,account.data_account_type_liquidity,vn_template,False
+chart51170001,Doanh thu kinh doanh bất động sản đầu tư,51170001,account.data_account_type_liquidity,vn_template,False
+chart51180001,Doanh thu khác,51180001,account.data_account_type_liquidity,vn_template,False
+chart5151,Doanh thu hoạt động tài chính,5151,account.data_account_type_liquidity,vn_template,False
+chart521,Các khoản giảm trừ doanh thu,521,account.data_account_type_liquidity,vn_template,False
+chart5211,Chiết khấu thương mại,5211,account.data_account_type_liquidity,vn_template,False
+chart5212,Giảm giá hàng bán,5212,account.data_account_type_liquidity,vn_template,False
+chart5213,Hàng bán bị trả lại,5213,account.data_account_type_liquidity,vn_template,False
+chart611,Mua hàng,611,account.data_account_type_liquidity,vn_template,False
+chart6112,Mua hàng hóa,6112,account.data_account_type_liquidity,vn_template,False
+chart6211,Chi phí nguyên liệu vật liệu trực tiếp,6211,account.data_account_type_liquidity,vn_template,False
+chart6221,Chi phí nhân công trực tiếp,6221,account.data_account_type_liquidity,vn_template,False
+chart62210001,Chi phí nhân công trực tiếp,62210001,account.data_account_type_liquidity,vn_template,False
+chart623,Chi phí sử dụng máy thi công,623,account.data_account_type_liquidity,vn_template,False
+chart627,Chi phí sản xuất chung,627,account.data_account_type_liquidity,vn_template,False
+chart62710001,Chi phí nhân viên phân xưởng,62710001,account.data_account_type_liquidity,vn_template,False
+chart62730001,Chi phí dụng cụ sản xuất,62730001,account.data_account_type_liquidity,vn_template,False
+chart62770001,Chi phí dịch vụ mua ngoài,62770001,account.data_account_type_liquidity,vn_template,False
+chart6311,Giá thành sản xuất,6311,account.data_account_type_liquidity,vn_template,False
+chart6321,Giá vốn hàng bán,6321,account.data_account_type_liquidity,vn_template,False
+chart6351,Chi phí tài chính,6351,account.data_account_type_liquidity,vn_template,False
+chart641,Chi phí bán hàng,641,account.data_account_type_liquidity,vn_template,False
+chart64110001,Chi phí nhân viên,64110001,account.data_account_type_liquidity,vn_template,False
+chart64130001,Chi phí dụng cụ đồ dùng,64130001,account.data_account_type_liquidity,vn_template,False
+chart64140001,Chi phí khấu hao TSCĐ,64140001,account.data_account_type_liquidity,vn_template,False
+chart6416,Chi phí khuyến mại,6416,account.data_account_type_liquidity,vn_template,False
+chart64160605,Chi phí khuyến mại,64160605,account.data_account_type_liquidity,vn_template,False
+chart64170001,Chi phí dịch vụ mua ngoài,64170001,account.data_account_type_liquidity,vn_template,False
+chart64180001,Chi phí bằng tiền khác,64180001,account.data_account_type_liquidity,vn_template,False
+chart642,Chi phí quản lý doanh nghiệp,642,account.data_account_type_liquidity,vn_template,False
+chart64210001,Chi phí nhân viên quản lý,64210001,account.data_account_type_liquidity,vn_template,False
+chart64230001,Chi phí đồ dùng văn phòng,64230001,account.data_account_type_liquidity,vn_template,False
+chart64240001,Chi phí khấu hao tài sản cố định,64240001,account.data_account_type_liquidity,vn_template,False
+chart64270001,Chi phí dịch vụ mua ngoài,64270001,account.data_account_type_liquidity,vn_template,False
+chart64280001,Chi phí bằng tiền khác,64280001,account.data_account_type_liquidity,vn_template,False
+chart7111,Thu nhập khác,7111,account.data_account_type_liquidity,vn_template,False
+chart811,Chi phí khác,811,account.data_account_type_liquidity,vn_template,False
+chart81110001,Chi phí khác,81110001,account.data_account_type_liquidity,vn_template,False
+chart821,Chi phí thuế thu nhập doanh nghiệp,821,account.data_account_type_liquidity,vn_template,False
+chart82110001,Chi phí thuế TNDN hiện hành,82110001,account.data_account_type_liquidity,vn_template,False
+chart82120001,Chi phí thuế TNDN hoãn lại,82120001,account.data_account_type_liquidity,vn_template,False

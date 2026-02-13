@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="ntp_transfer_content_template_view_form" model="ir.ui.view">
+        <field name="name">ntp.transfer.content.template.view.form</field>
+        <field name="model">ntp.transfer.content.template</field>
+        <field name="arch" type="xml">
+            <form string="">
+                <sheet>
+                    <group>
+                        <field name="name" />
+                        <field name="template_type" />
+                        <field name="version" />
+                        <field name="delimiter" />
+                        <field name="transfer_content" />
+                        <field name="config" widget="ace" />
+                    </group>
+                    <!-- <notebook>
+                        <page name="partners" string="Partner">
+                            <field name="partner_ids" widget="many2many">
+
+                            </field>
+                        </page>
+                    </notebook> -->
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="ntp_transfer_content_template_view_tree" model="ir.ui.view">
+        <field name="name">ntp.transfer.content.template.view.tree</field>
+        <field name="model">ntp.transfer.content.template</field>
+        <field name="arch" type="xml">
+            <tree string="">
+                <field name="name" />
+                <field name="template_type" />
+                <field name="version" />
+                <field name="delimiter" />
+                <field name="transfer_content" />
+            </tree>
+        </field>
+    </record>
+
+
+</odoo>
