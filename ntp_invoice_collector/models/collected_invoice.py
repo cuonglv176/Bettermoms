@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 
+import base64
 import hashlib
 import hmac
+import io
+import json
 import logging
 import time
+import zipfile
 from datetime import datetime, timedelta
 
 import requests
@@ -340,7 +344,7 @@ class CollectedInvoice(models.Model):
                 if config.provider == "shopee":
                     count = self._fetch_shopee_invoices(config)
                 elif config.provider == "grab":
-                    count = self._fetch_grab_invoices(config)
+                    count = self._fetch_grab_portal_invoices(config)
                 else:
                     _logger.warning(
                         "Unknown provider '%s' for config %s, skipping",
@@ -611,135 +615,435 @@ class CollectedInvoice(models.Model):
         return {"total_amount": 0.0}
 
     def _fetch_grab_invoices(self, config):
-        """Fetch completed transactions from Grab API.
-
-        Returns the count of new invoices created.
         """
+        Legacy method: kept for backward compatibility.
+        Delegates to the new portal-based fetcher.
+        """
+        return self._fetch_grab_portal_invoices(config)
+
+    def _fetch_grab_portal_invoices(self, config, captcha_answer=None):
+        """
+        Fetch invoices from the Grab e-invoice portal (vn.einvoice.grab.com).
+
+        This method handles the full session-based authentication flow:
+          1. Load the login page to obtain CSRF token and session cookie.
+          2. Fetch the CAPTCHA image.
+          3. Either use a provided captcha_answer or retrieve a stored one.
+          4. Submit the login form.
+          5. Paginate through the invoice list.
+          6. Create ntp.collected.invoice records for new invoices.
+          7. Optionally download PDF/XML attachments.
+
+        When called from the cron job (captcha_answer=None), the method will
+        check if a valid session cookie is stored in the config. If not, it
+        will log a warning and skip the config (the user must manually trigger
+        login via the config form).
+
+        Args:
+            config: ntp.collector.config record.
+            captcha_answer (str): CAPTCHA text answer. If None, uses stored
+                                  session cookie or raises an error.
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        from .grab_session import GrabEInvoiceSession
+
         count = 0
-        base_url = (config.api_url or "").rstrip("/")
-        if not base_url:
-            raise UserError("Grab API URL is not configured.")
+        base_url = (config.api_url or "").rstrip("/") or "https://vn.einvoice.grab.com"
 
-        headers = {
-            "Authorization": "Bearer %s" % (config.access_token or config.api_key or ""),
-            "Content-Type": "application/json",
-        }
+        if not config.api_key:
+            raise UserError(
+                "Grab Username (API Key field) is not configured for '%s'." % config.name
+            )
+        if not config.api_secret:
+            raise UserError(
+                "Grab Password (API Secret field) is not configured for '%s'." % config.name
+            )
 
-        # Calculate time range
-        if config.last_sync_date:
-            date_from = config.last_sync_date.strftime("%Y-%m-%d")
+        # ----------------------------------------------------------------
+        # Build or restore session
+        # ----------------------------------------------------------------
+        session = GrabEInvoiceSession(
+            username=config.api_key,
+            password=config.api_secret,
+            base_url=base_url,
+        )
+
+        if captcha_answer:
+            # Full login flow: use stored CSRF token and cookies
+            param_key = "ntp_invoice_collector.grab_csrf_%d" % config.id
+            cookie_key = "ntp_invoice_collector.grab_cookies_%d" % config.id
+            get_param = self.env["ir.config_parameter"].sudo().get_param
+
+            csrf_token = get_param(param_key, default="")
+            cookies_json = get_param(cookie_key, default="{}")
+
+            if csrf_token:
+                session._csrf_token = csrf_token
+                try:
+                    cookies_dict = json.loads(cookies_json)
+                    for name, value in cookies_dict.items():
+                        session._session.cookies.set(name, value)
+                except Exception:
+                    pass
+            else:
+                # No stored CSRF token; do a fresh prepare
+                session.prepare_login()
+                session.get_captcha_image()  # Needed to get CaptchaHash cookie
+
+            _logger.info(
+                "Attempting Grab portal login for config '%s'...", config.name
+            )
+            login_ok = session.login(captcha_answer)
+
+            if not login_ok:
+                config.write({"grab_login_status": "error"})
+                raise UserError(
+                    "Grab portal login failed for '%s'. "
+                    "Please check your credentials and CAPTCHA answer." % config.name
+                )
+
+            config.write({"grab_login_status": "logged_in"})
+
+        elif config.grab_session_cookie:
+            # Restore session from stored cookie
+            _logger.info(
+                "Restoring Grab session from stored cookie for config '%s'",
+                config.name,
+            )
+            session._session.cookies.set(".ASPXAUTH", config.grab_session_cookie)
+            session._authenticated = True
+            session._auth_time = datetime.now()
+
         else:
-            date_from = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-        date_to = datetime.now().strftime("%Y-%m-%d")
+            # No session available — cron job cannot proceed without login
+            _logger.warning(
+                "Grab config '%s' has no active session. "
+                "Please log in manually via the config form (CAPTCHA required).",
+                config.name,
+            )
+            self.env["ntp.collector.log"].log_operation(
+                config=config,
+                operation="fetch",
+                success=False,
+                error_message=(
+                    "No active Grab session. Log in manually via config form."
+                ),
+            )
+            return 0
 
-        # Grab Transaction History endpoint
-        url = "%s/v1/transactions" % base_url
-        params = {
-            "startDate": date_from,
-            "endDate": date_to,
-            "status": "COMPLETED",
-            "page": 1,
-            "pageSize": 50,
-        }
+        # ----------------------------------------------------------------
+        # Calculate date range
+        # ----------------------------------------------------------------
+        if config.grab_date_from:
+            date_from_dt = config.grab_date_from
+        elif config.last_sync_date:
+            date_from_dt = config.last_sync_date.date()
+        else:
+            date_from_dt = (datetime.now() - timedelta(days=30)).date()
 
+        date_to_dt = datetime.now().date()
+
+        # Vietnamese date format: dd/MM/yyyy
+        date_from_str = date_from_dt.strftime("%d/%m/%Y")
+        date_to_str = date_to_dt.strftime("%d/%m/%Y")
+
+        _logger.info(
+            "Fetching Grab invoices for config '%s': %s to %s",
+            config.name, date_from_str, date_to_str,
+        )
+
+        # ----------------------------------------------------------------
+        # Paginate through invoice list
+        # ----------------------------------------------------------------
+        page = 1
+        page_size = 50
         has_more = True
-        page = 0
+        total_fetched = 0
+
         while has_more:
-            page += 1
             try:
-                response = self._make_request(
-                    "get", url, config=config,
-                    params=params, headers=headers,
+                result = session.fetch_invoices(
+                    date_from=date_from_str,
+                    date_to=date_to_str,
+                    page=page,
+                    page_size=page_size,
                 )
-                if response.status_code != 200:
-                    _logger.warning(
-                        "Grab API error (HTTP %d, page %d): %s",
-                        response.status_code, page, response.text[:500],
-                    )
-                    self.env["ntp.collector.log"].log_operation(
-                        config=config,
-                        operation="fetch",
-                        success=False,
-                        error_message="HTTP %d: %s" % (
-                            response.status_code, response.text[:200],
-                        ),
-                        request_url=url,
-                        response_code=response.status_code,
-                    )
-                    break
-
-                data = response.json()
-                transactions = data.get("data", data.get("transactions", []))
-
-                _logger.info(
-                    "Grab fetch page %d: %d transactions returned",
-                    page, len(transactions),
+            except ValueError as e:
+                # Session expired
+                _logger.warning(
+                    "Grab session expired for config '%s': %s", config.name, e
                 )
-
-                for txn in transactions:
-                    txn_id = txn.get("transactionID", txn.get("id", ""))
-                    if not txn_id:
-                        continue
-
-                    # Skip if already collected
-                    existing = self.search([
-                        ("provider", "=", "grab"),
-                        ("external_order_id", "=", str(txn_id)),
-                    ], limit=1)
-                    if existing:
-                        continue
-
-                    txn_date = txn.get("completedAt", txn.get("date", ""))
-                    try:
-                        parsed_date = fields.Date.from_string(txn_date[:10])
-                    except Exception:
-                        parsed_date = fields.Date.today()
-
-                    vals = {
-                        "name": "GRAB-%s" % txn_id,
-                        "provider": "grab",
-                        "config_id": config.id,
-                        "external_order_id": str(txn_id),
-                        "transaction_date": parsed_date,
-                        "total_amount": float(
-                            txn.get("amount", txn.get("totalAmount", 0))
-                        ),
-                        "state": "draft",
-                        "bizzi_status": "pending",
-                    }
-                    try:
-                        self.sudo().create(vals)
-                        count += 1
-                    except Exception as e:
-                        _logger.warning(
-                            "Failed to create invoice for Grab txn %s: %s",
-                            txn_id, e,
-                        )
-
-                # Pagination
-                pagination = data.get("pagination", {})
-                total_pages = pagination.get("totalPages", 1)
-                current_page = params["page"]
-                if current_page < total_pages:
-                    params["page"] = current_page + 1
-                else:
-                    has_more = False
-
-            except requests.RequestException as e:
-                _logger.error("Grab API request error (page %d): %s", page, e)
+                config.write({"grab_login_status": "session_expired"})
                 self.env["ntp.collector.log"].log_operation(
                     config=config,
                     operation="fetch",
                     success=False,
-                    error_message="Request error: %s" % str(e),
+                    error_message="Session expired: %s" % str(e),
+                )
+                break
+            except Exception as e:
+                _logger.error(
+                    "Error fetching Grab invoices (page %d): %s", page, e
+                )
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="Fetch error (page %d): %s" % (page, str(e)),
                 )
                 break
 
+            invoices = result.get("invoices", [])
+            has_more = result.get("has_more", False)
+
+            _logger.info(
+                "Grab portal page %d: %d invoices returned (has_more=%s)",
+                page, len(invoices), has_more,
+            )
+
+            if not invoices:
+                break
+
+            # ----------------------------------------------------------------
+            # Process each invoice
+            # ----------------------------------------------------------------
+            new_invoice_ids = []  # For batch attachment download
+
+            for inv_data in invoices:
+                inv_id = inv_data.get("id", "")
+                inv_number = inv_data.get("invoice_number", inv_id)
+
+                if not inv_id and not inv_number:
+                    continue
+
+                external_id = str(inv_id or inv_number)
+
+                # Skip if already collected
+                existing = self.search([
+                    ("provider", "=", "grab"),
+                    ("external_order_id", "=", external_id),
+                ], limit=1)
+                if existing:
+                    continue
+
+                # Parse transaction date
+                raw_date = inv_data.get("invoice_date", "")
+                parsed_date = self._parse_grab_date(raw_date)
+
+                vals = {
+                    "name": "GRAB-%s" % (inv_number or external_id),
+                    "provider": "grab",
+                    "config_id": config.id,
+                    "external_order_id": external_id,
+                    "transaction_date": parsed_date,
+                    "total_amount": float(inv_data.get("total_amount", 0) or 0),
+                    "state": "draft",
+                    "bizzi_status": "pending",
+                    "notes": (
+                        "Buyer: %s | Tax: %s | Seller: %s | Status: %s"
+                        % (
+                            inv_data.get("buyer_name", ""),
+                            inv_data.get("buyer_tax_code", ""),
+                            inv_data.get("seller_name", ""),
+                            inv_data.get("status", ""),
+                        )
+                    ),
+                }
+
+                # Try to match partner by tax code
+                buyer_tax = inv_data.get("buyer_tax_code", "")
+                if buyer_tax:
+                    partner = self.env["res.partner"].search(
+                        [("vat", "=", buyer_tax)], limit=1
+                    )
+                    if partner:
+                        vals["partner_id"] = partner.id
+
+                try:
+                    new_rec = self.sudo().create(vals)
+                    count += 1
+                    total_fetched += 1
+                    new_invoice_ids.append((new_rec.id, external_id))
+
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        provider="grab",
+                        operation="fetch",
+                        invoice=new_rec,
+                        success=True,
+                    )
+                    _logger.debug(
+                        "Created Grab invoice record: %s (ID: %s)",
+                        vals["name"], external_id,
+                    )
+
+                except Exception as e:
+                    _logger.warning(
+                        "Failed to create Grab invoice record for %s: %s",
+                        external_id, e,
+                    )
+
+            # ----------------------------------------------------------------
+            # Download PDF/XML attachments for new invoices (batch)
+            # ----------------------------------------------------------------
+            if new_invoice_ids:
+                try:
+                    self._attach_grab_invoice_files(
+                        session, config, new_invoice_ids
+                    )
+                except Exception as e:
+                    _logger.warning(
+                        "Could not download Grab invoice attachments: %s", e
+                    )
+
+            page += 1
+            if page > 100:  # Safety limit
+                _logger.warning("Grab fetch: reached page limit (100), stopping.")
+                break
+
+        # ----------------------------------------------------------------
+        # Auto-match after fetching
+        # ----------------------------------------------------------------
+        if count > 0:
+            try:
+                self._auto_match_grab_orders()
+            except Exception as e:
+                _logger.error("Auto-match error after Grab fetch: %s", e)
+
+        # Store .ASPXAUTH cookie for future cron runs
+        aspx_cookie = session._session.cookies.get(".ASPXAUTH")
+        if aspx_cookie:
+            config.write({"grab_session_cookie": aspx_cookie})
+
         _logger.info(
-            "Grab fetch completed for config '%s': %d new invoices",
+            "Grab portal fetch completed for config '%s': %d new invoices",
             config.name, count,
         )
         return count
+
+    def _parse_grab_date(self, raw_date):
+        """
+        Parse a date string from the Grab portal into an Odoo Date.
+
+        The portal may return dates in various formats:
+          - dd/MM/yyyy  (Vietnamese format)
+          - yyyy-MM-dd  (ISO format)
+          - dd-MM-yyyy
+
+        Args:
+            raw_date (str): Raw date string.
+
+        Returns:
+            date: Parsed date, or today's date on failure.
+        """
+        if not raw_date:
+            return fields.Date.today()
+
+        raw_date = str(raw_date).strip()
+
+        # Try various formats
+        for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(raw_date[:10], fmt).date()
+            except ValueError:
+                continue
+
+        # Try ISO datetime
+        try:
+            return fields.Date.from_string(raw_date[:10])
+        except Exception:
+            pass
+
+        _logger.warning("Could not parse Grab date: '%s'", raw_date)
+        return fields.Date.today()
+
+    def _attach_grab_invoice_files(self, session, config, invoice_id_pairs):
+        """
+        Download PDF/XML files for new Grab invoices and attach them to records.
+
+        Args:
+            session (GrabEInvoiceSession): Authenticated session.
+            config: ntp.collector.config record.
+            invoice_id_pairs (list): List of (odoo_record_id, external_grab_id) tuples.
+        """
+        if not invoice_id_pairs:
+            return
+
+        external_ids = [pair[1] for pair in invoice_id_pairs]
+        odoo_id_map = {pair[1]: pair[0] for pair in invoice_id_pairs}
+
+        _logger.info(
+            "Downloading attachments for %d Grab invoices...", len(external_ids)
+        )
+
+        try:
+            zip_content = session.download_invoice_files(
+                invoice_ids=external_ids,
+                allow_pdf=True,
+                allow_xml=True,
+            )
+        except Exception as e:
+            _logger.warning("Failed to download Grab invoice files: %s", e)
+            return
+
+        if not zip_content:
+            _logger.info("No attachment data returned for Grab invoices.")
+            return
+
+        # Extract ZIP and attach files to corresponding records
+        try:
+            with zipfile.ZipFile(io.BytesIO(zip_content)) as zf:
+                for filename in zf.namelist():
+                    file_data = zf.read(filename)
+                    if not file_data:
+                        continue
+
+                    # Try to match filename to an invoice external ID
+                    matched_odoo_id = None
+                    for ext_id in external_ids:
+                        if ext_id in filename:
+                            matched_odoo_id = odoo_id_map.get(ext_id)
+                            break
+
+                    if not matched_odoo_id:
+                        # Attach to first record as fallback
+                        matched_odoo_id = invoice_id_pairs[0][0] if invoice_id_pairs else None
+
+                    if matched_odoo_id:
+                        try:
+                            attachment = self.env["ir.attachment"].sudo().create({
+                                "name": filename,
+                                "datas": base64.b64encode(file_data).decode("utf-8"),
+                                "res_model": "ntp.collected.invoice",
+                                "res_id": matched_odoo_id,
+                                "mimetype": (
+                                    "application/pdf" if filename.lower().endswith(".pdf")
+                                    else "application/xml" if filename.lower().endswith(".xml")
+                                    else "application/octet-stream"
+                                ),
+                            })
+                            # Link attachment to the invoice record
+                            invoice_rec = self.browse(matched_odoo_id)
+                            invoice_rec.sudo().write({
+                                "attachment_ids": [(4, attachment.id)],
+                            })
+                            _logger.debug(
+                                "Attached '%s' to Grab invoice record %d",
+                                filename, matched_odoo_id,
+                            )
+                        except Exception as e:
+                            _logger.warning(
+                                "Failed to create attachment '%s': %s", filename, e
+                            )
+
+        except zipfile.BadZipFile:
+            _logger.warning(
+                "Downloaded Grab file is not a valid ZIP archive "
+                "(size=%d bytes). Skipping attachment.",
+                len(zip_content),
+            )
 
     # ====================================================================
     # Auto-Matching
