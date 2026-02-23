@@ -157,7 +157,7 @@
                                            ('grab_login_status', '=', 'captcha_pending'),
                                        ]}" />
                             </group>
-                        </div>
+                        </group>
 
                         <!-- ============================================ -->
                         <!-- Notes                                        -->
