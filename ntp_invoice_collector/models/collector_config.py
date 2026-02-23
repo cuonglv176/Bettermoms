@@ -347,13 +347,33 @@ class CollectorConfig(models.Model):
 
             # Try auto-login with CAPTCHA solving
             openai_key = self.grab_openai_api_key or None
-            login_ok = session.auto_login(openai_api_key=openai_key, max_attempts=3)
+            login_ok = session.auto_login(openai_api_key=openai_key, max_attempts=5)
 
             if not login_ok:
+                error_detail = session.last_error or "Unknown error"
+                is_locked = session.is_account_locked
+
                 self.write({"grab_login_status": "error"})
+
+                if is_locked:
+                    raise UserError(
+                        "⚠️ Grab account is LOCKED!\n\n"
+                        "Your account '%s' has been locked due to too many "
+                        "failed login attempts.\n\n"
+                        "Please contact Grab support to unlock your account "
+                        "before trying again.\n\n"
+                        "Detail: %s" % (self.api_key, error_detail)
+                    )
+
                 raise UserError(
-                    "Grab auto-login failed after 3 attempts. "
-                    "Please try manual CAPTCHA entry."
+                    "Grab auto-login failed after 5 attempts.\n\n"
+                    "Possible causes:\n"
+                    "- Wrong username or password\n"
+                    "- Account locked (too many failed attempts)\n"
+                    "- CAPTCHA recognition errors\n"
+                    "- Network issues\n\n"
+                    "Detail: %s\n\n"
+                    "Try: Load CAPTCHA manually and enter it yourself." % error_detail
                 )
 
             # Store session cookie

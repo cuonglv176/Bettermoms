@@ -528,6 +528,21 @@ class CollectedInvoice(models.Model):
                         )
                         detail = {"total_amount": 0.0}
 
+                    # Build notes with order detail info
+                    notes_parts = []
+                    if detail.get("items_text"):
+                        notes_parts.append("Items: %s" % detail["items_text"])
+                    if detail.get("buyer_username"):
+                        notes_parts.append("Buyer: %s" % detail["buyer_username"])
+                    if detail.get("shipping_carrier"):
+                        notes_parts.append("Shipping: %s" % detail["shipping_carrier"])
+                    if detail.get("tracking_number"):
+                        notes_parts.append("Tracking: %s" % detail["tracking_number"])
+                    if detail.get("payment_method"):
+                        notes_parts.append("Payment: %s" % detail["payment_method"])
+                    if detail.get("notes"):
+                        notes_parts.append("Note: %s" % detail["notes"])
+
                     vals = {
                         "name": "SHOPEE-%s" % order_sn,
                         "provider": "shopee",
@@ -539,6 +554,7 @@ class CollectedInvoice(models.Model):
                         "total_amount": detail.get("total_amount", 0.0),
                         "state": "draft",
                         "bizzi_status": "pending",
+                        "notes": " | ".join(notes_parts) if notes_parts else "",
                     }
                     try:
                         self.sudo().create(vals)
@@ -584,9 +600,29 @@ class CollectedInvoice(models.Model):
         return count
 
     def _shopee_get_order_detail(self, config, base_url, partner_id, shop_id, order_sn):
-        """Fetch single order detail from Shopee for amount info."""
+        """Fetch single order detail from Shopee for amount and item info.
+
+        Returns dict with keys:
+            total_amount, items_text, shipping_carrier, payment_method,
+            buyer_username, tracking_number, notes
+        """
         path = "/api/v2/order/get_order_detail"
         sign, timestamp, _, _ = self._shopee_sign(config, path)
+
+        # Request all useful optional fields
+        optional_fields = ",".join([
+            "buyer_user_id", "buyer_username", "estimated_shipping_fee",
+            "recipient_address", "actual_shipping_fee", "goods_to_declare",
+            "note", "note_update_time", "item_list", "pay_time",
+            "dropshipper", "dropshipper_phone", "split_up",
+            "buyer_cancel_reason", "cancel_by", "cancel_reason",
+            "actual_shipping_fee_confirmed", "buyer_cpf_id",
+            "fulfillment_flag", "pickup_done_time", "package_list",
+            "shipping_carrier", "payment_method", "total_amount",
+            "invoice_data", "checkout_shipping_carrier",
+            "reverse_shipping_fee", "order_chargeable_weight_gram",
+            "edt", "prescription_images", "prescription_check_status",
+        ])
 
         params = {
             "partner_id": partner_id,
@@ -595,24 +631,76 @@ class CollectedInvoice(models.Model):
             "shop_id": shop_id,
             "sign": sign,
             "order_sn_list": order_sn,
-            "response_optional_fields": "order_income",
+            "response_optional_fields": optional_fields,
         }
+        result = {
+            "total_amount": 0.0,
+            "items_text": "",
+            "shipping_carrier": "",
+            "payment_method": "",
+            "buyer_username": "",
+            "tracking_number": "",
+            "notes": "",
+        }
+
         try:
             url = "%s%s" % (base_url, path)
             response = self._make_request("get", url, config=config, params=params)
             data = response.json()
             resp = data.get("response", {})
             orders = resp.get("order_list", [])
-            if orders:
-                order_income = orders[0].get("order_income", {})
-                return {
-                    "total_amount": order_income.get(
-                        "escrow_amount", orders[0].get("total_amount", 0.0)
-                    ),
-                }
+            if not orders:
+                return result
+
+            order = orders[0]
+
+            # Amount
+            order_income = order.get("order_income", {})
+            if order_income:
+                result["total_amount"] = float(
+                    order_income.get("escrow_amount", 0)
+                    or order_income.get("buyer_total_amount", 0)
+                    or order.get("total_amount", 0)
+                )
+            else:
+                result["total_amount"] = float(order.get("total_amount", 0))
+
+            # Items
+            item_list = order.get("item_list", [])
+            if item_list:
+                items_parts = []
+                for item in item_list:
+                    item_name = item.get("item_name", "")
+                    item_qty = item.get("model_quantity_purchased", 0) or item.get("quantity", 0)
+                    item_price = float(item.get("model_discounted_price", 0) or item.get("model_original_price", 0))
+                    item_sku = item.get("item_sku", "")
+                    items_parts.append(
+                        "%s x%d @ %.0f%s" % (
+                            item_name[:80], item_qty, item_price,
+                            " [%s]" % item_sku if item_sku else "",
+                        )
+                    )
+                result["items_text"] = "; ".join(items_parts)
+
+            # Shipping
+            result["shipping_carrier"] = order.get("shipping_carrier", "")
+            package_list = order.get("package_list", [])
+            if package_list:
+                tracking_numbers = [
+                    pkg.get("logistics_status", "") or pkg.get("package_number", "")
+                    for pkg in package_list
+                ]
+                result["tracking_number"] = ", ".join(filter(None, tracking_numbers))
+
+            # Payment & buyer
+            result["payment_method"] = order.get("payment_method", "")
+            result["buyer_username"] = order.get("buyer_username", "")
+            result["notes"] = order.get("note", "")
+
         except Exception as e:
             _logger.warning("Could not fetch Shopee order detail for %s: %s", order_sn, e)
-        return {"total_amount": 0.0}
+
+        return result
 
     def _fetch_grab_invoices(self, config):
         """
@@ -707,10 +795,20 @@ class CollectedInvoice(models.Model):
             login_ok = session.login(captcha_answer)
 
             if not login_ok:
+                error_detail = session.last_error or "Unknown error"
                 config.write({"grab_login_status": "error"})
+
+                if session.is_account_locked:
+                    raise UserError(
+                        "\u26a0\ufe0f Grab account '%s' is LOCKED!\n\n"
+                        "Contact Grab support to unlock.\n\n"
+                        "Detail: %s" % (config.api_key, error_detail)
+                    )
+
                 raise UserError(
-                    "Grab portal login failed for '%s'. "
-                    "Please check your credentials and CAPTCHA answer." % config.name
+                    "Grab portal login failed for '%s'.\n\n"
+                    "Please check your credentials and CAPTCHA answer.\n\n"
+                    "Detail: %s" % (config.name, error_detail)
                 )
 
             config.write({"grab_login_status": "logged_in"})
@@ -761,15 +859,24 @@ class CollectedInvoice(models.Model):
                 login_ok = session.auto_login(openai_api_key=openai_key)
                 if login_ok:
                     config.write({"grab_login_status": "logged_in"})
+                    # Store session cookie for future cron runs
+                    aspx_cookie = session.get_aspx_cookie()
+                    if aspx_cookie:
+                        config.write({"grab_session_cookie": aspx_cookie})
                 else:
+                    error_detail = session.last_error or "Unknown error"
+                    is_locked = session.is_account_locked
                     config.write({"grab_login_status": "error"})
                     self.env["ntp.collector.log"].log_operation(
                         config=config,
                         operation="fetch",
                         success=False,
                         error_message=(
-                            "Auto-login failed after 3 attempts. "
-                            "Manual login required."
+                            "Grab auto-login failed. %s. "
+                            "Detail: %s" % (
+                                "Account LOCKED" if is_locked else "Manual login required",
+                                error_detail,
+                            )
                         ),
                     )
                     return 0
