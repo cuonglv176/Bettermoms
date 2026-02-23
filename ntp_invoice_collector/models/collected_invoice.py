@@ -621,28 +621,37 @@ class CollectedInvoice(models.Model):
         """
         return self._fetch_grab_portal_invoices(config)
 
+    def _fetch_grab_portal_invoices_with_session(self, config, session):
+        """
+        Fetch invoices from Grab portal using an already-authenticated session.
+
+        This is called from action_grab_auto_fetch() after auto-login.
+
+        Args:
+            config: ntp.collector.config record.
+            session: GrabEInvoiceSession instance (already authenticated).
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        return self._do_grab_fetch(config, session)
+
     def _fetch_grab_portal_invoices(self, config, captcha_answer=None):
         """
         Fetch invoices from the Grab e-invoice portal (vn.einvoice.grab.com).
 
         This method handles the full session-based authentication flow:
-          1. Load the login page to obtain CSRF token and session cookie.
-          2. Fetch the CAPTCHA image.
-          3. Either use a provided captcha_answer or retrieve a stored one.
-          4. Submit the login form.
-          5. Paginate through the invoice list.
-          6. Create ntp.collected.invoice records for new invoices.
-          7. Optionally download PDF/XML attachments.
-
-        When called from the cron job (captcha_answer=None), the method will
-        check if a valid session cookie is stored in the config. If not, it
-        will log a warning and skip the config (the user must manually trigger
-        login via the config form).
+          1. Try auto-login with OpenAI CAPTCHA solving (if enabled)
+          2. Or use a provided captcha_answer for manual flow
+          3. Or restore session from stored cookie
+          4. Paginate through the invoice list
+          5. Create ntp.collected.invoice records for new invoices
+          6. Optionally download PDF/XML attachments
 
         Args:
             config: ntp.collector.config record.
-            captcha_answer (str): CAPTCHA text answer. If None, uses stored
-                                  session cookie or raises an error.
+            captcha_answer (str): CAPTCHA text answer. If None, tries auto-login
+                                  or stored session cookie.
 
         Returns:
             int: Number of new invoice records created.
@@ -671,7 +680,7 @@ class CollectedInvoice(models.Model):
         )
 
         if captcha_answer:
-            # Full login flow: use stored CSRF token and cookies
+            # Manual CAPTCHA flow: use stored CSRF token and cookies
             param_key = "ntp_invoice_collector.grab_csrf_%d" % config.id
             cookie_key = "ntp_invoice_collector.grab_cookies_%d" % config.id
             get_param = self.env["ir.config_parameter"].sudo().get_param
@@ -688,12 +697,12 @@ class CollectedInvoice(models.Model):
                 except Exception:
                     pass
             else:
-                # No stored CSRF token; do a fresh prepare
                 session.prepare_login()
-                session.get_captcha_image()  # Needed to get CaptchaHash cookie
+                session.get_captcha_image()
 
             _logger.info(
-                "Attempting Grab portal login for config '%s'...", config.name
+                "Attempting Grab portal login for config '%s' (manual CAPTCHA)...",
+                config.name,
             )
             login_ok = session.login(captcha_answer)
 
@@ -716,22 +725,81 @@ class CollectedInvoice(models.Model):
             session._authenticated = True
             session._auth_time = datetime.now()
 
+            # Verify session is still valid
+            if not session.check_session_valid():
+                _logger.info(
+                    "Stored session expired for '%s', trying auto-login...",
+                    config.name,
+                )
+                # Try auto-login
+                use_auto = getattr(config, 'grab_use_auto_captcha', True)
+                if use_auto:
+                    openai_key = getattr(config, 'grab_openai_api_key', None) or None
+                    login_ok = session.auto_login(openai_api_key=openai_key)
+                    if login_ok:
+                        config.write({"grab_login_status": "logged_in"})
+                    else:
+                        config.write({"grab_login_status": "session_expired"})
+                        _logger.warning(
+                            "Auto-login failed for '%s'. Manual login required.",
+                            config.name,
+                        )
+                        return 0
+                else:
+                    config.write({"grab_login_status": "session_expired"})
+                    return 0
+
         else:
-            # No session available — cron job cannot proceed without login
-            _logger.warning(
-                "Grab config '%s' has no active session. "
-                "Please log in manually via the config form (CAPTCHA required).",
-                config.name,
-            )
-            self.env["ntp.collector.log"].log_operation(
-                config=config,
-                operation="fetch",
-                success=False,
-                error_message=(
-                    "No active Grab session. Log in manually via config form."
-                ),
-            )
-            return 0
+            # No session — try auto-login with CAPTCHA solving
+            use_auto = getattr(config, 'grab_use_auto_captcha', True)
+            if use_auto:
+                _logger.info(
+                    "No stored session for '%s', trying auto-login with CAPTCHA solving...",
+                    config.name,
+                )
+                openai_key = getattr(config, 'grab_openai_api_key', None) or None
+                login_ok = session.auto_login(openai_api_key=openai_key)
+                if login_ok:
+                    config.write({"grab_login_status": "logged_in"})
+                else:
+                    config.write({"grab_login_status": "error"})
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        operation="fetch",
+                        success=False,
+                        error_message=(
+                            "Auto-login failed after 3 attempts. "
+                            "Manual login required."
+                        ),
+                    )
+                    return 0
+            else:
+                _logger.warning(
+                    "Grab config '%s' has no active session and auto-CAPTCHA is disabled.",
+                    config.name,
+                )
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="No active session. Enable auto-CAPTCHA or login manually.",
+                )
+                return 0
+
+        return self._do_grab_fetch(config, session)
+
+    def _do_grab_fetch(self, config, session):
+        """
+        Core Grab invoice fetch logic (shared by manual and auto flows).
+
+        Args:
+            config: ntp.collector.config record.
+            session: GrabEInvoiceSession instance (authenticated).
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        count = 0
 
         # ----------------------------------------------------------------
         # Calculate date range
@@ -842,8 +910,9 @@ class CollectedInvoice(models.Model):
                     "state": "draft",
                     "bizzi_status": "pending",
                     "notes": (
-                        "Buyer: %s | Tax: %s | Seller: %s | Status: %s"
+                        "Series: %s | Buyer: %s | Tax: %s | Seller: %s | Status: %s"
                         % (
+                            inv_data.get("series", ""),
                             inv_data.get("buyer_name", ""),
                             inv_data.get("buyer_tax_code", ""),
                             inv_data.get("seller_name", ""),

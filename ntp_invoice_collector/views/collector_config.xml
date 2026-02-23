@@ -11,32 +11,41 @@
             <field name="arch" type="xml">
                 <form string="Collector Configuration">
                     <header>
-                        <!-- Common buttons (always visible) -->
+                        <!-- Common: Test Connection -->
                         <button name="action_test_connection" type="object"
                                 string="Test Connection" class="btn-secondary"
                                 icon="fa-plug" />
 
-                        <!-- Shopee / Legacy Grab API: direct fetch -->
+                        <!-- Shopee: direct fetch -->
                         <button name="action_fetch_now" type="object"
                                 string="Fetch Now" class="btn-primary"
                                 icon="fa-download"
                                 attrs="{'invisible': [('provider', '=', 'grab')]}" />
 
-                        <!-- Grab Portal: 2-step login flow -->
+                        <!-- Grab: Auto Fetch (CAPTCHA solved by AI) -->
+                        <button name="action_grab_auto_fetch" type="object"
+                                string="⚡ Auto Fetch" class="btn-primary"
+                                icon="fa-magic"
+                                attrs="{'invisible': [('provider', '!=', 'grab')]}" />
+
+                        <!-- Grab: Manual CAPTCHA flow -->
                         <button name="action_grab_prepare_login" type="object"
                                 string="Load CAPTCHA" class="btn-secondary"
                                 icon="fa-key"
                                 attrs="{'invisible': [('provider', '!=', 'grab')]}" />
                         <button name="action_grab_login_and_fetch" type="object"
-                                string="Login &amp; Fetch" class="btn-primary"
+                                string="Login &amp; Fetch" class="btn-secondary"
                                 icon="fa-sign-in"
                                 attrs="{'invisible': [
+                                    '|',
                                     ('provider', '!=', 'grab'),
+                                    ('grab_login_status', '!=', 'captcha_pending'),
                                 ]}" />
                         <button name="action_grab_refresh_captcha" type="object"
                                 string="Refresh CAPTCHA" class="btn-link"
                                 icon="fa-refresh"
                                 attrs="{'invisible': [
+                                    '|',
                                     ('provider', '!=', 'grab'),
                                     ('grab_login_status', '!=', 'captcha_pending'),
                                 ]}" />
@@ -73,37 +82,40 @@
                                 <field name="last_sync_date" readonly="1" />
                             </group>
                             <group string="API Credentials">
+                                <!-- Shopee fields -->
                                 <field name="api_url"
                                        attrs="{'invisible': [('provider', '=', 'grab')]}"
                                        placeholder="https://partner.shopeemobile.com" />
-                                <field name="api_url"
-                                       attrs="{'invisible': [('provider', '!=', 'grab')]}"
-                                       placeholder="https://vn.einvoice.grab.com (leave blank for default)" />
                                 <field name="api_key"
                                        attrs="{'invisible': [('provider', '=', 'grab')]}"
                                        placeholder="Partner ID / App Key" />
-                                <field name="api_key"
-                                       attrs="{'invisible': [('provider', '!=', 'grab')]}"
-                                       placeholder="Tài khoản đăng nhập (Username)" />
                                 <field name="api_secret" password="True"
                                        attrs="{'invisible': [('provider', '=', 'grab')]}"
                                        placeholder="Partner Key / Secret" />
-                                <field name="api_secret" password="True"
-                                       attrs="{'invisible': [('provider', '!=', 'grab')]}"
-                                       placeholder="Mật khẩu (Password)" />
                                 <field name="shop_id"
                                        attrs="{'invisible': [('provider', '=', 'grab')]}"
                                        placeholder="Shop ID" />
                                 <field name="access_token" password="True"
                                        attrs="{'invisible': [('provider', '=', 'grab')]}"
                                        placeholder="OAuth Access Token" />
+
+                                <!-- Grab fields -->
+                                <field name="api_url"
+                                       attrs="{'invisible': [('provider', '!=', 'grab')]}"
+                                       placeholder="https://vn.einvoice.grab.com (leave blank for default)" />
+                                <field name="api_key"
+                                       attrs="{'invisible': [('provider', '!=', 'grab')]}"
+                                       placeholder="Tài khoản đăng nhập (Username)" />
+                                <field name="api_secret" password="True"
+                                       attrs="{'invisible': [('provider', '!=', 'grab')]}"
+                                       placeholder="Mật khẩu (Password)" />
                             </group>
                         </group>
 
                         <!-- ============================================ -->
                         <!-- Grab Portal: Login &amp; CAPTCHA Section     -->
                         <!-- ============================================ -->
-                        <group string="Grab Portal Login"
+                        <group string="Grab Portal Settings"
                                attrs="{'invisible': [('provider', '!=', 'grab')]}">
                             <group>
                                 <field name="grab_login_status" readonly="1"
@@ -115,14 +127,32 @@
                                 <field name="grab_session_active" readonly="1"
                                        widget="boolean_toggle" />
                                 <field name="grab_date_from"
-                                       help="Start date for invoice fetch. Leave blank to use last sync date or 30 days ago." />
+                                       help="Start date for invoice fetch. Leave blank for auto." />
                             </group>
                             <group>
+                                <field name="grab_use_auto_captcha" />
+                                <field name="grab_openai_api_key" password="True"
+                                       attrs="{'invisible': [('grab_use_auto_captcha', '=', False)]}"
+                                       placeholder="Leave blank to use OPENAI_API_KEY env var" />
                                 <field name="grab_session_valid_until" readonly="1" />
                             </group>
                         </group>
 
-                        <!-- CAPTCHA Challenge (shown when captcha_pending) -->
+                        <!-- Auto CAPTCHA info banner -->
+                        <div class="alert alert-success"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'grab'),
+                                 ('grab_use_auto_captcha', '=', False),
+                             ]}">
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Enabled</strong>
+                            <p class="mb-0">
+                                Click <strong>⚡ Auto Fetch</strong> to automatically solve CAPTCHA,
+                                login, and fetch invoices. No manual CAPTCHA entry needed!
+                            </p>
+                        </div>
+
+                        <!-- Manual CAPTCHA info banner -->
                         <div class="alert alert-info"
                              attrs="{'invisible': [
                                  '|',
@@ -130,13 +160,14 @@
                                  ('grab_login_status', '!=', 'captcha_pending'),
                              ]}">
                             <strong>CAPTCHA Required</strong>
-                            <p>
-                                Please read the code from the image below and enter it
+                            <p class="mb-0">
+                                Read the code from the image below and enter it
                                 in the CAPTCHA Answer field, then click
                                 <strong>Login &amp; Fetch</strong>.
                             </p>
                         </div>
 
+                        <!-- CAPTCHA Image + Answer (shown when captcha_pending) -->
                         <group attrs="{'invisible': [
                                    '|',
                                    ('provider', '!=', 'grab'),
@@ -184,6 +215,7 @@
                            attrs="{'invisible': [('provider', '=', 'grab')]}" />
                     <field name="is_active" />
                     <field name="last_sync_date" />
+                    <field name="invoice_count" />
                     <field name="grab_login_status"
                            attrs="{'invisible': [('provider', '!=', 'grab')]}"
                            widget="badge"
@@ -208,6 +240,7 @@
                 <p>
                     Add Shopee or Grab credentials to enable automated invoice collection.
                     For Grab, use your portal login credentials from vn.einvoice.grab.com.
+                    Enable Auto-CAPTCHA to fully automate the process!
                 </p>
             </field>
         </record>
