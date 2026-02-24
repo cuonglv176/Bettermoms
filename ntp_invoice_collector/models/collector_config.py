@@ -14,6 +14,7 @@ import logging
 import hashlib
 import hmac
 import time
+from datetime import timedelta
 
 import requests
 
@@ -381,9 +382,7 @@ class CollectorConfig(models.Model):
             self.write({
                 "grab_login_status": "logged_in",
                 "grab_session_cookie": aspx_cookie or "",
-                "grab_session_valid_until": fields.Datetime.to_string(
-                    fields.Datetime.now()
-                ),
+                "grab_session_valid_until": fields.Datetime.now() + timedelta(minutes=25),
                 "grab_captcha_image": False,
                 "grab_captcha_answer": "",
             })

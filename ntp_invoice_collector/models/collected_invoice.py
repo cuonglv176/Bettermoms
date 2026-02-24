@@ -344,6 +344,30 @@ class CollectedInvoice(models.Model):
                 if config.provider == "shopee":
                     count = self._fetch_shopee_invoices(config)
                 elif config.provider == "grab":
+                    # Skip if no way to authenticate automatically
+                    has_session = bool(config.grab_session_cookie)
+                    has_auto_captcha = (
+                        getattr(config, "grab_use_auto_captcha", False)
+                        and bool(getattr(config, "grab_openai_api_key", ""))
+                    )
+                    if not has_session and not has_auto_captcha:
+                        _logger.warning(
+                            "Cron skipping Grab config '%s': no active session "
+                            "and auto-CAPTCHA not configured. Login manually once "
+                            "or set an OpenAI API key to enable auto-CAPTCHA.",
+                            config.name,
+                        )
+                        self.env["ntp.collector.log"].log_operation(
+                            config=config,
+                            operation="fetch",
+                            success=False,
+                            error_message=(
+                                "Cron skipped: no session cookie and auto-CAPTCHA "
+                                "not configured. Login manually once, or enable "
+                                "auto-CAPTCHA with an OpenAI API key."
+                            ),
+                        )
+                        continue
                     count = self._fetch_grab_portal_invoices(config)
                 else:
                     _logger.warning(
@@ -988,12 +1012,13 @@ class CollectedInvoice(models.Model):
 
             for inv_data in invoices:
                 inv_id = inv_data.get("id", "")
-                inv_number = inv_data.get("invoice_number", inv_id)
+                inv_number = inv_data.get("invoice_number", "")
 
-                if not inv_id and not inv_number:
+                # Prefer invoice_number as external_id — more stable and meaningful
+                # than HTML row IDs (which may change between sessions).
+                external_id = str(inv_number or inv_id)
+                if not external_id:
                     continue
-
-                external_id = str(inv_id or inv_number)
 
                 # Skip if already collected
                 existing = self.search([
@@ -1171,9 +1196,17 @@ class CollectedInvoice(models.Model):
         # Extract ZIP and attach files to corresponding records
         try:
             with zipfile.ZipFile(io.BytesIO(zip_content)) as zf:
-                for filename in zf.namelist():
+                file_list = zf.namelist()
+                _logger.info(
+                    "Grab attachment ZIP contains %d file(s): %s",
+                    len(file_list),
+                    ", ".join(file_list[:20]) + ("..." if len(file_list) > 20 else ""),
+                )
+
+                for filename in file_list:
                     file_data = zf.read(filename)
                     if not file_data:
+                        _logger.warning("Empty file in ZIP: '%s', skipping.", filename)
                         continue
 
                     # Try to match filename to an invoice external ID
@@ -1184,8 +1217,16 @@ class CollectedInvoice(models.Model):
                             break
 
                     if not matched_odoo_id:
-                        # Attach to first record as fallback
-                        matched_odoo_id = invoice_id_pairs[0][0] if invoice_id_pairs else None
+                        # Cannot determine which invoice this file belongs to — skip.
+                        # Attaching to a random record would cause incorrect data.
+                        _logger.warning(
+                            "Could not match ZIP file '%s' to any invoice "
+                            "(tried %d IDs: %s). Skipping.",
+                            filename,
+                            len(external_ids),
+                            ", ".join(external_ids[:5]) + ("..." if len(external_ids) > 5 else ""),
+                        )
+                        continue
 
                     if matched_odoo_id:
                         try:

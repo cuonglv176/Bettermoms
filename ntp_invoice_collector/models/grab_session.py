@@ -95,6 +95,7 @@ class GrabEInvoiceSession:
         self._session.headers.update(DEFAULT_HEADERS)
 
         self._csrf_token = None
+        self._captcha_url = None   # extracted from login page HTML at runtime
         self._authenticated = False
         self._auth_time = None
         self._last_error = ""
@@ -156,11 +157,18 @@ class GrabEInvoiceSession:
                     )
                     continue
 
+                # Brief pause to let the server register the session before
+                # requesting the CAPTCHA — portals often return HTML if the
+                # CAPTCHA is requested too quickly after the login page load.
+                time.sleep(1.0 + attempt * 0.5)
+
                 # Step 2: Fetch CAPTCHA image
                 captcha_bytes = self.get_captcha_image()
                 if not captcha_bytes:
                     _logger.warning(
-                        "Attempt %d: Failed to fetch CAPTCHA image", attempt,
+                        "Attempt %d: Failed to fetch CAPTCHA image. "
+                        "Last error: %s",
+                        attempt, self._last_error,
                     )
                     continue
 
@@ -336,6 +344,34 @@ class GrabEInvoiceSession:
         if match:
             self._csrf_token = match.group(1)
             _logger.debug("CSRF token obtained: %s...", self._csrf_token[:30])
+
+            # Extract the actual CAPTCHA image URL from the login page HTML.
+            # Do NOT rely on the hardcoded CAPTCHA_PATH — the portal may use
+            # a session-scoped token in the URL (e.g. /Captcha/CaptchaImage?id=xxx).
+            captcha_match = re.search(
+                r'<img[^>]+src=["\']([^"\']*[Cc]aptcha[^"\']*)["\']',
+                response.text,
+            )
+            if captcha_match:
+                src = captcha_match.group(1)
+                # Make absolute URL
+                if not src.startswith("http"):
+                    src = src if src.startswith("/") else "/" + src
+                    src = self._url(src)
+                # Strip any existing query string — we'll add cache-bust later
+                self._captcha_url = src.split("?")[0]
+                _logger.info("CAPTCHA URL extracted from login page: %s", self._captcha_url)
+            else:
+                # Fallback to hardcoded path (kept for backward compat)
+                self._captcha_url = self._url(CAPTCHA_PATH)
+                _logger.warning(
+                    "No CAPTCHA <img> found in login page HTML — "
+                    "falling back to hardcoded path: %s. "
+                    "Login page preview: %s",
+                    self._captcha_url,
+                    response.text[:800],
+                )
+
             return True
 
         self._last_error = "Could not extract CSRF token from login page"
@@ -349,14 +385,24 @@ class GrabEInvoiceSession:
         Returns:
             bytes: Raw PNG image bytes, or None on failure.
         """
-        _logger.info("Fetching CAPTCHA image from Grab portal...")
+        # Use the URL extracted from the login page HTML (preferred),
+        # or fall back to the hardcoded path if prepare_login() wasn't called.
+        captcha_url = self._captcha_url or self._url(CAPTCHA_PATH)
+        _logger.info("Fetching CAPTCHA image from: %s", captcha_url)
         try:
             response = self._session.get(
-                self._url(CAPTCHA_PATH),
+                captcha_url,
+                params={"t": int(time.time() * 1000)},  # cache-bust: prevents 304/cached HTML
                 timeout=REQUEST_TIMEOUT,
                 headers={
                     "Referer": self._url(LOGIN_PATH),
-                    "Accept": "image/png,image/webp,image/*,*/*;q=0.8",
+                    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
+                    "Sec-Fetch-Dest": "image",
+                    "Sec-Fetch-Mode": "no-cors",
+                    "Sec-Fetch-Site": "same-origin",
                 },
             )
         except requests.RequestException as e:
@@ -391,13 +437,17 @@ class GrabEInvoiceSession:
                 )
                 return response.content
 
-            # HTML response — session issue
+            # HTML response — portal likely blocked the request or session issue
             if "text/html" in content_type and len(response.content) > 1000:
                 _logger.warning(
-                    "CAPTCHA endpoint returned HTML (%d bytes). Session issue.",
+                    "CAPTCHA endpoint returned HTML (%d bytes, URL: %s). "
+                    "Portal may be blocking automation. HTML preview: %s",
                     len(response.content),
+                    response.url,
+                    response.text[:500],
                 )
-                # Try to extract embedded base64 image
+
+                # Strategy A: extract embedded base64 image from HTML
                 img_match = re.search(
                     r'data:image/[^;]+;base64,([A-Za-z0-9+/=]+)',
                     response.text,
@@ -405,10 +455,33 @@ class GrabEInvoiceSession:
                 if img_match:
                     try:
                         img_data = base64.b64decode(img_match.group(1))
-                        _logger.info("Extracted embedded CAPTCHA: %d bytes", len(img_data))
+                        _logger.info("Extracted embedded CAPTCHA from HTML: %d bytes", len(img_data))
                         return img_data
                     except Exception:
                         pass
+
+                # Strategy B: look for a different <img> src pointing to CAPTCHA
+                src_match = re.search(
+                    r'<img[^>]+src="([^"]*[Cc]aptcha[^"]*)"',
+                    response.text,
+                )
+                if src_match:
+                    alt_path = src_match.group(1)
+                    _logger.info("Found alternative CAPTCHA src in HTML: %s", alt_path)
+                    if not alt_path.startswith("http"):
+                        alt_path = self._url(alt_path if alt_path.startswith("/") else "/" + alt_path)
+                    try:
+                        alt_resp = self._session.get(
+                            alt_path,
+                            params={"t": int(time.time() * 1000)},
+                            timeout=REQUEST_TIMEOUT,
+                            headers={"Referer": self._url(LOGIN_PATH)},
+                        )
+                        if alt_resp.content[:4] in (b'\x89PNG', b'\xff\xd8'):
+                            _logger.info("Got CAPTCHA from alternative URL: %d bytes", len(alt_resp.content))
+                            return alt_resp.content
+                    except Exception as e:
+                        _logger.warning("Alternative CAPTCHA fetch failed: %s", e)
 
                 self._last_error = "CAPTCHA endpoint returned HTML instead of image"
                 return None
