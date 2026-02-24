@@ -20,7 +20,7 @@
                         <button name="action_fetch_now" type="object"
                                 string="Fetch Now" class="btn-primary"
                                 icon="fa-download"
-                                attrs="{'invisible': [('provider', '=', 'grab')]}" />
+                                attrs="{'invisible': [('provider', 'in', ['grab', 'spv', 'shinhan'])]}" />
 
                         <!-- Grab: Auto Fetch (CAPTCHA solved by AI) -->
                         <button name="action_grab_auto_fetch" type="object"
@@ -48,6 +48,62 @@
                                     '|',
                                     ('provider', '!=', 'grab'),
                                     ('grab_login_status', '!=', 'captcha_pending'),
+                                ]}" />
+
+                        <!-- SPV: Auto Fetch -->
+                        <button name="action_spv_auto_fetch" type="object"
+                                string="⚡ Auto Fetch" class="btn-primary"
+                                icon="fa-magic"
+                                attrs="{'invisible': [('provider', '!=', 'spv')]}" />
+
+                        <!-- SPV: Manual CAPTCHA flow -->
+                        <button name="action_spv_prepare_login" type="object"
+                                string="Load CAPTCHA" class="btn-secondary"
+                                icon="fa-key"
+                                attrs="{'invisible': [('provider', '!=', 'spv')]}" />
+                        <button name="action_spv_login_and_fetch" type="object"
+                                string="Login &amp; Fetch" class="btn-secondary"
+                                icon="fa-sign-in"
+                                attrs="{'invisible': [
+                                    '|',
+                                    ('provider', '!=', 'spv'),
+                                    ('spv_login_status', '!=', 'captcha_pending'),
+                                ]}" />
+                        <button name="action_spv_refresh_captcha" type="object"
+                                string="Refresh CAPTCHA" class="btn-link"
+                                icon="fa-refresh"
+                                attrs="{'invisible': [
+                                    '|',
+                                    ('provider', '!=', 'spv'),
+                                    ('spv_login_status', '!=', 'captcha_pending'),
+                                ]}" />
+
+                        <!-- Shinhan: Auto Fetch -->
+                        <button name="action_shinhan_auto_fetch" type="object"
+                                string="⚡ Auto Fetch" class="btn-primary"
+                                icon="fa-magic"
+                                attrs="{'invisible': [('provider', '!=', 'shinhan')]}" />
+
+                        <!-- Shinhan: Manual CAPTCHA flow -->
+                        <button name="action_shinhan_prepare_login" type="object"
+                                string="Load CAPTCHA" class="btn-secondary"
+                                icon="fa-key"
+                                attrs="{'invisible': [('provider', '!=', 'shinhan')]}" />
+                        <button name="action_shinhan_login_and_fetch" type="object"
+                                string="Login &amp; Fetch" class="btn-secondary"
+                                icon="fa-sign-in"
+                                attrs="{'invisible': [
+                                    '|',
+                                    ('provider', '!=', 'shinhan'),
+                                    ('shinhan_login_status', '!=', 'captcha_pending'),
+                                ]}" />
+                        <button name="action_shinhan_refresh_captcha" type="object"
+                                string="Refresh CAPTCHA" class="btn-link"
+                                icon="fa-refresh"
+                                attrs="{'invisible': [
+                                    '|',
+                                    ('provider', '!=', 'shinhan'),
+                                    ('shinhan_login_status', '!=', 'captcha_pending'),
                                 ]}" />
                     </header>
                     <sheet>
@@ -84,19 +140,19 @@
                             <group string="API Credentials">
                                 <!-- Shopee fields -->
                                 <field name="api_url"
-                                       attrs="{'invisible': [('provider', '=', 'grab')]}"
+                                       attrs="{'invisible': [('provider', 'in', ['grab', 'spv', 'shinhan'])]}"
                                        placeholder="https://partner.shopeemobile.com" />
                                 <field name="api_key"
-                                       attrs="{'invisible': [('provider', '=', 'grab')]}"
+                                       attrs="{'invisible': [('provider', 'in', ['grab', 'spv', 'shinhan'])]}"
                                        placeholder="Partner ID / App Key" />
                                 <field name="api_secret" password="True"
-                                       attrs="{'invisible': [('provider', '=', 'grab')]}"
+                                       attrs="{'invisible': [('provider', 'in', ['grab', 'spv', 'shinhan'])]}"
                                        placeholder="Partner Key / Secret" />
                                 <field name="shop_id"
-                                       attrs="{'invisible': [('provider', '=', 'grab')]}"
+                                       attrs="{'invisible': [('provider', 'in', ['grab', 'spv', 'shinhan'])]}"
                                        placeholder="Shop ID" />
                                 <field name="access_token" password="True"
-                                       attrs="{'invisible': [('provider', '=', 'grab')]}"
+                                       attrs="{'invisible': [('provider', 'in', ['grab', 'spv', 'shinhan'])]}"
                                        placeholder="OAuth Access Token" />
 
                                 <!-- Grab fields -->
@@ -108,6 +164,28 @@
                                        placeholder="Tài khoản đăng nhập (Username)" />
                                 <field name="api_secret" password="True"
                                        attrs="{'invisible': [('provider', '!=', 'grab')]}"
+                                       placeholder="Mật khẩu (Password)" />
+
+                                <!-- SPV fields -->
+                                <field name="api_url"
+                                       attrs="{'invisible': [('provider', '!=', 'spv')]}"
+                                       placeholder="https://spv.tracuuhoadon.online (để trống dùng mặc định)" />
+                                <field name="api_key"
+                                       attrs="{'invisible': [('provider', '!=', 'spv')]}"
+                                       placeholder="Mã khách hàng (maKh)" />
+                                <field name="api_secret" password="True"
+                                       attrs="{'invisible': [('provider', '!=', 'spv')]}"
+                                       placeholder="Mật khẩu (Password)" />
+
+                                <!-- Shinhan fields -->
+                                <field name="api_url"
+                                       attrs="{'invisible': [('provider', '!=', 'shinhan')]}"
+                                       placeholder="https://einvoice.shinhan.com.vn (để trống dùng mặc định)" />
+                                <field name="api_key"
+                                       attrs="{'invisible': [('provider', '!=', 'shinhan')]}"
+                                       placeholder="Tên đăng nhập (Username)" />
+                                <field name="api_secret" password="True"
+                                       attrs="{'invisible': [('provider', '!=', 'shinhan')]}"
                                        placeholder="Mật khẩu (Password)" />
                             </group>
                         </group>
@@ -138,7 +216,7 @@
                             </group>
                         </group>
 
-                        <!-- Auto CAPTCHA info banner -->
+                        <!-- Auto CAPTCHA info banner - Grab -->
                         <div class="alert alert-success"
                              attrs="{'invisible': [
                                  '|',
@@ -152,7 +230,7 @@
                             </p>
                         </div>
 
-                        <!-- Manual CAPTCHA info banner -->
+                        <!-- Manual CAPTCHA info banner - Grab -->
                         <div class="alert alert-info"
                              attrs="{'invisible': [
                                  '|',
@@ -167,7 +245,7 @@
                             </p>
                         </div>
 
-                        <!-- CAPTCHA Image + Answer (shown when captcha_pending) -->
+                        <!-- CAPTCHA Image + Answer - Grab -->
                         <group attrs="{'invisible': [
                                    '|',
                                    ('provider', '!=', 'grab'),
@@ -186,6 +264,160 @@
                                        attrs="{'required': [
                                            ('provider', '=', 'grab'),
                                            ('grab_login_status', '=', 'captcha_pending'),
+                                       ]}" />
+                            </group>
+                        </group>
+
+                        <!-- ============================================ -->
+                        <!-- SPV Portal: Login &amp; CAPTCHA Section      -->
+                        <!-- ============================================ -->
+                        <group string="SPV Tracuuhoadon Settings"
+                               attrs="{'invisible': [('provider', '!=', 'spv')]}">
+                            <group>
+                                <field name="spv_login_status" readonly="1"
+                                       widget="badge"
+                                       decoration-success="spv_login_status == 'logged_in'"
+                                       decoration-warning="spv_login_status == 'captcha_pending'"
+                                       decoration-danger="spv_login_status in ['error', 'session_expired']"
+                                       decoration-info="spv_login_status == 'not_logged_in'" />
+                                <field name="spv_session_active" readonly="1"
+                                       widget="boolean_toggle" />
+                                <field name="spv_date_from"
+                                       help="Ngày bắt đầu lấy hóa đơn. Để trống để tự động." />
+                            </group>
+                            <group>
+                                <field name="spv_use_auto_captcha" />
+                                <field name="spv_openai_api_key" password="True"
+                                       attrs="{'invisible': [('spv_use_auto_captcha', '=', False)]}"
+                                       placeholder="Để trống để dùng biến môi trường OPENAI_API_KEY" />
+                                <field name="spv_session_valid_until" readonly="1" />
+                            </group>
+                        </group>
+
+                        <!-- Auto CAPTCHA info banner - SPV -->
+                        <div class="alert alert-success"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'spv'),
+                                 ('spv_use_auto_captcha', '=', False),
+                             ]}">
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật</strong>
+                            <p class="mb-0">
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA,
+                                đăng nhập và lấy hóa đơn từ SPV Tracuuhoadon.
+                            </p>
+                        </div>
+
+                        <!-- Manual CAPTCHA info banner - SPV -->
+                        <div class="alert alert-info"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'spv'),
+                                 ('spv_login_status', '!=', 'captcha_pending'),
+                             ]}">
+                            <strong>Cần Nhập CAPTCHA</strong>
+                            <p class="mb-0">
+                                Đọc mã từ hình ảnh bên dưới và nhập vào ô CAPTCHA,
+                                sau đó nhấn <strong>Login &amp; Fetch</strong>.
+                            </p>
+                        </div>
+
+                        <!-- CAPTCHA Image + Answer - SPV -->
+                        <group attrs="{'invisible': [
+                                   '|',
+                                   ('provider', '!=', 'spv'),
+                                   ('spv_captcha_image', '=', False),
+                               ]}">
+                            <group string="Hình CAPTCHA">
+                                <field name="spv_captcha_image"
+                                       widget="image"
+                                       options="{'size': [500, 100]}"
+                                       readonly="1"
+                                       nolabel="1" />
+                            </group>
+                            <group string="Nhập Mã CAPTCHA">
+                                <field name="spv_captcha_answer"
+                                       placeholder="Nhập mã hiển thị trong hình"
+                                       attrs="{'required': [
+                                           ('provider', '=', 'spv'),
+                                           ('spv_login_status', '=', 'captcha_pending'),
+                                       ]}" />
+                            </group>
+                        </group>
+
+                        <!-- ============================================ -->
+                        <!-- Shinhan Portal: Login &amp; CAPTCHA Section  -->
+                        <!-- ============================================ -->
+                        <group string="Shinhan Bank eInvoice Settings"
+                               attrs="{'invisible': [('provider', '!=', 'shinhan')]}">
+                            <group>
+                                <field name="shinhan_login_status" readonly="1"
+                                       widget="badge"
+                                       decoration-success="shinhan_login_status == 'logged_in'"
+                                       decoration-warning="shinhan_login_status == 'captcha_pending'"
+                                       decoration-danger="shinhan_login_status in ['error', 'session_expired']"
+                                       decoration-info="shinhan_login_status == 'not_logged_in'" />
+                                <field name="shinhan_session_active" readonly="1"
+                                       widget="boolean_toggle" />
+                                <field name="shinhan_date_from"
+                                       help="Ngày bắt đầu lấy hóa đơn. Để trống để tự động." />
+                            </group>
+                            <group>
+                                <field name="shinhan_use_auto_captcha" />
+                                <field name="shinhan_openai_api_key" password="True"
+                                       attrs="{'invisible': [('shinhan_use_auto_captcha', '=', False)]}"
+                                       placeholder="Để trống để dùng biến môi trường OPENAI_API_KEY" />
+                                <field name="shinhan_token_valid_until" readonly="1" />
+                            </group>
+                        </group>
+
+                        <!-- Auto CAPTCHA info banner - Shinhan -->
+                        <div class="alert alert-success"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'shinhan'),
+                                 ('shinhan_use_auto_captcha', '=', False),
+                             ]}">
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật</strong>
+                            <p class="mb-0">
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA,
+                                đăng nhập bằng JWT và lấy hóa đơn từ Shinhan Bank.
+                            </p>
+                        </div>
+
+                        <!-- Manual CAPTCHA info banner - Shinhan -->
+                        <div class="alert alert-info"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'shinhan'),
+                                 ('shinhan_login_status', '!=', 'captcha_pending'),
+                             ]}">
+                            <strong>Cần Nhập CAPTCHA</strong>
+                            <p class="mb-0">
+                                Đọc mã từ hình ảnh bên dưới và nhập vào ô CAPTCHA,
+                                sau đó nhấn <strong>Login &amp; Fetch</strong>.
+                            </p>
+                        </div>
+
+                        <!-- CAPTCHA Image + Answer - Shinhan -->
+                        <group attrs="{'invisible': [
+                                   '|',
+                                   ('provider', '!=', 'shinhan'),
+                                   ('shinhan_captcha_image', '=', False),
+                               ]}">
+                            <group string="Hình CAPTCHA">
+                                <field name="shinhan_captcha_image"
+                                       widget="image"
+                                       options="{'size': [500, 100]}"
+                                       readonly="1"
+                                       nolabel="1" />
+                            </group>
+                            <group string="Nhập Mã CAPTCHA">
+                                <field name="shinhan_captcha_answer"
+                                       placeholder="Nhập mã hiển thị trong hình"
+                                       attrs="{'required': [
+                                           ('provider', '=', 'shinhan'),
+                                           ('shinhan_login_status', '=', 'captcha_pending'),
                                        ]}" />
                             </group>
                         </group>
@@ -212,16 +444,30 @@
                     <field name="name" />
                     <field name="provider" />
                     <field name="shop_id"
-                           attrs="{'invisible': [('provider', '=', 'grab')]}" />
+                           attrs="{'invisible': [('provider', 'in', ['grab', 'spv', 'shinhan'])]}" />
                     <field name="is_active" />
                     <field name="last_sync_date" />
-                    <field name="invoice_count" />
+                    <!-- Grab login status -->
                     <field name="grab_login_status"
                            attrs="{'invisible': [('provider', '!=', 'grab')]}"
                            widget="badge"
                            decoration-success="grab_login_status == 'logged_in'"
                            decoration-warning="grab_login_status == 'captcha_pending'"
                            decoration-danger="grab_login_status in ['error', 'session_expired']" />
+                    <!-- SPV login status -->
+                    <field name="spv_login_status"
+                           attrs="{'invisible': [('provider', '!=', 'spv')]}"
+                           widget="badge"
+                           decoration-success="spv_login_status == 'logged_in'"
+                           decoration-warning="spv_login_status == 'captcha_pending'"
+                           decoration-danger="spv_login_status in ['error', 'session_expired']" />
+                    <!-- Shinhan login status -->
+                    <field name="shinhan_login_status"
+                           attrs="{'invisible': [('provider', '!=', 'shinhan')]}"
+                           widget="badge"
+                           decoration-success="shinhan_login_status == 'logged_in'"
+                           decoration-warning="shinhan_login_status == 'captcha_pending'"
+                           decoration-danger="shinhan_login_status in ['error', 'session_expired']" />
                 </tree>
             </field>
         </record>
@@ -238,9 +484,11 @@
                     Configure your marketplace API connections
                 </p>
                 <p>
-                    Add Shopee or Grab credentials to enable automated invoice collection.
-                    For Grab, use your portal login credentials from vn.einvoice.grab.com.
-                    Enable Auto-CAPTCHA to fully automate the process!
+                    Add credentials to enable automated invoice collection from:
+                    Shopee, Grab (vn.einvoice.grab.com),
+                    SPV Tracuuhoadon (spv.tracuuhoadon.online),
+                    or Shinhan Bank eInvoice (einvoice.shinhan.com.vn).
+                    Enable Auto-CAPTCHA with an OpenAI API key to fully automate the process!
                 </p>
             </field>
         </record>

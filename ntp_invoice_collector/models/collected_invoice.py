@@ -41,6 +41,8 @@ class CollectedInvoice(models.Model):
         [
             ("shopee", "Shopee"),
             ("grab", "Grab"),
+            ("spv", "SPV Tracuuhoadon"),
+            ("shinhan", "Shinhan Bank eInvoice"),
         ],
         string="Provider",
         required=True,
@@ -369,6 +371,52 @@ class CollectedInvoice(models.Model):
                         )
                         continue
                     count = self._fetch_grab_portal_invoices(config)
+                elif config.provider == "spv":
+                    has_session = bool(config.spv_session_cookie)
+                    has_auto_captcha = (
+                        getattr(config, "spv_use_auto_captcha", False)
+                        and bool(getattr(config, "spv_openai_api_key", ""))
+                    )
+                    if not has_session and not has_auto_captcha:
+                        _logger.warning(
+                            "Cron skipping SPV config '%s': no active session "
+                            "and auto-CAPTCHA not configured.",
+                            config.name,
+                        )
+                        self.env["ntp.collector.log"].log_operation(
+                            config=config,
+                            operation="fetch",
+                            success=False,
+                            error_message=(
+                                "Cron skipped: no session cookie and auto-CAPTCHA "
+                                "not configured. Enable auto-CAPTCHA with an OpenAI API key."
+                            ),
+                        )
+                        continue
+                    count = self._fetch_spv_portal_invoices(config)
+                elif config.provider == "shinhan":
+                    has_jwt = bool(config.shinhan_jwt_token)
+                    has_auto_captcha = (
+                        getattr(config, "shinhan_use_auto_captcha", False)
+                        and bool(getattr(config, "shinhan_openai_api_key", ""))
+                    )
+                    if not has_jwt and not has_auto_captcha:
+                        _logger.warning(
+                            "Cron skipping Shinhan config '%s': no active JWT token "
+                            "and auto-CAPTCHA not configured.",
+                            config.name,
+                        )
+                        self.env["ntp.collector.log"].log_operation(
+                            config=config,
+                            operation="fetch",
+                            success=False,
+                            error_message=(
+                                "Cron skipped: no JWT token and auto-CAPTCHA "
+                                "not configured. Enable auto-CAPTCHA with an OpenAI API key."
+                            ),
+                        )
+                        continue
+                    count = self._fetch_shinhan_portal_invoices(config)
                 else:
                     _logger.warning(
                         "Unknown provider '%s' for config %s, skipping",
@@ -1261,6 +1309,660 @@ class CollectedInvoice(models.Model):
                 "(size=%d bytes). Skipping attachment.",
                 len(zip_content),
             )
+
+    # ====================================================================
+    # SPV Portal Fetch Methods
+    # ====================================================================
+
+    def _fetch_spv_portal_invoices_with_session(self, config, session):
+        """
+        Fetch invoices from SPV portal using an already-authenticated session.
+
+        Args:
+            config: ntp.collector.config record.
+            session: SpvEInvoiceSession instance (already authenticated).
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        return self._do_spv_fetch(config, session)
+
+    def _fetch_spv_portal_invoices(self, config, captcha_answer=None):
+        """
+        Fetch invoices from the SPV Tracuuhoadon portal (spv.tracuuhoadon.online).
+
+        Handles the full session-based authentication flow:
+          1. Try auto-login with OpenAI CAPTCHA solving (if enabled)
+          2. Or use a provided captcha_answer for manual flow
+          3. Or restore session from stored cookie
+          4. Paginate through the invoice list
+          5. Create ntp.collected.invoice records for new invoices
+
+        Args:
+            config: ntp.collector.config record.
+            captcha_answer (str): CAPTCHA text answer for manual flow.
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        from .spv_session import SpvEInvoiceSession
+
+        base_url = (config.api_url or "").rstrip("/") or "https://spv.tracuuhoadon.online"
+
+        if not config.api_key:
+            raise UserError(
+                "SPV Username (maKh) is not configured for '%s'." % config.name
+            )
+        if not config.api_secret:
+            raise UserError(
+                "SPV Password is not configured for '%s'." % config.name
+            )
+
+        session = SpvEInvoiceSession(
+            username=config.api_key,
+            password=config.api_secret,
+            base_url=base_url,
+        )
+
+        if captcha_answer:
+            # Manual CAPTCHA flow: restore stored session state
+            csrf_key = "ntp_invoice_collector.spv_csrf_%d" % config.id
+            nonce_key = "ntp_invoice_collector.spv_nonce_%d" % config.id
+            cookie_key = "ntp_invoice_collector.spv_cookies_%d" % config.id
+            get_param = self.env["ir.config_parameter"].sudo().get_param
+
+            session._csrf_token = get_param(csrf_key, default="")
+            session._nonce = get_param(nonce_key, default="")
+            cookies_json = get_param(cookie_key, default="{}")
+            session.restore_session(cookies_json)
+
+            if not session._csrf_token:
+                session.prepare_login()
+                session.get_captcha_image_b64()
+
+            _logger.info(
+                "Attempting SPV portal login for config '%s' (manual CAPTCHA)...",
+                config.name,
+            )
+            login_ok = session.login(captcha_answer)
+
+            if not login_ok:
+                error_detail = session.last_error or "Unknown error"
+                config.write({"spv_login_status": "error"})
+
+                if session.is_account_locked:
+                    raise UserError(
+                        "\u26a0\ufe0f SPV account '%s' is LOCKED!\n\n"
+                        "Contact SPV support to unlock.\n\n"
+                        "Detail: %s" % (config.api_key, error_detail)
+                    )
+
+                raise UserError(
+                    "SPV portal login failed for '%s'.\n\n"
+                    "Please check your credentials and CAPTCHA answer.\n\n"
+                    "Detail: %s" % (config.name, error_detail)
+                )
+
+            config.write({"spv_login_status": "logged_in"})
+
+        elif config.spv_session_cookie:
+            # Restore session from stored cookie
+            _logger.info(
+                "Restoring SPV session from stored cookie for config '%s'",
+                config.name,
+            )
+            session.restore_session(json.dumps({".ASPXAUTH": config.spv_session_cookie}))
+
+            if not session.check_session_valid():
+                _logger.info(
+                    "Stored SPV session expired for '%s', trying auto-login...",
+                    config.name,
+                )
+                use_auto = getattr(config, "spv_use_auto_captcha", True)
+                if use_auto:
+                    openai_key = getattr(config, "spv_openai_api_key", None) or None
+                    login_ok = session.auto_login(openai_api_key=openai_key)
+                    if login_ok:
+                        config.write({"spv_login_status": "logged_in"})
+                    else:
+                        config.write({"spv_login_status": "session_expired"})
+                        _logger.warning(
+                            "SPV auto-login failed for '%s'. Manual login required.",
+                            config.name,
+                        )
+                        return 0
+                else:
+                    config.write({"spv_login_status": "session_expired"})
+                    return 0
+
+        else:
+            # No session — try auto-login
+            use_auto = getattr(config, "spv_use_auto_captcha", True)
+            if use_auto:
+                _logger.info(
+                    "No stored SPV session for '%s', trying auto-login...",
+                    config.name,
+                )
+                openai_key = getattr(config, "spv_openai_api_key", None) or None
+                login_ok = session.auto_login(openai_api_key=openai_key)
+                if login_ok:
+                    config.write({"spv_login_status": "logged_in"})
+                    cookie_val = session.get_session_cookie()
+                    if cookie_val:
+                        config.write({"spv_session_cookie": cookie_val})
+                else:
+                    error_detail = session.last_error or "Unknown error"
+                    config.write({"spv_login_status": "error"})
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        operation="fetch",
+                        success=False,
+                        error_message="SPV auto-login failed. Detail: %s" % error_detail,
+                    )
+                    return 0
+            else:
+                _logger.warning(
+                    "SPV config '%s' has no active session and auto-CAPTCHA is disabled.",
+                    config.name,
+                )
+                return 0
+
+        return self._do_spv_fetch(config, session)
+
+    def _do_spv_fetch(self, config, session):
+        """
+        Core SPV invoice fetch logic.
+
+        Args:
+            config: ntp.collector.config record.
+            session: SpvEInvoiceSession instance (authenticated).
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        count = 0
+
+        # Calculate date range
+        if config.spv_date_from:
+            date_from_dt = config.spv_date_from
+        elif config.last_sync_date:
+            date_from_dt = config.last_sync_date.date()
+        else:
+            date_from_dt = (datetime.now() - timedelta(days=30)).date()
+
+        date_to_dt = datetime.now().date()
+        date_from_str = date_from_dt.strftime("%d/%m/%Y")
+        date_to_str = date_to_dt.strftime("%d/%m/%Y")
+
+        _logger.info(
+            "Fetching SPV invoices for config '%s': %s to %s",
+            config.name, date_from_str, date_to_str,
+        )
+
+        page = 1
+        page_size = 50
+        has_more = True
+
+        while has_more:
+            try:
+                result = session.fetch_invoices(
+                    date_from=date_from_str,
+                    date_to=date_to_str,
+                    page=page,
+                    page_size=page_size,
+                )
+            except ValueError as e:
+                _logger.warning(
+                    "SPV session expired for config '%s': %s", config.name, e
+                )
+                config.write({"spv_login_status": "session_expired"})
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="Session expired: %s" % str(e),
+                )
+                break
+            except Exception as e:
+                _logger.error(
+                    "Error fetching SPV invoices (page %d): %s", page, e
+                )
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="Fetch error (page %d): %s" % (page, str(e)),
+                )
+                break
+
+            invoices = result.get("invoices", [])
+            has_more = result.get("has_more", False)
+
+            _logger.info(
+                "SPV portal page %d: %d invoices returned (has_more=%s)",
+                page, len(invoices), has_more,
+            )
+
+            if not invoices:
+                break
+
+            for inv_data in invoices:
+                inv_number = str(inv_data.get("invoice_number", "") or inv_data.get("id", ""))
+                if not inv_number:
+                    continue
+
+                # Skip if already collected
+                existing = self.search([
+                    ("provider", "=", "spv"),
+                    ("external_order_id", "=", inv_number),
+                ], limit=1)
+                if existing:
+                    continue
+
+                raw_date = inv_data.get("invoice_date", "")
+                parsed_date = self._parse_grab_date(raw_date)  # Reuse date parser
+
+                vals = {
+                    "name": "SPV-%s" % inv_number,
+                    "provider": "spv",
+                    "config_id": config.id,
+                    "external_order_id": inv_number,
+                    "transaction_date": parsed_date,
+                    "total_amount": float(inv_data.get("total_amount", 0) or 0),
+                    "state": "draft",
+                    "bizzi_status": "pending",
+                    "notes": (
+                        "Series: %s | Seller: %s | Seller Tax: %s | "
+                        "Buyer: %s | Buyer Tax: %s | Status: %s"
+                        % (
+                            inv_data.get("series", ""),
+                            inv_data.get("seller_name", ""),
+                            inv_data.get("seller_tax_code", ""),
+                            inv_data.get("buyer_name", ""),
+                            inv_data.get("buyer_tax_code", ""),
+                            inv_data.get("status", ""),
+                        )
+                    ),
+                }
+
+                # Try to match partner by tax code
+                buyer_tax = inv_data.get("buyer_tax_code", "")
+                if buyer_tax:
+                    partner = self.env["res.partner"].search(
+                        [("vat", "=", buyer_tax)], limit=1
+                    )
+                    if partner:
+                        vals["partner_id"] = partner.id
+
+                try:
+                    new_rec = self.sudo().create(vals)
+                    count += 1
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        provider="spv",
+                        operation="fetch",
+                        invoice=new_rec,
+                        success=True,
+                    )
+                    _logger.debug(
+                        "Created SPV invoice record: %s", vals["name"]
+                    )
+                except Exception as e:
+                    _logger.warning(
+                        "Failed to create SPV invoice record for %s: %s",
+                        inv_number, e,
+                    )
+
+            page += 1
+            if page > 100:
+                _logger.warning("SPV fetch: reached page limit (100), stopping.")
+                break
+
+        # Store session cookie for future cron runs
+        cookie_val = session.get_session_cookie()
+        if cookie_val:
+            config.write({"spv_session_cookie": cookie_val})
+
+        _logger.info(
+            "SPV portal fetch completed for config '%s': %d new invoices",
+            config.name, count,
+        )
+        return count
+
+    # ====================================================================
+    # Shinhan Portal Fetch Methods
+    # ====================================================================
+
+    def _fetch_shinhan_portal_invoices_with_session(self, config, session):
+        """
+        Fetch invoices from Shinhan portal using an already-authenticated session.
+
+        Args:
+            config: ntp.collector.config record.
+            session: ShinhanEInvoiceSession instance (already authenticated).
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        return self._do_shinhan_fetch(config, session)
+
+    def _fetch_shinhan_portal_invoices(self, config, captcha_answer=None):
+        """
+        Fetch invoices from the Shinhan Bank e-invoice portal (einvoice.shinhan.com.vn).
+
+        Handles the full JWT-based authentication flow:
+          1. Try auto-login with OpenAI CAPTCHA solving (if enabled)
+          2. Or use a provided captcha_answer for manual flow
+          3. Or restore JWT token from stored value
+          4. Paginate through the invoice list via REST API
+          5. Create ntp.collected.invoice records for new invoices
+
+        Args:
+            config: ntp.collector.config record.
+            captcha_answer (str): CAPTCHA text answer for manual flow.
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        from .shinhan_session import ShinhanEInvoiceSession
+
+        base_url = (config.api_url or "").rstrip("/") or "https://einvoice.shinhan.com.vn"
+
+        if not config.api_key:
+            raise UserError(
+                "Shinhan Username is not configured for '%s'." % config.name
+            )
+        if not config.api_secret:
+            raise UserError(
+                "Shinhan Password is not configured for '%s'." % config.name
+            )
+
+        session = ShinhanEInvoiceSession(
+            username=config.api_key,
+            password=config.api_secret,
+            base_url=base_url,
+        )
+
+        if captcha_answer:
+            # Manual CAPTCHA flow
+            captcha_key = "ntp_invoice_collector.shinhan_captcha_text_%d" % config.id
+            server_captcha = self.env["ir.config_parameter"].sudo().get_param(
+                captcha_key, default=""
+            )
+            if server_captcha:
+                session._captcha_text = server_captcha
+
+            _logger.info(
+                "Attempting Shinhan portal login for config '%s' (manual CAPTCHA)...",
+                config.name,
+            )
+            login_ok = session.login(captcha_answer)
+
+            if not login_ok:
+                error_detail = session.last_error or "Unknown error"
+                config.write({"shinhan_login_status": "error"})
+
+                if session.is_account_locked:
+                    raise UserError(
+                        "\u26a0\ufe0f Shinhan account '%s' is LOCKED!\n\n"
+                        "Contact Shinhan Bank support to unlock.\n\n"
+                        "Detail: %s" % (config.api_key, error_detail)
+                    )
+
+                raise UserError(
+                    "Shinhan portal login failed for '%s'.\n\n"
+                    "Please check your credentials and CAPTCHA answer.\n\n"
+                    "Detail: %s" % (config.name, error_detail)
+                )
+
+            # Store JWT token
+            jwt_token = session.get_jwt_token()
+            token_expiry = session.get_token_expiry()
+            config.write({
+                "shinhan_login_status": "logged_in",
+                "shinhan_jwt_token": jwt_token or "",
+                "shinhan_token_valid_until": token_expiry or (
+                    fields.Datetime.now() + timedelta(minutes=30)
+                ),
+            })
+
+        elif config.shinhan_jwt_token:
+            # Restore JWT token
+            _logger.info(
+                "Restoring Shinhan JWT token for config '%s'",
+                config.name,
+            )
+            session.restore_jwt(config.shinhan_jwt_token)
+
+            if not session.check_session_valid():
+                _logger.info(
+                    "Stored Shinhan JWT expired for '%s', trying auto-login...",
+                    config.name,
+                )
+                use_auto = getattr(config, "shinhan_use_auto_captcha", True)
+                if use_auto:
+                    openai_key = getattr(config, "shinhan_openai_api_key", None) or None
+                    login_ok = session.auto_login(openai_api_key=openai_key)
+                    if login_ok:
+                        jwt_token = session.get_jwt_token()
+                        token_expiry = session.get_token_expiry()
+                        config.write({
+                            "shinhan_login_status": "logged_in",
+                            "shinhan_jwt_token": jwt_token or "",
+                            "shinhan_token_valid_until": token_expiry or (
+                                fields.Datetime.now() + timedelta(minutes=30)
+                            ),
+                        })
+                    else:
+                        config.write({"shinhan_login_status": "session_expired"})
+                        _logger.warning(
+                            "Shinhan auto-login failed for '%s'. Manual login required.",
+                            config.name,
+                        )
+                        return 0
+                else:
+                    config.write({"shinhan_login_status": "session_expired"})
+                    return 0
+
+        else:
+            # No JWT — try auto-login
+            use_auto = getattr(config, "shinhan_use_auto_captcha", True)
+            if use_auto:
+                _logger.info(
+                    "No stored Shinhan JWT for '%s', trying auto-login...",
+                    config.name,
+                )
+                openai_key = getattr(config, "shinhan_openai_api_key", None) or None
+                login_ok = session.auto_login(openai_api_key=openai_key)
+                if login_ok:
+                    jwt_token = session.get_jwt_token()
+                    token_expiry = session.get_token_expiry()
+                    config.write({
+                        "shinhan_login_status": "logged_in",
+                        "shinhan_jwt_token": jwt_token or "",
+                        "shinhan_token_valid_until": token_expiry or (
+                            fields.Datetime.now() + timedelta(minutes=30)
+                        ),
+                    })
+                else:
+                    error_detail = session.last_error or "Unknown error"
+                    config.write({"shinhan_login_status": "error"})
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        operation="fetch",
+                        success=False,
+                        error_message="Shinhan auto-login failed. Detail: %s" % error_detail,
+                    )
+                    return 0
+            else:
+                _logger.warning(
+                    "Shinhan config '%s' has no active JWT and auto-CAPTCHA is disabled.",
+                    config.name,
+                )
+                return 0
+
+        return self._do_shinhan_fetch(config, session)
+
+    def _do_shinhan_fetch(self, config, session):
+        """
+        Core Shinhan invoice fetch logic.
+
+        Args:
+            config: ntp.collector.config record.
+            session: ShinhanEInvoiceSession instance (authenticated).
+
+        Returns:
+            int: Number of new invoice records created.
+        """
+        count = 0
+
+        # Calculate date range
+        if config.shinhan_date_from:
+            date_from_dt = config.shinhan_date_from
+        elif config.last_sync_date:
+            date_from_dt = config.last_sync_date.date()
+        else:
+            date_from_dt = (datetime.now() - timedelta(days=30)).date()
+
+        date_to_dt = datetime.now().date()
+        date_from_str = date_from_dt.strftime("%Y-%m-%d")
+        date_to_str = date_to_dt.strftime("%Y-%m-%d")
+
+        _logger.info(
+            "Fetching Shinhan invoices for config '%s': %s to %s",
+            config.name, date_from_str, date_to_str,
+        )
+
+        page = 1
+        page_size = 50
+        has_more = True
+
+        while has_more:
+            try:
+                result = session.fetch_invoices(
+                    date_from=date_from_str,
+                    date_to=date_to_str,
+                    page=page,
+                    page_size=page_size,
+                )
+            except ValueError as e:
+                _logger.warning(
+                    "Shinhan JWT expired for config '%s': %s", config.name, e
+                )
+                config.write({"shinhan_login_status": "session_expired"})
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="JWT expired: %s" % str(e),
+                )
+                break
+            except Exception as e:
+                _logger.error(
+                    "Error fetching Shinhan invoices (page %d): %s", page, e
+                )
+                self.env["ntp.collector.log"].log_operation(
+                    config=config,
+                    operation="fetch",
+                    success=False,
+                    error_message="Fetch error (page %d): %s" % (page, str(e)),
+                )
+                break
+
+            invoices = result.get("invoices", [])
+            has_more = result.get("has_more", False)
+
+            _logger.info(
+                "Shinhan portal page %d: %d invoices returned (has_more=%s)",
+                page, len(invoices), has_more,
+            )
+
+            if not invoices:
+                break
+
+            for inv_data in invoices:
+                inv_number = str(inv_data.get("invoice_number", "") or inv_data.get("id", ""))
+                if not inv_number:
+                    continue
+
+                # Skip if already collected
+                existing = self.search([
+                    ("provider", "=", "shinhan"),
+                    ("external_order_id", "=", inv_number),
+                ], limit=1)
+                if existing:
+                    continue
+
+                raw_date = inv_data.get("invoice_date", "")
+                parsed_date = self._parse_grab_date(raw_date)  # Reuse date parser
+
+                vals = {
+                    "name": "SHINHAN-%s" % inv_number,
+                    "provider": "shinhan",
+                    "config_id": config.id,
+                    "external_order_id": inv_number,
+                    "transaction_date": parsed_date,
+                    "total_amount": float(inv_data.get("total_amount", 0) or 0),
+                    "state": "draft",
+                    "bizzi_status": "pending",
+                    "notes": (
+                        "Series: %s | Seller: %s | Seller Tax: %s | "
+                        "Buyer: %s | Buyer Tax: %s | Type: %s | Status: %s"
+                        % (
+                            inv_data.get("series", ""),
+                            inv_data.get("seller_name", ""),
+                            inv_data.get("seller_tax_code", ""),
+                            inv_data.get("buyer_name", ""),
+                            inv_data.get("buyer_tax_code", ""),
+                            inv_data.get("invoice_type", ""),
+                            inv_data.get("status", ""),
+                        )
+                    ),
+                }
+
+                # Try to match partner by tax code
+                buyer_tax = inv_data.get("buyer_tax_code", "")
+                if buyer_tax:
+                    partner = self.env["res.partner"].search(
+                        [("vat", "=", buyer_tax)], limit=1
+                    )
+                    if partner:
+                        vals["partner_id"] = partner.id
+
+                try:
+                    new_rec = self.sudo().create(vals)
+                    count += 1
+                    self.env["ntp.collector.log"].log_operation(
+                        config=config,
+                        provider="shinhan",
+                        operation="fetch",
+                        invoice=new_rec,
+                        success=True,
+                    )
+                    _logger.debug(
+                        "Created Shinhan invoice record: %s", vals["name"]
+                    )
+                except Exception as e:
+                    _logger.warning(
+                        "Failed to create Shinhan invoice record for %s: %s",
+                        inv_number, e,
+                    )
+
+            page += 1
+            if page > 100:
+                _logger.warning("Shinhan fetch: reached page limit (100), stopping.")
+                break
+
+        # Update stored JWT token
+        jwt_token = session.get_jwt_token()
+        if jwt_token:
+            config.write({"shinhan_jwt_token": jwt_token})
+
+        _logger.info(
+            "Shinhan portal fetch completed for config '%s': %d new invoices",
+            config.name, count,
+        )
+        return count
 
     # ====================================================================
     # Auto-Matching
