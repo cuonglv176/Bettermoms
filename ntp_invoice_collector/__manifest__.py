@@ -7,10 +7,10 @@
         "Auto-fetch invoices from Grab (vn.einvoice.grab.com), Shopee, "
         "SPV Tracuuhoadon (spv.tracuuhoadon.online), and Shinhan Bank eInvoice "
         "(einvoice.shinhan.com.vn) via session/JWT-based authentication with "
-        "auto-CAPTCHA solving (OpenAI Vision API). Validate against Odoo records "
+        "auto-CAPTCHA solving (Google Gemini Vision API). Validate against Odoo records "
         "and push to Bizzi for VAT verification."
     ),
-    "version": "15.0.2.0.0",
+    "version": "15.0.2.1.0",
     "author": "NTP",
     "website": "",
     "depends": ["sale", "account", "mail", "ntp_marketplace_order"],

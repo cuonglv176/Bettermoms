@@ -45,7 +45,7 @@ Chúng tôi sẽ viết lại hàm `_fetch_grab_invoices` với logic hoàn toà
 3.  **Xử lý CAPTCHA**:
     - Tải ảnh CAPTCHA từ `/Captcha/Show`.
     - **Giải pháp 1 (Ưu tiên)**: Lưu ảnh CAPTCHA vào một trường tạm trong Odoo và tạo một `Activity` (Hành động cần làm) cho người dùng được chỉ định. Người dùng sẽ nhập mã CAPTCHA và một action sẽ được kích hoạt để tiếp tục quy trình.
-    - **Giải pháp 2 (Tương lai)**: Nếu `captcha_api_key` được cấu hình, gửi ảnh đến dịch vụ giải CAPTCHA để lấy kết quả.
+    - **Giải pháp 2 (Ưu tiên - Tự động)**: Sử dụng **Google Gemini Vision API** (`gemini-1.5-flash`) để tự động đọc và giải CAPTCHA. Cần cấu hình `GEMINI_API_KEY` trong biến môi trường hoặc trường `grab_gemini_api_key` trong cấu hình collector.
 4.  **Thực hiện đăng nhập**: Gửi yêu cầu POST đến `/tai-khoan/dang-nhap` với `UserName`, `Password`, `__RequestVerificationToken`, và mã CAPTCHA đã được giải.
 5.  **Lấy danh sách hóa đơn**: Nếu đăng nhập thành công, gửi yêu cầu GET (hoặc POST tùy thuộc vào API) đến `/Invoice/GetList` với các tham số cần thiết (ví dụ: ngày bắt đầu, ngày kết thúc).
 6.  **Xử lý dữ liệu**: Lặp qua danh sách hóa đơn nhận được (JSON), so sánh với các hóa đơn đã có trong Odoo (`external_order_id`) và tạo bản ghi `ntp.collected.invoice` mới cho các hóa đơn chưa tồn tại.
@@ -61,6 +61,6 @@ Chúng tôi sẽ viết lại hàm `_fetch_grab_invoices` với logic hoàn toà
 
 - **Giai đoạn 1**: Implement luồng chính với giải pháp CAPTCHA thủ công (Activity).
 - **Giai đoạn 2**: Tích hợp tải file đính kèm (PDF/XML).
-- **Giai đoạn 3**: (Tùy chọn) Tích hợp dịch vụ giải CAPTCHA của bên thứ ba.
+- **Giai đoạn 3**: Tích hợp Google Gemini Vision API để tự động giải CAPTCHA cho cả 3 hệ thống (Grab, SPV, Shinhan). ✅ **Đã hoàn thành** (phiên bản 15.0.2.1.0)
 
 Bằng cách này, chúng ta có thể tự động hóa phần lớn quy trình, chỉ yêu cầu sự can thiệp của người dùng ở bước không thể tránh khỏi là giải CAPTCHA, giúp giảm thiểu đáng kể thời gian và công sức so với việc làm thủ công hoàn toàn.

@@ -116,16 +116,20 @@ class CollectorConfig(models.Model):
         "SPV Auto-Solve CAPTCHA",
         default=True,
         help=(
-            "Use OpenAI Vision API to automatically solve SPV CAPTCHA. "
-            "Requires OPENAI_API_KEY environment variable or the OpenAI API Key field."
+            "Use Google Gemini Vision API to automatically solve SPV CAPTCHA. "
+            "Requires GEMINI_API_KEY environment variable or the Gemini API Key field."
+        ),
+    )
+    spv_gemini_api_key = fields.Char(
+        "SPV Gemini API Key (Optional)",
+        help=(
+            "Optional: Google Gemini API key for auto-solving SPV CAPTCHA. "
+            "If blank, uses the GEMINI_API_KEY environment variable."
         ),
     )
     spv_openai_api_key = fields.Char(
-        "SPV OpenAI API Key (Optional)",
-        help=(
-            "Optional: OpenAI API key for auto-solving SPV CAPTCHA. "
-            "If blank, uses the OPENAI_API_KEY environment variable."
-        ),
+        "SPV OpenAI API Key (Deprecated)",
+        help="Deprecated: Use SPV Gemini API Key instead.",
     )
 
     # ---- Shinhan-specific fields ----
@@ -166,16 +170,20 @@ class CollectorConfig(models.Model):
         "Shinhan Auto-Solve CAPTCHA",
         default=True,
         help=(
-            "Use OpenAI Vision API to automatically solve Shinhan canvas CAPTCHA. "
-            "Requires OPENAI_API_KEY environment variable or the OpenAI API Key field."
+            "Use Google Gemini Vision API to automatically solve Shinhan canvas CAPTCHA. "
+            "Requires GEMINI_API_KEY environment variable or the Gemini API Key field."
+        ),
+    )
+    shinhan_gemini_api_key = fields.Char(
+        "Shinhan Gemini API Key (Optional)",
+        help=(
+            "Optional: Google Gemini API key for auto-solving Shinhan CAPTCHA. "
+            "If blank, uses the GEMINI_API_KEY environment variable."
         ),
     )
     shinhan_openai_api_key = fields.Char(
-        "Shinhan OpenAI API Key (Optional)",
-        help=(
-            "Optional: OpenAI API key for auto-solving Shinhan CAPTCHA. "
-            "If blank, uses the OPENAI_API_KEY environment variable."
-        ),
+        "Shinhan OpenAI API Key (Deprecated)",
+        help="Deprecated: Use Shinhan Gemini API Key instead.",
     )
 
     # ---- Grab-specific fields ----
@@ -216,16 +224,20 @@ class CollectorConfig(models.Model):
         "Auto-Solve CAPTCHA",
         default=True,
         help=(
-            "Use OpenAI Vision API to automatically solve CAPTCHA. "
-            "Requires OPENAI_API_KEY environment variable or the field below."
+            "Use Google Gemini Vision API to automatically solve CAPTCHA. "
+            "Requires GEMINI_API_KEY environment variable or the field below."
+        ),
+    )
+    grab_gemini_api_key = fields.Char(
+        "Gemini API Key (Optional)",
+        help=(
+            "Optional: Google Gemini API key for auto-solving CAPTCHA. "
+            "If blank, uses the GEMINI_API_KEY environment variable."
         ),
     )
     grab_openai_api_key = fields.Char(
-        "OpenAI API Key (Optional)",
-        help=(
-            "Optional: OpenAI API key for auto-solving CAPTCHA. "
-            "If blank, uses the OPENAI_API_KEY environment variable."
-        ),
+        "OpenAI API Key (Deprecated)",
+        help="Deprecated: Use Gemini API Key instead.",
     )
 
     # ---- Common fields ----
@@ -500,9 +512,9 @@ class CollectorConfig(models.Model):
                 base_url=base_url,
             )
 
-            # Try auto-login with CAPTCHA solving
-            openai_key = self.grab_openai_api_key or None
-            login_ok = session.auto_login(openai_api_key=openai_key, max_attempts=5)
+            # Try auto-login with CAPTCHA solving via Google Gemini
+            gemini_key = self.grab_gemini_api_key or self.grab_openai_api_key or None
+            login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"
@@ -882,8 +894,8 @@ class CollectorConfig(models.Model):
                 base_url=base_url,
             )
 
-            openai_key = self.spv_openai_api_key or None
-            login_ok = session.auto_login(openai_api_key=openai_key, max_attempts=5)
+            gemini_key = self.spv_gemini_api_key or self.spv_openai_api_key or None
+            login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"
@@ -1113,8 +1125,8 @@ class CollectorConfig(models.Model):
                 base_url=base_url,
             )
 
-            openai_key = self.shinhan_openai_api_key or None
-            login_ok = session.auto_login(openai_api_key=openai_key, max_attempts=5)
+            gemini_key = self.shinhan_gemini_api_key or self.shinhan_openai_api_key or None
+            login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"

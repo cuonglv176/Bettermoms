@@ -13,7 +13,7 @@ Authentication flow:
 
 CAPTCHA solving:
   - Manual: caller provides the text answer
-  - Auto:   uses OpenAI Vision API (gpt-4o-mini) to read the CAPTCHA image
+  - Auto:   uses Google Gemini Vision API to read the CAPTCHA image
 
 This module mirrors the design of grab_session.py to maintain consistency.
 """
@@ -260,12 +260,13 @@ class SpvEInvoiceSession:
         _logger.info("SPV: Login successful for user '%s'", self.username)
         return True
 
-    def auto_login(self, openai_api_key=None, max_attempts=None):
+    def auto_login(self, gemini_api_key=None, openai_api_key=None, max_attempts=None):
         """
-        Attempt fully automatic login by solving CAPTCHA with OpenAI Vision API.
+        Attempt fully automatic login by solving CAPTCHA with Google Gemini Vision API.
 
         Args:
-            openai_api_key (str): Optional OpenAI API key. Falls back to env var.
+            gemini_api_key (str): Optional Google Gemini API key. Falls back to GEMINI_API_KEY env var.
+            openai_api_key (str): Deprecated. Use gemini_api_key instead.
             max_attempts (int): Maximum number of CAPTCHA attempts.
 
         Returns:
@@ -273,11 +274,11 @@ class SpvEInvoiceSession:
         """
         import os
         max_attempts = max_attempts or MAX_LOGIN_ATTEMPTS
-        api_key = openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        api_key = gemini_api_key or openai_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
 
         if not api_key:
             self.last_error = (
-                "OpenAI API key not provided and OPENAI_API_KEY env var not set. "
+                "Google Gemini API key not provided and GEMINI_API_KEY env var not set. "
                 "Cannot auto-solve CAPTCHA."
             )
             _logger.error("SPV: %s", self.last_error)
@@ -298,14 +299,14 @@ class SpvEInvoiceSession:
                     time.sleep(2)
                     continue
 
-                captcha_answer = self._solve_captcha_with_openai(captcha_b64, api_key)
+                captcha_answer = self._solve_captcha_with_gemini(captcha_b64, api_key)
                 if not captcha_answer:
-                    _logger.warning("SPV: OpenAI returned empty CAPTCHA answer (attempt %d)", attempt)
+                    _logger.warning("SPV: Gemini returned empty CAPTCHA answer (attempt %d)", attempt)
                     time.sleep(1)
                     continue
 
                 _logger.info(
-                    "SPV: OpenAI CAPTCHA answer: '%s' (attempt %d)",
+                    "SPV: Gemini CAPTCHA answer: '%s' (attempt %d)",
                     captcha_answer, attempt,
                 )
 
@@ -473,20 +474,27 @@ class SpvEInvoiceSession:
     # Private Helpers
     # =========================================================================
 
-    def _solve_captcha_with_openai(self, captcha_b64, api_key):
+    def _solve_captcha_with_gemini(self, captcha_b64, api_key):
         """
-        Use OpenAI Vision API to read the CAPTCHA text from a base64 image.
+        Use Google Gemini Vision API to read the CAPTCHA text from a base64 image.
 
         Args:
             captcha_b64 (str): Base64-encoded image.
-            api_key (str): OpenAI API key.
+            api_key (str): Google Gemini API key.
 
         Returns:
             str: Recognized CAPTCHA text, or empty string on failure.
         """
         try:
-            import openai
-            client = openai.OpenAI(api_key=api_key)
+            import google.generativeai as genai
+            import PIL.Image
+            import io as _io
+
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+
+            image_bytes = base64.b64decode(captcha_b64)
+            image = PIL.Image.open(_io.BytesIO(image_bytes))
 
             prompt = (
                 "This is a CAPTCHA image from a Vietnamese e-invoice portal. "
@@ -497,36 +505,26 @@ class SpvEInvoiceSession:
                 "Common Vietnamese CAPTCHA formats: 4-6 alphanumeric characters."
             )
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": "data:image/png;base64,%s" % captcha_b64,
-                                    "detail": "high",
-                                },
-                            },
-                        ],
-                    }
-                ],
-                max_tokens=20,
-                temperature=0,
-            )
-
-            answer = response.choices[0].message.content.strip()
+            response = model.generate_content([prompt, image])
+            answer = response.text.strip()
             # Clean: remove spaces and common noise characters
             answer = re.sub(r"[\s\.\,\!\?\-\_]", "", answer)
-            _logger.debug("SPV: OpenAI CAPTCHA response: '%s'", answer)
+            _logger.debug("SPV: Gemini CAPTCHA response: '%s'", answer)
             return answer
 
-        except Exception as e:
-            _logger.warning("SPV: OpenAI CAPTCHA solving failed: %s", e)
+        except ImportError:
+            _logger.warning(
+                "SPV: google-generativeai or Pillow not installed. "
+                "Run: pip install google-generativeai pillow"
+            )
             return ""
+        except Exception as e:
+            _logger.warning("SPV: Gemini CAPTCHA solving failed: %s", e)
+            return ""
+
+    def _solve_captcha_with_openai(self, captcha_b64, api_key):
+        """Deprecated: Use _solve_captcha_with_gemini() instead."""
+        return self._solve_captcha_with_gemini(captcha_b64, api_key)
 
     def _normalize_invoice_response(self, data, page, page_size):
         """

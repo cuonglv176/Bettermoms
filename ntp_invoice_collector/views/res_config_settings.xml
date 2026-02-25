@@ -44,6 +44,20 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane">
+                                <i class="fa fa-magic fa-2x text-success" />
+                            </div>
+                            <div class="o_setting_right_pane">
+                                <span class="o_form_label">Google Gemini CAPTCHA Solver</span>
+                                <div class="text-muted">
+                                    CAPTCHA auto-solving uses Google Gemini Vision API
+                                    (gemini-1.5-flash). Set the <strong>GEMINI_API_KEY</strong>
+                                    environment variable or enter the key in each collector
+                                    configuration. Required for Grab, SPV, and Shinhan portals.
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </xpath>
 

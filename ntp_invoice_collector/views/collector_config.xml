@@ -209,9 +209,9 @@
                             </group>
                             <group>
                                 <field name="grab_use_auto_captcha" />
-                                <field name="grab_openai_api_key" password="True"
+                                <field name="grab_gemini_api_key" password="True"
                                        attrs="{'invisible': [('grab_use_auto_captcha', '=', False)]}"
-                                       placeholder="Leave blank to use OPENAI_API_KEY env var" />
+                                       placeholder="Leave blank to use GEMINI_API_KEY env var" />
                                 <field name="grab_session_valid_until" readonly="1" />
                             </group>
                         </group>
@@ -287,9 +287,9 @@
                             </group>
                             <group>
                                 <field name="spv_use_auto_captcha" />
-                                <field name="spv_openai_api_key" password="True"
+                                <field name="spv_gemini_api_key" password="True"
                                        attrs="{'invisible': [('spv_use_auto_captcha', '=', False)]}"
-                                       placeholder="Để trống để dùng biến môi trường OPENAI_API_KEY" />
+                                       placeholder="Để trống để dùng biến môi trường GEMINI_API_KEY" />
                                 <field name="spv_session_valid_until" readonly="1" />
                             </group>
                         </group>
@@ -364,9 +364,9 @@
                             </group>
                             <group>
                                 <field name="shinhan_use_auto_captcha" />
-                                <field name="shinhan_openai_api_key" password="True"
+                                <field name="shinhan_gemini_api_key" password="True"
                                        attrs="{'invisible': [('shinhan_use_auto_captcha', '=', False)]}"
-                                       placeholder="Để trống để dùng biến môi trường OPENAI_API_KEY" />
+                                       placeholder="Để trống để dùng biến môi trường GEMINI_API_KEY" />
                                 <field name="shinhan_token_valid_until" readonly="1" />
                             </group>
                         </group>

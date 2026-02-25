@@ -8,7 +8,7 @@ Grab e-invoice portal at vn.einvoice.grab.com.
 Authentication flow:
   1. GET /tai-khoan/dang-nhap  → obtain CSRF token + session cookie
   2. GET /Captcha/CaptchaImage → fetch CAPTCHA image (PNG)
-  3. (Optional) Solve CAPTCHA via OpenAI Vision API
+  3. (Optional) Solve CAPTCHA via Google Gemini Vision API
   4. POST /tai-khoan/dang-nhap → submit form (username, password, captcha)
   5. On success, .ASPXAUTH cookie is set → session is authenticated
 
@@ -71,7 +71,7 @@ class GrabEInvoiceSession:
     Usage (auto-login)::
 
         session = GrabEInvoiceSession("user", "pass")
-        if session.auto_login(openai_api_key="sk-..."):
+        if session.auto_login(gemini_api_key="AIza..."):
             result = session.fetch_invoices("01/01/2025", "31/01/2025")
             for inv in result["invoices"]:
                 print(inv)
@@ -120,12 +120,13 @@ class GrabEInvoiceSession:
     # Strategy 1: Auto-Login (CAPTCHA solved by AI)
     # ------------------------------------------------------------------
 
-    def auto_login(self, openai_api_key=None, max_attempts=None):
+    def auto_login(self, gemini_api_key=None, openai_api_key=None, max_attempts=None):
         """
         Fully automated login: load page → fetch CAPTCHA → solve via AI → submit.
 
         Args:
-            openai_api_key (str): OpenAI API key. Falls back to OPENAI_API_KEY env var.
+            gemini_api_key (str): Google Gemini API key. Falls back to GEMINI_API_KEY env var.
+            openai_api_key (str): Deprecated. Use gemini_api_key instead.
             max_attempts (int): Maximum number of CAPTCHA-solve-and-login attempts.
 
         Returns:
@@ -134,11 +135,11 @@ class GrabEInvoiceSession:
         if max_attempts is None:
             max_attempts = MAX_AUTO_LOGIN_ATTEMPTS
 
-        api_key = openai_api_key or os.environ.get("OPENAI_API_KEY", "")
+        api_key = gemini_api_key or openai_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
         if not api_key:
             self._last_error = (
-                "No OpenAI API key provided for auto-CAPTCHA solving. "
-                "Set OPENAI_API_KEY environment variable or provide it in config."
+                "No Google Gemini API key provided for auto-CAPTCHA solving. "
+                "Set GEMINI_API_KEY environment variable or provide it in config."
             )
             _logger.error(self._last_error)
             return False
@@ -172,8 +173,8 @@ class GrabEInvoiceSession:
                     )
                     continue
 
-                # Step 3: Solve CAPTCHA via OpenAI Vision
-                captcha_answer = self._solve_captcha_with_openai(
+                # Step 3: Solve CAPTCHA via Google Gemini Vision
+                captcha_answer = self._solve_captcha_with_gemini(
                     captcha_bytes, api_key,
                 )
                 if not captcha_answer:
@@ -224,65 +225,56 @@ class GrabEInvoiceSession:
         _logger.error(self._last_error)
         return False
 
-    def _solve_captcha_with_openai(self, image_bytes, api_key):
+    def _solve_captcha_with_gemini(self, image_bytes, api_key):
         """
-        Use OpenAI Vision API (gpt-4.1-nano) to read CAPTCHA text.
+        Use Google Gemini Vision API to read CAPTCHA text.
 
         Args:
             image_bytes (bytes): Raw PNG/JPEG image data.
-            api_key (str): OpenAI API key.
+            api_key (str): Google Gemini API key.
 
         Returns:
             str: The CAPTCHA text (typically 4 alphanumeric characters), or "".
         """
         try:
-            from openai import OpenAI
+            import google.generativeai as genai
 
-            client = OpenAI(api_key=api_key)
-            b64_img = base64.b64encode(image_bytes).decode("utf-8")
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
 
-            response = client.chat.completions.create(
-                model="gpt-4.1-nano",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": (
-                                    "Read the CAPTCHA text in this image. "
-                                    "Return ONLY the characters you see, nothing else. "
-                                    "The text is typically 4 alphanumeric characters "
-                                    "(letters and/or digits). Be very precise about "
-                                    "distinguishing similar characters like 0/O, 1/I/l, "
-                                    "5/S, 8/B, 2/Z, 6/G, 9/g."
-                                ),
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": "data:image/png;base64,%s" % b64_img,
-                                },
-                            },
-                        ],
-                    }
-                ],
-                max_tokens=20,
-                temperature=0,
+            import PIL.Image
+            import io as _io
+            image = PIL.Image.open(_io.BytesIO(image_bytes))
+
+            prompt = (
+                "Read the CAPTCHA text in this image. "
+                "Return ONLY the characters you see, nothing else. "
+                "The text is typically 4 alphanumeric characters "
+                "(letters and/or digits). Be very precise about "
+                "distinguishing similar characters like 0/O, 1/I/l, "
+                "5/S, 8/B, 2/Z, 6/G, 9/g."
             )
 
-            answer = response.choices[0].message.content.strip()
+            response = model.generate_content([prompt, image])
+            answer = response.text.strip()
             # Clean: keep only alphanumeric characters
             answer = re.sub(r"[^A-Za-z0-9]", "", answer)
-            _logger.info("OpenAI CAPTCHA answer: '%s'", answer)
+            _logger.info("Gemini CAPTCHA answer: '%s'", answer)
             return answer
 
         except ImportError:
-            _logger.error("openai package not installed. Run: pip install openai")
+            _logger.error(
+                "google-generativeai or Pillow package not installed. "
+                "Run: pip install google-generativeai pillow"
+            )
             return ""
         except Exception as e:
-            _logger.error("OpenAI CAPTCHA solving error: %s", e)
+            _logger.error("Gemini CAPTCHA solving error: %s", e)
             return ""
+
+    def _solve_captcha_with_openai(self, image_bytes, api_key):
+        """Deprecated: Use _solve_captcha_with_gemini() instead."""
+        return self._solve_captcha_with_gemini(image_bytes, api_key)
 
     # ------------------------------------------------------------------
     # Strategy 2: Cookie Restore
