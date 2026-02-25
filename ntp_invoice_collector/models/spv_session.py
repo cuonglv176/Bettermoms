@@ -658,13 +658,15 @@ class SpvEInvoiceSession:
 
     def _solve_captcha_local(self, captcha_b64):
         """
-        Solve image CAPTCHA locally using EasyOCR (deep learning, handles italic/decorative fonts).
-        Falls back to Tesseract if EasyOCR is not available.
-        No API key or internet connection required after initial model download.
+        Solve image CAPTCHA locally using multiple OCR engines in priority order:
+          1. ddddocr  — lightweight CAPTCHA-specialized model, fastest & most accurate
+          2. EasyOCR  — deep learning OCR, handles italic/decorative fonts well
+          3. Tesseract — classical OCR, fallback if above not installed
+
+        No API key or internet connection required after initial install.
 
         Install on server:
-            pip install easyocr pillow scipy numpy
-            # EasyOCR will auto-download ~100MB model on first run
+            pip install ddddocr==1.4.11 easyocr pillow scipy numpy
 
         Args:
             captcha_b64 (str): Base64-encoded CAPTCHA image.
@@ -711,10 +713,40 @@ class SpvEInvoiceSession:
             padded.paste(clean, (20, 20))
             padded_rgb = padded.convert("RGB")
 
-            # --- Try EasyOCR first (handles italic fonts well) ---
+            # Encode preprocessed image to bytes for ddddocr/EasyOCR
+            buf = _io.BytesIO()
+            padded_rgb.save(buf, format="PNG")
+            preprocessed_bytes = buf.getvalue()
+
+            # --- Priority 1: ddddocr (CAPTCHA-specialized, fastest) ---
+            try:
+                import ddddocr
+                if not hasattr(self, "_ddddocr_instance"):
+                    _logger.info("SPV: Initializing ddddocr...")
+                    self._ddddocr_instance = ddddocr.DdddOcr(show_ad=False)
+                # Try on raw image first (ddddocr works well on originals)
+                text = self._ddddocr_instance.classification(img_bytes)
+                text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", text)
+                if text:
+                    _logger.info("SPV: ddddocr answer: '%s'", text)
+                    return text
+                # Fallback to preprocessed if raw returns empty
+                text = self._ddddocr_instance.classification(preprocessed_bytes)
+                text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", text)
+                if text:
+                    _logger.info("SPV: ddddocr (preprocessed) answer: '%s'", text)
+                    return text
+            except ImportError:
+                _logger.warning(
+                    "SPV: ddddocr not installed. Run: pip install ddddocr==1.4.11\n"
+                    "Trying EasyOCR next."
+                )
+            except Exception as e:
+                _logger.warning("SPV: ddddocr failed: %s. Trying EasyOCR.", e)
+
+            # --- Priority 2: EasyOCR (handles italic fonts well) ---
             try:
                 import easyocr
-                # Use module-level reader cache to avoid re-loading model each call
                 if not hasattr(self, "_easyocr_reader"):
                     _logger.info("SPV: Initializing EasyOCR reader (first run may take ~10s)...")
                     self._easyocr_reader = easyocr.Reader(["en"], gpu=False, verbose=False)
@@ -724,7 +756,6 @@ class SpvEInvoiceSession:
                     detail=1,
                 )
                 if results:
-                    # Pick result with highest confidence
                     best = max(results, key=lambda x: x[2])
                     text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", best[1])
                     _logger.info(
@@ -735,10 +766,12 @@ class SpvEInvoiceSession:
             except ImportError:
                 _logger.warning(
                     "SPV: easyocr not installed. Run: pip install easyocr\n"
-                    "Falling back to Tesseract OCR."
+                    "Trying Tesseract next."
                 )
+            except Exception as e:
+                _logger.warning("SPV: EasyOCR failed: %s. Trying Tesseract.", e)
 
-            # --- Fallback: Tesseract OCR ---
+            # --- Priority 3: Tesseract OCR (classical fallback) ---
             try:
                 import pytesseract
                 config = (
@@ -751,8 +784,10 @@ class SpvEInvoiceSession:
                 return text
             except ImportError:
                 _logger.warning(
-                    "SPV: Neither easyocr nor pytesseract is installed.\n"
-                    "Install one: pip install easyocr  OR  apt install tesseract-ocr && pip install pytesseract"
+                    "SPV: No OCR engine available. Install at least one:\n"
+                    "  pip install ddddocr==1.4.11   (recommended)\n"
+                    "  pip install easyocr\n"
+                    "  apt install tesseract-ocr && pip install pytesseract"
                 )
                 return ""
 
