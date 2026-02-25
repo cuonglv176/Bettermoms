@@ -241,9 +241,9 @@ class GrabEInvoiceSession:
                 self._last_error = "Login error (attempt %d): %s" % (attempt, str(e))
                 _logger.error(self._last_error, exc_info=True)
 
-            # Wait before retry (increasing delay)
+            # Wait before retry (increasing delay to avoid rate-limiting)
             if attempt < max_attempts:
-                delay = 2 * attempt
+                delay = 5 * attempt
                 _logger.info("Waiting %ds before retry...", delay)
                 time.sleep(delay)
 
@@ -408,14 +408,14 @@ class GrabEInvoiceSession:
     def _solve_captcha_local(self, image_bytes):
         """
         Solve image CAPTCHA locally using multiple OCR engines in priority order:
-          1. ddddocr  — lightweight CAPTCHA-specialized model, fastest & most accurate
-          2. EasyOCR  — deep learning OCR, handles italic/decorative fonts well
+          1. EasyOCR  — deep learning OCR, best case-sensitivity for italic CAPTCHA
+          2. ddddocr  — lightweight CAPTCHA-specialized model, fast but may confuse case
           3. Tesseract — classical OCR, fallback if above not installed
 
         No API key or internet connection required after initial install.
 
         Install on server:
-            pip install ddddocr==1.4.11 easyocr pillow scipy numpy
+            pip install easyocr ddddocr==1.4.11 pillow scipy numpy
 
         Args:
             image_bytes (bytes): Raw PNG/JPEG image data.
@@ -460,38 +460,12 @@ class GrabEInvoiceSession:
             padded.paste(clean, (20, 20))
             padded_rgb = padded.convert("RGB")
 
-            # Encode preprocessed image to bytes for ddddocr/EasyOCR
+            # Encode preprocessed image to bytes for ddddocr
             buf = _io.BytesIO()
             padded_rgb.save(buf, format="PNG")
             preprocessed_bytes = buf.getvalue()
 
-            # --- Priority 1: ddddocr (CAPTCHA-specialized, fastest) ---
-            try:
-                import ddddocr
-                if not hasattr(self, "_ddddocr_instance"):
-                    _logger.info("Grab: Initializing ddddocr...")
-                    self._ddddocr_instance = ddddocr.DdddOcr(show_ad=False)
-                # Try on raw image first (ddddocr works well on originals)
-                text = self._ddddocr_instance.classification(image_bytes)
-                text = re.sub(r"[^A-Za-z0-9]", "", text)
-                if text:
-                    _logger.info("Grab: ddddocr answer: '%s'", text)
-                    return text
-                # Fallback to preprocessed if raw returns empty
-                text = self._ddddocr_instance.classification(preprocessed_bytes)
-                text = re.sub(r"[^A-Za-z0-9]", "", text)
-                if text:
-                    _logger.info("Grab: ddddocr (preprocessed) answer: '%s'", text)
-                    return text
-            except ImportError:
-                _logger.warning(
-                    "Grab: ddddocr not installed. Run: pip install ddddocr==1.4.11\n"
-                    "Trying EasyOCR next."
-                )
-            except Exception as e:
-                _logger.warning("Grab: ddddocr failed: %s. Trying EasyOCR.", e)
-
-            # --- Priority 2: EasyOCR (handles italic fonts well) ---
+            # --- Priority 1: EasyOCR (best case accuracy for italic CAPTCHA) ---
             try:
                 import easyocr
                 if not hasattr(self, "_easyocr_reader"):
@@ -511,10 +485,36 @@ class GrabEInvoiceSession:
             except ImportError:
                 _logger.warning(
                     "Grab: easyocr not installed. Run: pip install easyocr\n"
+                    "Trying ddddocr next."
+                )
+            except Exception as e:
+                _logger.warning("Grab: EasyOCR failed: %s. Trying ddddocr.", e)
+
+            # --- Priority 2: ddddocr (fast, may confuse case) ---
+            try:
+                import ddddocr
+                if not hasattr(self, "_ddddocr_instance"):
+                    _logger.info("Grab: Initializing ddddocr...")
+                    self._ddddocr_instance = ddddocr.DdddOcr(show_ad=False)
+                # Try on raw image first
+                text = self._ddddocr_instance.classification(image_bytes)
+                text = re.sub(r"[^A-Za-z0-9]", "", text)
+                if text:
+                    _logger.info("Grab: ddddocr answer: '%s'", text)
+                    return text
+                # Fallback to preprocessed if raw returns empty
+                text = self._ddddocr_instance.classification(preprocessed_bytes)
+                text = re.sub(r"[^A-Za-z0-9]", "", text)
+                if text:
+                    _logger.info("Grab: ddddocr (preprocessed) answer: '%s'", text)
+                    return text
+            except ImportError:
+                _logger.warning(
+                    "Grab: ddddocr not installed. Run: pip install ddddocr==1.4.11\n"
                     "Trying Tesseract next."
                 )
             except Exception as e:
-                _logger.warning("Grab: EasyOCR failed: %s. Trying Tesseract.", e)
+                _logger.warning("Grab: ddddocr failed: %s. Trying Tesseract.", e)
 
             # --- Priority 3: Tesseract OCR (classical fallback) ---
             try:
@@ -530,8 +530,8 @@ class GrabEInvoiceSession:
             except ImportError:
                 _logger.warning(
                     "Grab: No OCR engine available. Install at least one:\n"
-                    "  pip install ddddocr==1.4.11   (recommended)\n"
-                    "  pip install easyocr\n"
+                    "  pip install easyocr   (recommended)\n"
+                    "  pip install ddddocr==1.4.11\n"
                     "  apt install tesseract-ocr && pip install pytesseract"
                 )
                 return ""
