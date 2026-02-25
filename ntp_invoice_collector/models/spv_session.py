@@ -262,12 +262,23 @@ class SpvEInvoiceSession:
         _logger.info("SPV: Login successful for user '%s'", self.username)
         return True
 
-    def auto_login(self, captcha_api_key=None, gemini_api_key=None, openai_api_key=None, max_attempts=None):
+    def auto_login(
+        self,
+        captcha_api_key=None,
+        solver_type="2captcha",
+        gemini_api_key=None,
+        openai_api_key=None,
+        max_attempts=None,
+    ):
         """
-        Attempt fully automatic login by solving CAPTCHA with 2captcha.com service.
+        Attempt fully automatic login by solving CAPTCHA.
 
         Args:
-            captcha_api_key (str): 2captcha.com API key. Falls back to CAPTCHA_API_KEY env var.
+            captcha_api_key (str): API key for the selected solver service.
+            solver_type (str): CAPTCHA solver to use. One of:
+                - '2captcha'  : 2captcha.com paid service (default)
+                - 'capsolver' : CapSolver.com paid service
+                - 'local'     : Local Tesseract OCR (free, no API key needed)
             gemini_api_key (str): Deprecated. Use captcha_api_key instead.
             openai_api_key (str): Deprecated. Use captcha_api_key instead.
             max_attempts (int): Maximum number of CAPTCHA attempts.
@@ -277,26 +288,33 @@ class SpvEInvoiceSession:
         """
         import os
         max_attempts = max_attempts or MAX_LOGIN_ATTEMPTS
+        solver_type = (solver_type or "2captcha").lower().strip()
+
+        # For paid services, API key is required
         api_key = (
             captcha_api_key
             or gemini_api_key
             or openai_api_key
             or os.environ.get("CAPTCHA_API_KEY", "")
             or os.environ.get("TWOCAPTCHA_API_KEY", "")
+            or os.environ.get("CAPSOLVER_API_KEY", "")
         )
 
-        if not api_key:
+        if solver_type != "local" and not api_key:
             self.last_error = (
-                "2captcha.com API key not provided and CAPTCHA_API_KEY env var not set. "
-                "Cannot auto-solve CAPTCHA."
+                "API key not provided for solver '%s'. "
+                "Set the API key field or use solver_type='local' for Tesseract OCR."
+                % solver_type
             )
             _logger.error("SPV: %s", self.last_error)
             return False
 
+        _logger.info("SPV: Using CAPTCHA solver: '%s'", solver_type)
+
         for attempt in range(1, max_attempts + 1):
             _logger.info(
-                "SPV: Auto-login attempt %d/%d for user '%s'",
-                attempt, max_attempts, self.username,
+                "SPV: Auto-login attempt %d/%d for user '%s' (solver=%s)",
+                attempt, max_attempts, self.username, solver_type,
             )
 
             try:
@@ -308,15 +326,25 @@ class SpvEInvoiceSession:
                     time.sleep(2)
                     continue
 
-                captcha_answer = self._solve_captcha_with_2captcha(captcha_b64, api_key)
+                # Dispatch to the selected solver
+                if solver_type == "capsolver":
+                    captcha_answer = self._solve_captcha_with_capsolver(captcha_b64, api_key)
+                elif solver_type == "local":
+                    captcha_answer = self._solve_captcha_local(captcha_b64)
+                else:  # default: 2captcha
+                    captcha_answer = self._solve_captcha_with_2captcha(captcha_b64, api_key)
+
                 if not captcha_answer:
-                    _logger.warning("SPV: 2captcha returned empty CAPTCHA answer (attempt %d)", attempt)
+                    _logger.warning(
+                        "SPV: Solver '%s' returned empty answer (attempt %d)",
+                        solver_type, attempt,
+                    )
                     time.sleep(1)
                     continue
 
                 _logger.info(
-                    "SPV: 2captcha CAPTCHA answer: '%s' (attempt %d)",
-                    captcha_answer, attempt,
+                    "SPV: CAPTCHA answer from '%s': '%s' (attempt %d)",
+                    solver_type, captcha_answer, attempt,
                 )
 
                 if self.login(captcha_answer):
@@ -548,6 +576,157 @@ class SpvEInvoiceSession:
 
         except Exception as e:
             _logger.warning("SPV: 2captcha CAPTCHA solving failed: %s", e)
+            return ""
+
+    def _solve_captcha_with_capsolver(self, captcha_b64, api_key):
+        """
+        Solve image CAPTCHA using CapSolver.com paid service.
+        Uses only the built-in `requests` library — no extra SDK needed.
+
+        Flow:
+          1. POST createTask to https://api.capsolver.com/createTask
+          2. Poll getTaskResult every 3s until solved (max 60s)
+
+        Args:
+            captcha_b64 (str): Base64-encoded CAPTCHA image.
+            api_key (str): CapSolver.com API key.
+
+        Returns:
+            str: Recognized CAPTCHA text, or empty string on failure.
+        """
+        try:
+            import time as _time
+
+            # Step 1: Create task
+            create_resp = requests.post(
+                "https://api.capsolver.com/createTask",
+                json={
+                    "clientKey": api_key,
+                    "task": {
+                        "type": "ImageToTextTask",
+                        "body": captcha_b64,
+                        "module": "common",
+                        "score": 0.8,
+                        "case": True,
+                    },
+                },
+                timeout=30,
+            )
+            create_data = create_resp.json()
+            if create_data.get("errorId", 0) != 0:
+                _logger.warning(
+                    "SPV: CapSolver createTask failed: %s - %s",
+                    create_data.get("errorCode"),
+                    create_data.get("errorDescription"),
+                )
+                return ""
+
+            task_id = create_data.get("taskId")
+            _logger.info("SPV: CapSolver task created, id=%s", task_id)
+
+            # Step 2: Poll for result (max 60s)
+            for _ in range(20):
+                _time.sleep(3)
+                result_resp = requests.post(
+                    "https://api.capsolver.com/getTaskResult",
+                    json={"clientKey": api_key, "taskId": task_id},
+                    timeout=30,
+                )
+                result_data = result_resp.json()
+                if result_data.get("errorId", 0) != 0:
+                    _logger.warning(
+                        "SPV: CapSolver getTaskResult error: %s",
+                        result_data.get("errorDescription"),
+                    )
+                    return ""
+                status = result_data.get("status")
+                if status == "ready":
+                    answer = result_data.get("solution", {}).get("text", "").strip()
+                    answer = re.sub(r"[\s\.\,\!\?\-\_]", "", answer)
+                    _logger.info("SPV: CapSolver answer: '%s'", answer)
+                    return answer
+                if status == "failed":
+                    _logger.warning("SPV: CapSolver task failed")
+                    return ""
+
+            _logger.warning("SPV: CapSolver timed out waiting for answer")
+            return ""
+
+        except Exception as e:
+            _logger.warning("SPV: CapSolver CAPTCHA solving failed: %s", e)
+            return ""
+
+    def _solve_captcha_local(self, captcha_b64):
+        """
+        Solve image CAPTCHA locally using PIL image preprocessing + Tesseract OCR.
+        No API key or internet connection required.
+        Requires: tesseract-ocr system package + pytesseract Python package.
+
+        Install on server:
+            apt-get install tesseract-ocr
+            pip install pytesseract pillow
+
+        Args:
+            captcha_b64 (str): Base64-encoded CAPTCHA image.
+
+        Returns:
+            str: Recognized CAPTCHA text, or empty string on failure.
+        """
+        try:
+            import io as _io
+            from PIL import Image, ImageFilter, ImageEnhance, ImageOps
+
+            try:
+                import pytesseract
+            except ImportError:
+                _logger.warning(
+                    "SPV: pytesseract not installed. Run: pip install pytesseract"
+                )
+                return ""
+
+            # Decode base64 image
+            img_bytes = base64.b64decode(captcha_b64)
+            img = Image.open(_io.BytesIO(img_bytes)).convert("RGB")
+
+            # Preprocessing pipeline optimized for colored-text-on-white CAPTCHA:
+            # 1. Convert to grayscale
+            gray = img.convert("L")
+
+            # 2. Boost contrast to separate text from background
+            enhanced = ImageEnhance.Contrast(gray).enhance(3.0)
+
+            # 3. Apply binary threshold (text=black, background=white)
+            thresh = enhanced.point(lambda x: 0 if x < 160 else 255, "1")
+
+            # 4. Scale up 4x for better OCR accuracy
+            big = thresh.resize(
+                (img.width * 4, img.height * 4), Image.NEAREST
+            )
+
+            # 5. Run Tesseract with single-word mode, alphanumeric only
+            config = (
+                "--psm 8 --oem 3 "
+                "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+            )
+            text = pytesseract.image_to_string(big, config=config).strip()
+            # Clean up extra whitespace/punctuation
+            text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", text)
+
+            if not text:
+                # Fallback: try inverted image
+                inv = ImageOps.invert(gray)
+                big_inv = inv.resize((img.width * 3, img.height * 3), Image.LANCZOS)
+                text = pytesseract.image_to_string(
+                    big_inv,
+                    config="--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+                ).strip()
+                text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", text)
+
+            _logger.info("SPV: Local OCR answer: '%s'", text)
+            return text
+
+        except Exception as e:
+            _logger.warning("SPV: Local OCR CAPTCHA solving failed: %s", e)
             return ""
 
     def _solve_captcha_with_gemini(self, captcha_b64, api_key):

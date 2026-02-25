@@ -120,22 +120,39 @@ class CollectorConfig(models.Model):
             "Requires 2captcha API Key field or CAPTCHA_API_KEY environment variable."
         ),
     )
-    spv_captcha_api_key = fields.Char(
-        "SPV 2captcha API Key",
+    spv_captcha_solver = fields.Selection(
+        [
+            ("2captcha", "2captcha.com (Paid)"),
+            ("capsolver", "CapSolver.com (Paid)"),
+            ("local", "Local OCR / Tesseract (Free)"),
+        ],
+        string="SPV CAPTCHA Solver",
+        default="2captcha",
         help=(
-            "2captcha.com API key for auto-solving SPV CAPTCHA. "
-            "Get your key at https://2captcha.com. "
-            "If blank, uses the CAPTCHA_API_KEY environment variable."
+            "Select the CAPTCHA solving method for SPV Tracuuhoadon:\n"
+            "- 2captcha.com: Paid service (~$1/1000), high accuracy, ~10-20s.\n"
+            "- CapSolver.com: Paid service (~$0.8/1000), fast, ~3-10s.\n"
+            "- Local OCR: Free, uses Tesseract on server. "
+            "Requires: apt install tesseract-ocr && pip install pytesseract"
+        ),
+    )
+    spv_captcha_api_key = fields.Char(
+        "SPV CAPTCHA API Key",
+        help=(
+            "API key for the selected CAPTCHA solver service (2captcha or CapSolver). "
+            "Not required when using Local OCR. "
+            "2captcha: https://2captcha.com | CapSolver: https://capsolver.com. "
+            "If blank, uses CAPTCHA_API_KEY or CAPSOLVER_API_KEY environment variable."
         ),
     )
     # Deprecated fields kept for backward compatibility
     spv_gemini_api_key = fields.Char(
         "SPV Gemini API Key (Deprecated)",
-        help="Deprecated: Use SPV 2captcha API Key instead.",
+        help="Deprecated: Use SPV CAPTCHA API Key instead.",
     )
     spv_openai_api_key = fields.Char(
         "SPV OpenAI API Key (Deprecated)",
-        help="Deprecated: Use SPV 2captcha API Key instead.",
+        help="Deprecated: Use SPV CAPTCHA API Key instead.",
     )
 
     # ---- Shinhan-specific fields ----
@@ -180,22 +197,39 @@ class CollectorConfig(models.Model):
             "Requires 2captcha API Key field or CAPTCHA_API_KEY environment variable."
         ),
     )
-    shinhan_captcha_api_key = fields.Char(
-        "Shinhan 2captcha API Key",
+    shinhan_captcha_solver = fields.Selection(
+        [
+            ("2captcha", "2captcha.com (Paid)"),
+            ("capsolver", "CapSolver.com (Paid)"),
+            ("local", "Local OCR / Tesseract (Free)"),
+        ],
+        string="Shinhan CAPTCHA Solver",
+        default="2captcha",
         help=(
-            "2captcha.com API key for auto-solving Shinhan CAPTCHA. "
-            "Get your key at https://2captcha.com. "
-            "If blank, uses the CAPTCHA_API_KEY environment variable."
+            "Select the CAPTCHA solving method for Shinhan eInvoice:\n"
+            "- 2captcha.com: Paid service (~$1/1000), high accuracy, ~10-20s.\n"
+            "- CapSolver.com: Paid service (~$0.8/1000), fast, ~3-10s.\n"
+            "- Local OCR: Free, uses Tesseract on server. "
+            "Requires: apt install tesseract-ocr && pip install pytesseract"
+        ),
+    )
+    shinhan_captcha_api_key = fields.Char(
+        "Shinhan CAPTCHA API Key",
+        help=(
+            "API key for the selected CAPTCHA solver service (2captcha or CapSolver). "
+            "Not required when using Local OCR. "
+            "2captcha: https://2captcha.com | CapSolver: https://capsolver.com. "
+            "If blank, uses CAPTCHA_API_KEY or CAPSOLVER_API_KEY environment variable."
         ),
     )
     # Deprecated fields kept for backward compatibility
     shinhan_gemini_api_key = fields.Char(
         "Shinhan Gemini API Key (Deprecated)",
-        help="Deprecated: Use Shinhan 2captcha API Key instead.",
+        help="Deprecated: Use Shinhan CAPTCHA API Key instead.",
     )
     shinhan_openai_api_key = fields.Char(
         "Shinhan OpenAI API Key (Deprecated)",
-        help="Deprecated: Use Shinhan 2captcha API Key instead.",
+        help="Deprecated: Use Shinhan CAPTCHA API Key instead.",
     )
 
     # ---- Grab-specific fields ----
@@ -240,22 +274,39 @@ class CollectorConfig(models.Model):
             "Requires 2captcha API Key field or CAPTCHA_API_KEY environment variable."
         ),
     )
-    grab_captcha_api_key = fields.Char(
-        "2captcha API Key",
+    grab_captcha_solver = fields.Selection(
+        [
+            ("2captcha", "2captcha.com (Paid)"),
+            ("capsolver", "CapSolver.com (Paid)"),
+            ("local", "Local OCR / Tesseract (Free)"),
+        ],
+        string="Grab CAPTCHA Solver",
+        default="2captcha",
         help=(
-            "2captcha.com API key for auto-solving Grab CAPTCHA. "
-            "Get your key at https://2captcha.com. "
-            "If blank, uses the CAPTCHA_API_KEY environment variable."
+            "Select the CAPTCHA solving method for Grab eInvoice:\n"
+            "- 2captcha.com: Paid service (~$1/1000), high accuracy, ~10-20s.\n"
+            "- CapSolver.com: Paid service (~$0.8/1000), fast, ~3-10s.\n"
+            "- Local OCR: Free, uses Tesseract on server. "
+            "Requires: apt install tesseract-ocr && pip install pytesseract"
+        ),
+    )
+    grab_captcha_api_key = fields.Char(
+        "Grab CAPTCHA API Key",
+        help=(
+            "API key for the selected CAPTCHA solver service (2captcha or CapSolver). "
+            "Not required when using Local OCR. "
+            "2captcha: https://2captcha.com | CapSolver: https://capsolver.com. "
+            "If blank, uses CAPTCHA_API_KEY or CAPSOLVER_API_KEY environment variable."
         ),
     )
     # Deprecated fields kept for backward compatibility
     grab_gemini_api_key = fields.Char(
         "Gemini API Key (Deprecated)",
-        help="Deprecated: Use 2captcha API Key instead.",
+        help="Deprecated: Use Grab CAPTCHA API Key instead.",
     )
     grab_openai_api_key = fields.Char(
         "OpenAI API Key (Deprecated)",
-        help="Deprecated: Use 2captcha API Key instead.",
+        help="Deprecated: Use Grab CAPTCHA API Key instead.",
     )
 
     # ---- Common fields ----
@@ -530,24 +581,33 @@ class CollectorConfig(models.Model):
                 base_url=base_url,
             )
 
-            # Try auto-login with CAPTCHA solving via 2captcha.com
+            # Try auto-login with CAPTCHA solving via selected solver
             import os
+            solver_type = self.grab_captcha_solver or "2captcha"
             captcha_key = (
                 self.grab_captcha_api_key
                 or self.grab_gemini_api_key
                 or self.grab_openai_api_key
                 or os.environ.get("CAPTCHA_API_KEY", "")
                 or os.environ.get("TWOCAPTCHA_API_KEY", "")
+                or os.environ.get("CAPSOLVER_API_KEY", "")
                 or None
             )
-            if not captcha_key:
+            if solver_type != "local" and not captcha_key:
                 raise UserError(
-                    "2captcha API Key is not configured.\n\n"
-                    "Please enter the key in the '2captcha API Key' field "
+                    "CAPTCHA API Key is not configured for solver '%s'.\n\n"
+                    "Please enter the key in the 'Grab CAPTCHA API Key' field "
                     "or set the CAPTCHA_API_KEY environment variable on the server.\n"
-                    "Get your API key at: https://2captcha.com"
+                    "- 2captcha.com: https://2captcha.com\n"
+                    "- CapSolver.com: https://capsolver.com\n"
+                    "Or switch to 'Local OCR / Tesseract (Free)' solver (no API key needed)."
+                    % solver_type
                 )
-            login_ok = session.auto_login(captcha_api_key=captcha_key, max_attempts=5)
+            login_ok = session.auto_login(
+                captcha_api_key=captcha_key,
+                solver_type=solver_type,
+                max_attempts=5,
+            )
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"
@@ -928,22 +988,31 @@ class CollectorConfig(models.Model):
             )
 
             import os
+            solver_type = self.spv_captcha_solver or "2captcha"
             captcha_key = (
                 self.spv_captcha_api_key
                 or self.spv_gemini_api_key
                 or self.spv_openai_api_key
                 or os.environ.get("CAPTCHA_API_KEY", "")
                 or os.environ.get("TWOCAPTCHA_API_KEY", "")
+                or os.environ.get("CAPSOLVER_API_KEY", "")
                 or None
             )
-            if not captcha_key:
+            if solver_type != "local" and not captcha_key:
                 raise UserError(
-                    "2captcha API Key is not configured.\n\n"
-                    "Please enter the key in the 'SPV 2captcha API Key' field "
+                    "CAPTCHA API Key is not configured for solver '%s'.\n\n"
+                    "Please enter the key in the 'SPV CAPTCHA API Key' field "
                     "or set the CAPTCHA_API_KEY environment variable on the server.\n"
-                    "Get your API key at: https://2captcha.com"
+                    "- 2captcha.com: https://2captcha.com\n"
+                    "- CapSolver.com: https://capsolver.com\n"
+                    "Or switch to 'Local OCR / Tesseract (Free)' solver (no API key needed)."
+                    % solver_type
                 )
-            login_ok = session.auto_login(captcha_api_key=captcha_key, max_attempts=5)
+            login_ok = session.auto_login(
+                captcha_api_key=captcha_key,
+                solver_type=solver_type,
+                max_attempts=5,
+            )
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"
@@ -1174,22 +1243,31 @@ class CollectorConfig(models.Model):
             )
 
             import os
+            solver_type = self.shinhan_captcha_solver or "2captcha"
             captcha_key = (
                 self.shinhan_captcha_api_key
                 or self.shinhan_gemini_api_key
                 or self.shinhan_openai_api_key
                 or os.environ.get("CAPTCHA_API_KEY", "")
                 or os.environ.get("TWOCAPTCHA_API_KEY", "")
+                or os.environ.get("CAPSOLVER_API_KEY", "")
                 or None
             )
-            if not captcha_key:
+            if solver_type != "local" and not captcha_key:
                 raise UserError(
-                    "2captcha API Key is not configured.\n\n"
-                    "Please enter the key in the 'Shinhan 2captcha API Key' field "
+                    "CAPTCHA API Key is not configured for solver '%s'.\n\n"
+                    "Please enter the key in the 'Shinhan CAPTCHA API Key' field "
                     "or set the CAPTCHA_API_KEY environment variable on the server.\n"
-                    "Get your API key at: https://2captcha.com"
+                    "- 2captcha.com: https://2captcha.com\n"
+                    "- CapSolver.com: https://capsolver.com\n"
+                    "Or switch to 'Local OCR / Tesseract (Free)' solver (no API key needed)."
+                    % solver_type
                 )
-            login_ok = session.auto_login(captcha_api_key=captcha_key, max_attempts=5)
+            login_ok = session.auto_login(
+                captcha_api_key=captcha_key,
+                solver_type=solver_type,
+                max_attempts=5,
+            )
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"

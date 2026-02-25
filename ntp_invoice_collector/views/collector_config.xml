@@ -209,39 +209,60 @@
                             </group>
                             <group>
                                 <field name="grab_use_auto_captcha" />
-                                <field name="grab_captcha_api_key" password="True"
+                                <field name="grab_captcha_solver"
                                        attrs="{'invisible': [('grab_use_auto_captcha', '=', False)]}"
-                                       placeholder="Nhập 2captcha API Key (bắt buộc cho Auto Fetch)" />
+                                       widget="selection" />
+                                <field name="grab_captcha_api_key" password="True"
+                                       attrs="{'invisible': ['|', ('grab_use_auto_captcha', '=', False), ('grab_captcha_solver', '=', 'local')]}"
+                                       placeholder="Nhập API Key (2captcha hoặc CapSolver)" />
                                 <field name="grab_session_valid_until" readonly="1" />
                             </group>
                         </group>
 
-                        <!-- Auto CAPTCHA info banner - Grab (no key) -->
+                        <!-- Auto CAPTCHA info banner - Grab (local solver) -->
+                        <div class="alert alert-info"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'grab'),
+                                 ('grab_use_auto_captcha', '=', False),
+                                 ('grab_captcha_solver', '!=', 'local'),
+                             ]}">
+                            <i class="fa fa-desktop" /> <strong>Local OCR / Tesseract (Miễn Phí)</strong>
+                            <p class="mb-0">
+                                Đang dùng Tesseract OCR trên server — không cần API key, không tốn phí.
+                                Cần cài: <code>apt install tesseract-ocr &amp;&amp; pip install pytesseract</code>
+                            </p>
+                        </div>
+                        <!-- Auto CAPTCHA info banner - Grab (no key, paid solver) -->
                         <div class="alert alert-warning"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'grab'),
                                  ('grab_use_auto_captcha', '=', False),
+                                 ('grab_captcha_solver', '=', 'local'),
                                  ('grab_captcha_api_key', '!=', False),
                              ]}">
-                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập 2captcha API Key</strong>
+                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập CAPTCHA API Key</strong>
                             <p class="mb-0">
-                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>2captcha API Key</strong>
-                                vào ô bên trên. Lấy key tại:
-                                <a href="https://2captcha.com" target="_blank">2captcha.com</a>
+                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập API Key vào ô bên trên.
+                                Lấy key tại:
+                                <a href="https://2captcha.com" target="_blank">2captcha.com</a> hoặc
+                                <a href="https://capsolver.com" target="_blank">capsolver.com</a>.
+                                Hoặc chọn <strong>Local OCR / Tesseract (Free)</strong> để dùng miễn phí.
                             </p>
                         </div>
-                        <!-- Auto CAPTCHA info banner - Grab (key set) -->
+                        <!-- Auto CAPTCHA info banner - Grab (key set, paid solver) -->
                         <div class="alert alert-success"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'grab'),
                                  ('grab_use_auto_captcha', '=', False),
+                                 ('grab_captcha_solver', '=', 'local'),
                                  ('grab_captcha_api_key', '=', False),
                              ]}">
-                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (2captcha.com)</strong>
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật</strong>
                             <p class="mb-0">
-                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng 2captcha.com,
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA,
                                 đăng nhập và lấy hóa đơn từ Grab.
                             </p>
                         </div>
@@ -303,39 +324,60 @@
                             </group>
                             <group>
                                 <field name="spv_use_auto_captcha" />
-                                <field name="spv_captcha_api_key" password="True"
+                                <field name="spv_captcha_solver"
                                        attrs="{'invisible': [('spv_use_auto_captcha', '=', False)]}"
-                                       placeholder="Nhập 2captcha API Key (bắt buộc cho Auto Fetch)" />
+                                       widget="selection" />
+                                <field name="spv_captcha_api_key" password="True"
+                                       attrs="{'invisible': ['|', ('spv_use_auto_captcha', '=', False), ('spv_captcha_solver', '=', 'local')]}"
+                                       placeholder="Nhập API Key (2captcha hoặc CapSolver)" />
                                 <field name="spv_session_valid_until" readonly="1" />
                             </group>
                         </group>
 
-                        <!-- Auto CAPTCHA info banner - SPV (no key) -->
+                        <!-- Auto CAPTCHA info banner - SPV (local solver) -->
+                        <div class="alert alert-info"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'spv'),
+                                 ('spv_use_auto_captcha', '=', False),
+                                 ('spv_captcha_solver', '!=', 'local'),
+                             ]}">
+                            <i class="fa fa-desktop" /> <strong>Local OCR / Tesseract (Miễn Phí)</strong>
+                            <p class="mb-0">
+                                Đang dùng Tesseract OCR trên server — không cần API key, không tốn phí.
+                                Cần cài: <code>apt install tesseract-ocr &amp;&amp; pip install pytesseract</code>
+                            </p>
+                        </div>
+                        <!-- Auto CAPTCHA info banner - SPV (no key, paid solver) -->
                         <div class="alert alert-warning"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'spv'),
                                  ('spv_use_auto_captcha', '=', False),
+                                 ('spv_captcha_solver', '=', 'local'),
                                  ('spv_captcha_api_key', '!=', False),
                              ]}">
-                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập 2captcha API Key</strong>
+                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập CAPTCHA API Key</strong>
                             <p class="mb-0">
-                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>2captcha API Key</strong>
-                                vào ô bên trên. Lấy key tại:
-                                <a href="https://2captcha.com" target="_blank">2captcha.com</a>
+                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập API Key vào ô bên trên.
+                                Lấy key tại:
+                                <a href="https://2captcha.com" target="_blank">2captcha.com</a> hoặc
+                                <a href="https://capsolver.com" target="_blank">capsolver.com</a>.
+                                Hoặc chọn <strong>Local OCR / Tesseract (Free)</strong> để dùng miễn phí.
                             </p>
                         </div>
-                        <!-- Auto CAPTCHA info banner - SPV (key set) -->
+                        <!-- Auto CAPTCHA info banner - SPV (key set, paid solver) -->
                         <div class="alert alert-success"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'spv'),
                                  ('spv_use_auto_captcha', '=', False),
+                                 ('spv_captcha_solver', '=', 'local'),
                                  ('spv_captcha_api_key', '=', False),
                              ]}">
-                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (2captcha.com)</strong>
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật</strong>
                             <p class="mb-0">
-                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng 2captcha.com,
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA,
                                 đăng nhập và lấy hóa đơn từ SPV Tracuuhoadon.
                             </p>
                         </div>
@@ -396,39 +438,60 @@
                             </group>
                             <group>
                                 <field name="shinhan_use_auto_captcha" />
-                                <field name="shinhan_captcha_api_key" password="True"
+                                <field name="shinhan_captcha_solver"
                                        attrs="{'invisible': [('shinhan_use_auto_captcha', '=', False)]}"
-                                       placeholder="Nhập 2captcha API Key (bắt buộc cho Auto Fetch)" />
+                                       widget="selection" />
+                                <field name="shinhan_captcha_api_key" password="True"
+                                       attrs="{'invisible': ['|', ('shinhan_use_auto_captcha', '=', False), ('shinhan_captcha_solver', '=', 'local')]}"
+                                       placeholder="Nhập API Key (2captcha hoặc CapSolver)" />
                                 <field name="shinhan_token_valid_until" readonly="1" />
                             </group>
                         </group>
 
-                        <!-- Auto CAPTCHA info banner - Shinhan (no key) -->
+                        <!-- Auto CAPTCHA info banner - Shinhan (local solver) -->
+                        <div class="alert alert-info"
+                             attrs="{'invisible': [
+                                 '|',
+                                 ('provider', '!=', 'shinhan'),
+                                 ('shinhan_use_auto_captcha', '=', False),
+                                 ('shinhan_captcha_solver', '!=', 'local'),
+                             ]}">
+                            <i class="fa fa-desktop" /> <strong>Local OCR / Tesseract (Miễn Phí)</strong>
+                            <p class="mb-0">
+                                Đang dùng Tesseract OCR trên server — không cần API key, không tốn phí.
+                                Cần cài: <code>apt install tesseract-ocr &amp;&amp; pip install pytesseract</code>
+                            </p>
+                        </div>
+                        <!-- Auto CAPTCHA info banner - Shinhan (no key, paid solver) -->
                         <div class="alert alert-warning"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'shinhan'),
                                  ('shinhan_use_auto_captcha', '=', False),
+                                 ('shinhan_captcha_solver', '=', 'local'),
                                  ('shinhan_captcha_api_key', '!=', False),
                              ]}">
-                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập 2captcha API Key</strong>
+                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập CAPTCHA API Key</strong>
                             <p class="mb-0">
-                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>2captcha API Key</strong>
-                                vào ô bên trên. Lấy key tại:
-                                <a href="https://2captcha.com" target="_blank">2captcha.com</a>
+                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập API Key vào ô bên trên.
+                                Lấy key tại:
+                                <a href="https://2captcha.com" target="_blank">2captcha.com</a> hoặc
+                                <a href="https://capsolver.com" target="_blank">capsolver.com</a>.
+                                Hoặc chọn <strong>Local OCR / Tesseract (Free)</strong> để dùng miễn phí.
                             </p>
                         </div>
-                        <!-- Auto CAPTCHA info banner - Shinhan (key set) -->
+                        <!-- Auto CAPTCHA info banner - Shinhan (key set, paid solver) -->
                         <div class="alert alert-success"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'shinhan'),
                                  ('shinhan_use_auto_captcha', '=', False),
+                                 ('shinhan_captcha_solver', '=', 'local'),
                                  ('shinhan_captcha_api_key', '=', False),
                              ]}">
-                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (2captcha.com)</strong>
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật</strong>
                             <p class="mb-0">
-                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng 2captcha.com,
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA,
                                 đăng nhập bằng JWT và lấy hóa đơn từ Shinhan Bank.
                             </p>
                         </div>

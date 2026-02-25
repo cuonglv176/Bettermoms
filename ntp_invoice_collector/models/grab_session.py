@@ -120,37 +120,53 @@ class GrabEInvoiceSession:
     # Strategy 1: Auto-Login (CAPTCHA solved by AI)
     # ------------------------------------------------------------------
 
-    def auto_login(self, captcha_api_key=None, gemini_api_key=None, openai_api_key=None, max_attempts=None):
+    def auto_login(
+        self,
+        captcha_api_key=None,
+        solver_type="2captcha",
+        gemini_api_key=None,
+        openai_api_key=None,
+        max_attempts=None,
+    ):
         """
-        Fully automated login: load page → fetch CAPTCHA → solve via 2captcha.com → submit.
+        Fully automated login: load page → fetch CAPTCHA → solve → submit.
+
         Args:
-            captcha_api_key (str): 2captcha.com API key. Falls back to CAPTCHA_API_KEY env var.
+            captcha_api_key (str): API key for the selected solver service.
+            solver_type (str): CAPTCHA solver to use. One of:
+                - '2captcha'  : 2captcha.com paid service (default)
+                - 'capsolver' : CapSolver.com paid service
+                - 'local'     : Local Tesseract OCR (free, no API key needed)
             gemini_api_key (str): Deprecated. Use captcha_api_key instead.
             openai_api_key (str): Deprecated. Use captcha_api_key instead.
             max_attempts (int): Maximum number of CAPTCHA-solve-and-login attempts.
+
         Returns:
             bool: True if login succeeded.
         """
         if max_attempts is None:
             max_attempts = MAX_AUTO_LOGIN_ATTEMPTS
+        solver_type = (solver_type or "2captcha").lower().strip()
         api_key = (
             captcha_api_key
             or gemini_api_key
             or openai_api_key
             or os.environ.get("CAPTCHA_API_KEY", "")
             or os.environ.get("TWOCAPTCHA_API_KEY", "")
+            or os.environ.get("CAPSOLVER_API_KEY", "")
         )
-        if not api_key:
+        if solver_type != "local" and not api_key:
             self._last_error = (
-                "No 2captcha.com API key provided for auto-CAPTCHA solving. "
-                "Set CAPTCHA_API_KEY environment variable or provide it in Collector Config."
+                "No API key provided for solver '%s'. "
+                "Set the API key field or use solver_type='local' for Tesseract OCR."
+                % solver_type
             )
             _logger.error(self._last_error)
             return False
 
         _logger.info(
-            "Starting auto-login for user: %s (max %d attempts)",
-            self.username, max_attempts,
+            "Grab: Starting auto-login for user: %s (solver=%s, max %d attempts)",
+            self.username, solver_type, max_attempts,
         )
 
         for attempt in range(1, max_attempts + 1):
@@ -171,31 +187,40 @@ class GrabEInvoiceSession:
                 captcha_bytes = self.get_captcha_image()
                 if not captcha_bytes:
                     _logger.warning(
-                        "Attempt %d: Failed to fetch CAPTCHA image. "
-                        "Last error: %s",
+                        "Attempt %d: Failed to fetch CAPTCHA image. Last error: %s",
                         attempt, self._last_error,
                     )
                     continue
 
-                # Step 3: Solve CAPTCHA via 2captcha.com
-                captcha_answer = self._solve_captcha_with_2captcha(
-                    captcha_bytes, api_key,
-                )
+                # Step 3: Solve CAPTCHA via selected solver
+                if solver_type == "capsolver":
+                    captcha_answer = self._solve_captcha_with_capsolver(
+                        captcha_bytes, api_key
+                    )
+                elif solver_type == "local":
+                    captcha_answer = self._solve_captcha_local(captcha_bytes)
+                else:  # default: 2captcha
+                    captcha_answer = self._solve_captcha_with_2captcha(
+                        captcha_bytes, api_key
+                    )
+
                 if not captcha_answer:
                     _logger.warning(
-                        "Attempt %d: CAPTCHA solving returned empty", attempt,
+                        "Attempt %d: Solver '%s' returned empty answer",
+                        attempt, solver_type,
                     )
                     continue
 
                 _logger.info(
-                    "Attempt %d: CAPTCHA solved as '%s'", attempt, captcha_answer,
+                    "Attempt %d: CAPTCHA solved by '%s' as '%s'",
+                    attempt, solver_type, captcha_answer,
                 )
 
                 # Step 4: Submit login
                 login_result = self.login(captcha_answer)
                 if login_result:
                     _logger.info(
-                        "Auto-login successful on attempt %d for user: %s",
+                        "Grab: Auto-login successful on attempt %d for user: %s",
                         attempt, self.username,
                     )
                     return True
@@ -203,13 +228,13 @@ class GrabEInvoiceSession:
                 # Check if account is locked — no point retrying
                 if self._account_locked:
                     _logger.error(
-                        "Account is LOCKED. Stopping auto-login. Error: %s",
+                        "Grab: Account is LOCKED. Stopping auto-login. Error: %s",
                         self._last_error,
                     )
                     return False
 
                 _logger.warning(
-                    "Login attempt %d failed: %s", attempt, self._last_error,
+                    "Grab: Login attempt %d failed: %s", attempt, self._last_error,
                 )
 
             except Exception as e:
@@ -297,6 +322,148 @@ class GrabEInvoiceSession:
 
         except Exception as e:
             _logger.error("Grab: 2captcha CAPTCHA solving error: %s", e)
+            return ""
+
+    def _solve_captcha_with_capsolver(self, image_bytes, api_key):
+        """
+        Solve image CAPTCHA using CapSolver.com paid service.
+        Uses only the built-in `requests` library — no extra SDK needed.
+
+        Flow:
+          1. POST createTask to https://api.capsolver.com/createTask
+          2. Poll getTaskResult every 3s until solved (max 60s)
+
+        Args:
+            image_bytes (bytes): Raw PNG/JPEG image data.
+            api_key (str): CapSolver.com API key.
+
+        Returns:
+            str: The CAPTCHA text, or empty string on failure.
+        """
+        try:
+            import base64 as _b64
+            import time as _time
+
+            img_b64 = _b64.b64encode(image_bytes).decode("utf-8")
+
+            # Step 1: Create task
+            create_resp = requests.post(
+                "https://api.capsolver.com/createTask",
+                json={
+                    "clientKey": api_key,
+                    "task": {
+                        "type": "ImageToTextTask",
+                        "body": img_b64,
+                        "module": "common",
+                        "score": 0.8,
+                        "case": True,
+                    },
+                },
+                timeout=30,
+            )
+            create_data = create_resp.json()
+            if create_data.get("errorId", 0) != 0:
+                _logger.warning(
+                    "Grab: CapSolver createTask failed: %s - %s",
+                    create_data.get("errorCode"),
+                    create_data.get("errorDescription"),
+                )
+                return ""
+
+            task_id = create_data.get("taskId")
+            _logger.info("Grab: CapSolver task created, id=%s", task_id)
+
+            # Step 2: Poll for result (max 60s)
+            for _ in range(20):
+                _time.sleep(3)
+                result_resp = requests.post(
+                    "https://api.capsolver.com/getTaskResult",
+                    json={"clientKey": api_key, "taskId": task_id},
+                    timeout=30,
+                )
+                result_data = result_resp.json()
+                if result_data.get("errorId", 0) != 0:
+                    _logger.warning(
+                        "Grab: CapSolver getTaskResult error: %s",
+                        result_data.get("errorDescription"),
+                    )
+                    return ""
+                status = result_data.get("status")
+                if status == "ready":
+                    answer = result_data.get("solution", {}).get("text", "").strip()
+                    answer = re.sub(r"[^A-Za-z0-9]", "", answer)
+                    _logger.info("Grab: CapSolver answer: '%s'", answer)
+                    return answer
+                if status == "failed":
+                    _logger.warning("Grab: CapSolver task failed")
+                    return ""
+
+            _logger.warning("Grab: CapSolver timed out waiting for answer")
+            return ""
+
+        except Exception as e:
+            _logger.error("Grab: CapSolver CAPTCHA solving error: %s", e)
+            return ""
+
+    def _solve_captcha_local(self, image_bytes):
+        """
+        Solve image CAPTCHA locally using PIL image preprocessing + Tesseract OCR.
+        No API key or internet connection required.
+        Requires: tesseract-ocr system package + pytesseract Python package.
+
+        Install on server:
+            apt-get install tesseract-ocr
+            pip install pytesseract pillow
+
+        Args:
+            image_bytes (bytes): Raw PNG/JPEG image data.
+
+        Returns:
+            str: The CAPTCHA text, or empty string on failure.
+        """
+        try:
+            import io as _io
+            import base64 as _b64
+            from PIL import Image, ImageFilter, ImageEnhance, ImageOps
+
+            try:
+                import pytesseract
+            except ImportError:
+                _logger.warning(
+                    "Grab: pytesseract not installed. Run: pip install pytesseract"
+                )
+                return ""
+
+            img = Image.open(_io.BytesIO(image_bytes)).convert("RGB")
+
+            # Preprocessing pipeline optimized for colored-text-on-white CAPTCHA
+            gray = img.convert("L")
+            enhanced = ImageEnhance.Contrast(gray).enhance(3.0)
+            thresh = enhanced.point(lambda x: 0 if x < 160 else 255, "1")
+            big = thresh.resize((img.width * 4, img.height * 4), Image.NEAREST)
+
+            config = (
+                "--psm 8 --oem 3 "
+                "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+            )
+            text = pytesseract.image_to_string(big, config=config).strip()
+            text = re.sub(r"[^A-Za-z0-9]", "", text)
+
+            if not text:
+                # Fallback: try inverted image
+                inv = ImageOps.invert(gray)
+                big_inv = inv.resize((img.width * 3, img.height * 3), Image.LANCZOS)
+                text = pytesseract.image_to_string(
+                    big_inv,
+                    config="--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+                ).strip()
+                text = re.sub(r"[^A-Za-z0-9]", "", text)
+
+            _logger.info("Grab: Local OCR answer: '%s'", text)
+            return text
+
+        except Exception as e:
+            _logger.error("Grab: Local OCR CAPTCHA solving error: %s", e)
             return ""
 
     def _solve_captcha_with_gemini(self, image_bytes, api_key):
