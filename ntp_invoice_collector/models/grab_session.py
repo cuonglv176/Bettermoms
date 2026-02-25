@@ -227,7 +227,8 @@ class GrabEInvoiceSession:
 
     def _solve_captcha_with_gemini(self, image_bytes, api_key):
         """
-        Use Google Gemini Vision API (google-genai SDK) to read CAPTCHA text.
+        Use Google Gemini Vision API via direct REST call (no extra SDK needed).
+        Uses only the built-in `requests` library already present in Odoo.
 
         Args:
             image_bytes (bytes): Raw PNG/JPEG image data.
@@ -237,38 +238,80 @@ class GrabEInvoiceSession:
             str: The CAPTCHA text (typically 4 alphanumeric characters), or "".
         """
         try:
-            from google import genai as google_genai
-            import PIL.Image
-            import io as _io
+            import base64 as _b64
 
-            client = google_genai.Client(api_key=api_key)
-            image = PIL.Image.open(_io.BytesIO(image_bytes))
+            img_b64 = _b64.b64encode(image_bytes).decode("utf-8")
 
-            prompt = (
-                "Read the CAPTCHA text in this image. "
-                "Return ONLY the characters you see, nothing else. "
-                "The text is typically 4 alphanumeric characters "
-                "(letters and/or digits). Be very precise about "
-                "distinguishing similar characters like 0/O, 1/I/l, "
-                "5/S, 8/B, 2/Z, 6/G, 9/g."
+            # Detect image mime type from magic bytes
+            mime_type = "image/png"
+            if image_bytes[:3] == b"\xff\xd8\xff":
+                mime_type = "image/jpeg"
+            elif image_bytes[:4] == b"GIF8":
+                mime_type = "image/gif"
+
+            url = (
+                "https://generativelanguage.googleapis.com/v1beta/"
+                "models/gemini-2.0-flash:generateContent"
             )
+            headers = {
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key,
+            }
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {
+                            "text": (
+                                "Read the CAPTCHA text in this image. "
+                                "Return ONLY the characters you see, nothing else. "
+                                "The text is typically 4 alphanumeric characters "
+                                "(letters and/or digits). Be very precise about "
+                                "distinguishing similar characters like 0/O, 1/I/l, "
+                                "5/S, 8/B, 2/Z, 6/G, 9/g."
+                            )
+                        },
+                        {
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": img_b64,
+                            }
+                        },
+                    ]
+                }]
+            }
 
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=[prompt, image],
+            # Use a plain requests session (not self._session) to avoid
+            # Grab portal cookies being sent to Google's API
+            import requests as _requests
+            resp = _requests.post(url, headers=headers, json=payload, timeout=30)
+
+            if resp.status_code == 429:
+                _logger.warning(
+                    "Grab: Gemini API quota exceeded (429). "
+                    "Check billing at https://aistudio.google.com"
+                )
+                return ""
+
+            if resp.status_code != 200:
+                _logger.warning(
+                    "Grab: Gemini API returned HTTP %d: %s",
+                    resp.status_code, resp.text[:200],
+                )
+                return ""
+
+            data = resp.json()
+            answer = (
+                data.get("candidates", [{}])[0]
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "")
+                .strip()
             )
-            answer = response.text.strip()
             # Clean: keep only alphanumeric characters
             answer = re.sub(r"[^A-Za-z0-9]", "", answer)
             _logger.info("Gemini CAPTCHA answer: '%s'", answer)
             return answer
 
-        except ImportError:
-            _logger.error(
-                "google-genai or Pillow package not installed. "
-                "Run: pip install google-genai pillow"
-            )
-            return ""
         except Exception as e:
             _logger.error("Gemini CAPTCHA solving error: %s", e)
             return ""

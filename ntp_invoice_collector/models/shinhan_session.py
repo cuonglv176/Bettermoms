@@ -563,7 +563,8 @@ class ShinhanEInvoiceSession:
 
     def _solve_captcha_with_gemini(self, captcha_b64, api_key):
         """
-        Use Google Gemini Vision API (google-genai SDK) to read the CAPTCHA text.
+        Use Google Gemini Vision API via direct REST call (no extra SDK needed).
+        Uses only the built-in `requests` library already present in Odoo.
 
         Args:
             captcha_b64 (str): Base64-encoded image.
@@ -573,40 +574,69 @@ class ShinhanEInvoiceSession:
             str: Recognized CAPTCHA text, or empty string on failure.
         """
         try:
-            from google import genai as google_genai
-            import PIL.Image
-            import io as _io
-
-            client = google_genai.Client(api_key=api_key)
-
-            image_bytes = base64.b64decode(captcha_b64)
-            image = PIL.Image.open(_io.BytesIO(image_bytes))
-
-            prompt = (
-                "This is a CAPTCHA image from a Vietnamese bank e-invoice portal (Shinhan Bank). "
-                "Please read the text or numbers shown in the image carefully. "
-                "Return ONLY the exact characters you see, with no spaces, "
-                "no punctuation, no explanation. "
-                "The CAPTCHA typically contains 4-6 alphanumeric characters. "
-                "Be precise — wrong answers will lock the account."
+            url = (
+                "https://generativelanguage.googleapis.com/v1beta/"
+                "models/gemini-2.0-flash:generateContent"
             )
+            headers = {
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key,
+            }
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {
+                            "text": (
+                                "This is a CAPTCHA image from a Vietnamese bank e-invoice portal (Shinhan Bank). "
+                                "Please read the text or numbers shown in the image carefully. "
+                                "Return ONLY the exact characters you see, with no spaces, "
+                                "no punctuation, no explanation. "
+                                "The CAPTCHA typically contains 4-6 alphanumeric characters. "
+                                "Be precise \u2014 wrong answers will lock the account."
+                            )
+                        },
+                        {
+                            "inline_data": {
+                                "mime_type": "image/png",
+                                "data": captcha_b64,
+                            }
+                        },
+                    ]
+                }]
+            }
 
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=[prompt, image],
+            # Use a plain requests call (not self._session) to avoid
+            # Shinhan portal cookies being sent to Google's API
+            import requests as _requests
+            resp = _requests.post(url, headers=headers, json=payload, timeout=30)
+
+            if resp.status_code == 429:
+                _logger.warning(
+                    "Shinhan: Gemini API quota exceeded (429). "
+                    "Check billing at https://aistudio.google.com"
+                )
+                return ""
+
+            if resp.status_code != 200:
+                _logger.warning(
+                    "Shinhan: Gemini API returned HTTP %d: %s",
+                    resp.status_code, resp.text[:200],
+                )
+                return ""
+
+            data = resp.json()
+            answer = (
+                data.get("candidates", [{}])[0]
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "")
+                .strip()
             )
-            answer = response.text.strip()
             # Clean: remove spaces and common noise characters
             answer = re.sub(r"[\s\.\,\!\?\-\_]", "", answer)
             _logger.debug("Shinhan: Gemini CAPTCHA response: '%s'", answer)
             return answer
 
-        except ImportError:
-            _logger.warning(
-                "Shinhan: google-genai or Pillow not installed. "
-                "Run: pip install google-genai pillow"
-            )
-            return ""
         except Exception as e:
             _logger.warning("Shinhan: Gemini CAPTCHA solving failed: %s", e)
             return ""
