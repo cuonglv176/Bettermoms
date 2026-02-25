@@ -292,13 +292,14 @@ class ShinhanEInvoiceSession:
         _logger.warning("Shinhan: %s", self.last_error)
         return False
 
-    def auto_login(self, gemini_api_key=None, openai_api_key=None, max_attempts=None):
+    def auto_login(self, captcha_api_key=None, gemini_api_key=None, openai_api_key=None, max_attempts=None):
         """
-        Attempt fully automatic login by solving CAPTCHA with Google Gemini Vision API.
+        Attempt fully automatic login by solving CAPTCHA with 2captcha.com service.
 
         Args:
-            gemini_api_key (str): Optional Google Gemini API key. Falls back to GEMINI_API_KEY env var.
-            openai_api_key (str): Deprecated. Use gemini_api_key instead.
+            captcha_api_key (str): 2captcha.com API key. Falls back to CAPTCHA_API_KEY env var.
+            gemini_api_key (str): Deprecated. Use captcha_api_key instead.
+            openai_api_key (str): Deprecated. Use captcha_api_key instead.
             max_attempts (int): Maximum number of CAPTCHA attempts.
 
         Returns:
@@ -306,11 +307,17 @@ class ShinhanEInvoiceSession:
         """
         import os
         max_attempts = max_attempts or MAX_LOGIN_ATTEMPTS
-        api_key = gemini_api_key or openai_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
+        api_key = (
+            captcha_api_key
+            or gemini_api_key
+            or openai_api_key
+            or os.environ.get("CAPTCHA_API_KEY", "")
+            or os.environ.get("TWOCAPTCHA_API_KEY", "")
+        )
 
         if not api_key:
             self.last_error = (
-                "Google Gemini API key not provided and GEMINI_API_KEY env var not set. "
+                "2captcha.com API key not provided and CAPTCHA_API_KEY env var not set. "
                 "Cannot auto-solve CAPTCHA."
             )
             _logger.error("Shinhan: %s", self.last_error)
@@ -335,15 +342,15 @@ class ShinhanEInvoiceSession:
                     )
                     captcha_answer = self._captcha_text
                 elif captcha_b64:
-                    captcha_answer = self._solve_captcha_with_gemini(captcha_b64, api_key)
+                    captcha_answer = self._solve_captcha_with_2captcha(captcha_b64, api_key)
                     if not captcha_answer:
                         _logger.warning(
-                            "Shinhan: Gemini returned empty CAPTCHA answer (attempt %d)", attempt
+                            "Shinhan: 2captcha returned empty CAPTCHA answer (attempt %d)", attempt
                         )
                         time.sleep(1)
                         continue
                     _logger.info(
-                        "Shinhan: Gemini CAPTCHA answer: '%s' (attempt %d)",
+                        "Shinhan: 2captcha CAPTCHA answer: '%s' (attempt %d)",
                         captcha_answer, attempt,
                     )
                 else:
@@ -561,89 +568,80 @@ class ShinhanEInvoiceSession:
 
         return None
 
-    def _solve_captcha_with_gemini(self, captcha_b64, api_key):
+    def _solve_captcha_with_2captcha(self, captcha_b64, api_key):
         """
-        Use Google Gemini Vision API via direct REST call (no extra SDK needed).
-        Uses only the built-in `requests` library already present in Odoo.
+        Solve image CAPTCHA using 2captcha.com paid service.
+        Uses only the built-in `requests` library — no extra SDK needed.
+
+        Flow:
+          1. POST image to 2captcha /in.php  → get task ID
+          2. Poll 2captcha /res.php every 5s → get answer text
 
         Args:
-            captcha_b64 (str): Base64-encoded image.
-            api_key (str): Google Gemini API key.
+            captcha_b64 (str): Base64-encoded CAPTCHA image.
+            api_key (str): 2captcha.com API key.
 
         Returns:
             str: Recognized CAPTCHA text, or empty string on failure.
         """
         try:
-            url = (
-                "https://generativelanguage.googleapis.com/v1beta/"
-                "models/gemini-2.0-flash:generateContent"
+            import time as _time
+
+            # Step 1: Submit CAPTCHA image
+            submit_resp = requests.post(
+                "https://2captcha.com/in.php",
+                data={
+                    "key": api_key,
+                    "method": "base64",
+                    "body": captcha_b64,
+                    "json": 1,
+                },
+                timeout=30,
             )
-            headers = {
-                "Content-Type": "application/json",
-                "x-goog-api-key": api_key,
-            }
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {
-                            "text": (
-                                "This is a CAPTCHA image from a Vietnamese bank e-invoice portal (Shinhan Bank). "
-                                "Please read the text or numbers shown in the image carefully. "
-                                "Return ONLY the exact characters you see, with no spaces, "
-                                "no punctuation, no explanation. "
-                                "The CAPTCHA typically contains 4-6 alphanumeric characters. "
-                                "Be precise \u2014 wrong answers will lock the account."
-                            )
-                        },
-                        {
-                            "inline_data": {
-                                "mime_type": "image/png",
-                                "data": captcha_b64,
-                            }
-                        },
-                    ]
-                }]
-            }
-
-            # Use a plain requests call (not self._session) to avoid
-            # Shinhan portal cookies being sent to Google's API
-            import requests as _requests
-            resp = _requests.post(url, headers=headers, json=payload, timeout=30)
-
-            if resp.status_code == 429:
+            submit_data = submit_resp.json()
+            if submit_data.get("status") != 1:
                 _logger.warning(
-                    "Shinhan: Gemini API quota exceeded (429). "
-                    "Check billing at https://aistudio.google.com"
+                    "Shinhan: 2captcha submit failed: %s", submit_data.get("request")
                 )
                 return ""
 
-            if resp.status_code != 200:
-                _logger.warning(
-                    "Shinhan: Gemini API returned HTTP %d: %s",
-                    resp.status_code, resp.text[:200],
+            task_id = submit_data["request"]
+            _logger.info("Shinhan: 2captcha task submitted, id=%s", task_id)
+
+            # Step 2: Poll for result (max 60s)
+            for _ in range(12):
+                _time.sleep(5)
+                result_resp = requests.get(
+                    "https://2captcha.com/res.php",
+                    params={"key": api_key, "action": "get", "id": task_id, "json": 1},
+                    timeout=30,
                 )
-                return ""
+                result_data = result_resp.json()
+                if result_data.get("status") == 1:
+                    answer = result_data["request"].strip()
+                    answer = re.sub(r"[\s\.\,\!\?\-\_]", "", answer)
+                    _logger.info("Shinhan: 2captcha answer: '%s'", answer)
+                    return answer
+                if result_data.get("request") != "CAPCHA_NOT_READY":
+                    _logger.warning(
+                        "Shinhan: 2captcha error: %s", result_data.get("request")
+                    )
+                    return ""
 
-            data = resp.json()
-            answer = (
-                data.get("candidates", [{}])[0]
-                .get("content", {})
-                .get("parts", [{}])[0]
-                .get("text", "")
-                .strip()
-            )
-            # Clean: remove spaces and common noise characters
-            answer = re.sub(r"[\s\.\,\!\?\-\_]", "", answer)
-            _logger.debug("Shinhan: Gemini CAPTCHA response: '%s'", answer)
-            return answer
-
-        except Exception as e:
-            _logger.warning("Shinhan: Gemini CAPTCHA solving failed: %s", e)
+            _logger.warning("Shinhan: 2captcha timed out waiting for answer")
             return ""
 
+        except Exception as e:
+            _logger.warning("Shinhan: 2captcha CAPTCHA solving failed: %s", e)
+            return ""
+
+    def _solve_captcha_with_gemini(self, captcha_b64, api_key):
+        """Deprecated: Use _solve_captcha_with_2captcha() instead."""
+        return self._solve_captcha_with_2captcha(captcha_b64, api_key)
+
     def _solve_captcha_with_openai(self, captcha_b64, api_key):
-        """Deprecated: Use _solve_captcha_with_gemini() instead."""
-        return self._solve_captcha_with_gemini(captcha_b64, api_key)
+        """Deprecated: Use _solve_captcha_with_2captcha() instead."""
+        return self._solve_captcha_with_2captcha(captcha_b64, api_key)
 
     def _parse_jwt_expiry(self, jwt_token):
         """

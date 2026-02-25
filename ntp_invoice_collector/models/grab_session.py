@@ -120,26 +120,30 @@ class GrabEInvoiceSession:
     # Strategy 1: Auto-Login (CAPTCHA solved by AI)
     # ------------------------------------------------------------------
 
-    def auto_login(self, gemini_api_key=None, openai_api_key=None, max_attempts=None):
+    def auto_login(self, captcha_api_key=None, gemini_api_key=None, openai_api_key=None, max_attempts=None):
         """
-        Fully automated login: load page → fetch CAPTCHA → solve via AI → submit.
-
+        Fully automated login: load page → fetch CAPTCHA → solve via 2captcha.com → submit.
         Args:
-            gemini_api_key (str): Google Gemini API key. Falls back to GEMINI_API_KEY env var.
-            openai_api_key (str): Deprecated. Use gemini_api_key instead.
+            captcha_api_key (str): 2captcha.com API key. Falls back to CAPTCHA_API_KEY env var.
+            gemini_api_key (str): Deprecated. Use captcha_api_key instead.
+            openai_api_key (str): Deprecated. Use captcha_api_key instead.
             max_attempts (int): Maximum number of CAPTCHA-solve-and-login attempts.
-
         Returns:
             bool: True if login succeeded.
         """
         if max_attempts is None:
             max_attempts = MAX_AUTO_LOGIN_ATTEMPTS
-
-        api_key = gemini_api_key or openai_api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
+        api_key = (
+            captcha_api_key
+            or gemini_api_key
+            or openai_api_key
+            or os.environ.get("CAPTCHA_API_KEY", "")
+            or os.environ.get("TWOCAPTCHA_API_KEY", "")
+        )
         if not api_key:
             self._last_error = (
-                "No Google Gemini API key provided for auto-CAPTCHA solving. "
-                "Set GEMINI_API_KEY environment variable or provide it in config."
+                "No 2captcha.com API key provided for auto-CAPTCHA solving. "
+                "Set CAPTCHA_API_KEY environment variable or provide it in Collector Config."
             )
             _logger.error(self._last_error)
             return False
@@ -173,8 +177,8 @@ class GrabEInvoiceSession:
                     )
                     continue
 
-                # Step 3: Solve CAPTCHA via Google Gemini Vision
-                captcha_answer = self._solve_captcha_with_gemini(
+                # Step 3: Solve CAPTCHA via 2captcha.com
+                captcha_answer = self._solve_captcha_with_2captcha(
                     captcha_bytes, api_key,
                 )
                 if not captcha_answer:
@@ -225,100 +229,83 @@ class GrabEInvoiceSession:
         _logger.error(self._last_error)
         return False
 
-    def _solve_captcha_with_gemini(self, image_bytes, api_key):
+    def _solve_captcha_with_2captcha(self, image_bytes, api_key):
         """
-        Use Google Gemini Vision API via direct REST call (no extra SDK needed).
-        Uses only the built-in `requests` library already present in Odoo.
+        Solve image CAPTCHA using 2captcha.com paid service.
+        Uses only the built-in `requests` library — no extra SDK needed.
+
+        Flow:
+          1. POST image to 2captcha /in.php  → get task ID
+          2. Poll 2captcha /res.php every 5s → get answer text
 
         Args:
             image_bytes (bytes): Raw PNG/JPEG image data.
-            api_key (str): Google Gemini API key.
+            api_key (str): 2captcha.com API key.
 
         Returns:
-            str: The CAPTCHA text (typically 4 alphanumeric characters), or "".
+            str: The CAPTCHA text, or empty string on failure.
         """
         try:
             import base64 as _b64
+            import time as _time
 
             img_b64 = _b64.b64encode(image_bytes).decode("utf-8")
 
-            # Detect image mime type from magic bytes
-            mime_type = "image/png"
-            if image_bytes[:3] == b"\xff\xd8\xff":
-                mime_type = "image/jpeg"
-            elif image_bytes[:4] == b"GIF8":
-                mime_type = "image/gif"
-
-            url = (
-                "https://generativelanguage.googleapis.com/v1beta/"
-                "models/gemini-2.0-flash:generateContent"
+            # Step 1: Submit CAPTCHA image
+            submit_resp = requests.post(
+                "https://2captcha.com/in.php",
+                data={
+                    "key": api_key,
+                    "method": "base64",
+                    "body": img_b64,
+                    "json": 1,
+                },
+                timeout=30,
             )
-            headers = {
-                "Content-Type": "application/json",
-                "x-goog-api-key": api_key,
-            }
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {
-                            "text": (
-                                "Read the CAPTCHA text in this image. "
-                                "Return ONLY the characters you see, nothing else. "
-                                "The text is typically 4 alphanumeric characters "
-                                "(letters and/or digits). Be very precise about "
-                                "distinguishing similar characters like 0/O, 1/I/l, "
-                                "5/S, 8/B, 2/Z, 6/G, 9/g."
-                            )
-                        },
-                        {
-                            "inline_data": {
-                                "mime_type": mime_type,
-                                "data": img_b64,
-                            }
-                        },
-                    ]
-                }]
-            }
-
-            # Use a plain requests session (not self._session) to avoid
-            # Grab portal cookies being sent to Google's API
-            import requests as _requests
-            resp = _requests.post(url, headers=headers, json=payload, timeout=30)
-
-            if resp.status_code == 429:
+            submit_data = submit_resp.json()
+            if submit_data.get("status") != 1:
                 _logger.warning(
-                    "Grab: Gemini API quota exceeded (429). "
-                    "Check billing at https://aistudio.google.com"
+                    "Grab: 2captcha submit failed: %s", submit_data.get("request")
                 )
                 return ""
 
-            if resp.status_code != 200:
-                _logger.warning(
-                    "Grab: Gemini API returned HTTP %d: %s",
-                    resp.status_code, resp.text[:200],
+            task_id = submit_data["request"]
+            _logger.info("Grab: 2captcha task submitted, id=%s", task_id)
+
+            # Step 2: Poll for result (max 60s)
+            for _ in range(12):
+                _time.sleep(5)
+                result_resp = requests.get(
+                    "https://2captcha.com/res.php",
+                    params={"key": api_key, "action": "get", "id": task_id, "json": 1},
+                    timeout=30,
                 )
-                return ""
+                result_data = result_resp.json()
+                if result_data.get("status") == 1:
+                    answer = result_data["request"].strip()
+                    answer = re.sub(r"[^A-Za-z0-9]", "", answer)
+                    _logger.info("Grab: 2captcha answer: '%s'", answer)
+                    return answer
+                if result_data.get("request") != "CAPCHA_NOT_READY":
+                    _logger.warning(
+                        "Grab: 2captcha error: %s", result_data.get("request")
+                    )
+                    return ""
 
-            data = resp.json()
-            answer = (
-                data.get("candidates", [{}])[0]
-                .get("content", {})
-                .get("parts", [{}])[0]
-                .get("text", "")
-                .strip()
-            )
-            # Clean: keep only alphanumeric characters
-            answer = re.sub(r"[^A-Za-z0-9]", "", answer)
-            _logger.info("Gemini CAPTCHA answer: '%s'", answer)
-            return answer
-
-        except Exception as e:
-            _logger.error("Gemini CAPTCHA solving error: %s", e)
+            _logger.warning("Grab: 2captcha timed out waiting for answer")
             return ""
 
+        except Exception as e:
+            _logger.error("Grab: 2captcha CAPTCHA solving error: %s", e)
+            return ""
+
+    def _solve_captcha_with_gemini(self, image_bytes, api_key):
+        """Deprecated: Use _solve_captcha_with_2captcha() instead."""
+        return self._solve_captcha_with_2captcha(image_bytes, api_key)
+
     def _solve_captcha_with_openai(self, image_bytes, api_key):
-        """Deprecated: Use _solve_captcha_with_gemini() instead."""
-        return self._solve_captcha_with_gemini(image_bytes, api_key)
+        """Deprecated: Use _solve_captcha_with_2captcha() instead."""
+        return self._solve_captcha_with_2captcha(image_bytes, api_key)
 
     # ------------------------------------------------------------------
     # Strategy 2: Cookie Restore

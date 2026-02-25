@@ -116,20 +116,26 @@ class CollectorConfig(models.Model):
         "SPV Auto-Solve CAPTCHA",
         default=True,
         help=(
-            "Use Google Gemini Vision API to automatically solve SPV CAPTCHA. "
-            "Requires GEMINI_API_KEY environment variable or the Gemini API Key field."
+            "Use 2captcha.com service to automatically solve SPV CAPTCHA. "
+            "Requires 2captcha API Key field or CAPTCHA_API_KEY environment variable."
         ),
     )
-    spv_gemini_api_key = fields.Char(
-        "SPV Gemini API Key (Optional)",
+    spv_captcha_api_key = fields.Char(
+        "SPV 2captcha API Key",
         help=(
-            "Optional: Google Gemini API key for auto-solving SPV CAPTCHA. "
-            "If blank, uses the GEMINI_API_KEY environment variable."
+            "2captcha.com API key for auto-solving SPV CAPTCHA. "
+            "Get your key at https://2captcha.com. "
+            "If blank, uses the CAPTCHA_API_KEY environment variable."
         ),
+    )
+    # Deprecated fields kept for backward compatibility
+    spv_gemini_api_key = fields.Char(
+        "SPV Gemini API Key (Deprecated)",
+        help="Deprecated: Use SPV 2captcha API Key instead.",
     )
     spv_openai_api_key = fields.Char(
         "SPV OpenAI API Key (Deprecated)",
-        help="Deprecated: Use SPV Gemini API Key instead.",
+        help="Deprecated: Use SPV 2captcha API Key instead.",
     )
 
     # ---- Shinhan-specific fields ----
@@ -170,20 +176,26 @@ class CollectorConfig(models.Model):
         "Shinhan Auto-Solve CAPTCHA",
         default=True,
         help=(
-            "Use Google Gemini Vision API to automatically solve Shinhan canvas CAPTCHA. "
-            "Requires GEMINI_API_KEY environment variable or the Gemini API Key field."
+            "Use 2captcha.com service to automatically solve Shinhan canvas CAPTCHA. "
+            "Requires 2captcha API Key field or CAPTCHA_API_KEY environment variable."
         ),
     )
-    shinhan_gemini_api_key = fields.Char(
-        "Shinhan Gemini API Key (Optional)",
+    shinhan_captcha_api_key = fields.Char(
+        "Shinhan 2captcha API Key",
         help=(
-            "Optional: Google Gemini API key for auto-solving Shinhan CAPTCHA. "
-            "If blank, uses the GEMINI_API_KEY environment variable."
+            "2captcha.com API key for auto-solving Shinhan CAPTCHA. "
+            "Get your key at https://2captcha.com. "
+            "If blank, uses the CAPTCHA_API_KEY environment variable."
         ),
+    )
+    # Deprecated fields kept for backward compatibility
+    shinhan_gemini_api_key = fields.Char(
+        "Shinhan Gemini API Key (Deprecated)",
+        help="Deprecated: Use Shinhan 2captcha API Key instead.",
     )
     shinhan_openai_api_key = fields.Char(
         "Shinhan OpenAI API Key (Deprecated)",
-        help="Deprecated: Use Shinhan Gemini API Key instead.",
+        help="Deprecated: Use Shinhan 2captcha API Key instead.",
     )
 
     # ---- Grab-specific fields ----
@@ -224,20 +236,26 @@ class CollectorConfig(models.Model):
         "Auto-Solve CAPTCHA",
         default=True,
         help=(
-            "Use Google Gemini Vision API to automatically solve CAPTCHA. "
-            "Requires GEMINI_API_KEY environment variable or the field below."
+            "Use 2captcha.com service to automatically solve CAPTCHA. "
+            "Requires 2captcha API Key field or CAPTCHA_API_KEY environment variable."
         ),
     )
-    grab_gemini_api_key = fields.Char(
-        "Gemini API Key (Optional)",
+    grab_captcha_api_key = fields.Char(
+        "2captcha API Key",
         help=(
-            "Optional: Google Gemini API key for auto-solving CAPTCHA. "
-            "If blank, uses the GEMINI_API_KEY environment variable."
+            "2captcha.com API key for auto-solving Grab CAPTCHA. "
+            "Get your key at https://2captcha.com. "
+            "If blank, uses the CAPTCHA_API_KEY environment variable."
         ),
+    )
+    # Deprecated fields kept for backward compatibility
+    grab_gemini_api_key = fields.Char(
+        "Gemini API Key (Deprecated)",
+        help="Deprecated: Use 2captcha API Key instead.",
     )
     grab_openai_api_key = fields.Char(
         "OpenAI API Key (Deprecated)",
-        help="Deprecated: Use Gemini API Key instead.",
+        help="Deprecated: Use 2captcha API Key instead.",
     )
 
     # ---- Common fields ----
@@ -512,21 +530,24 @@ class CollectorConfig(models.Model):
                 base_url=base_url,
             )
 
-            # Try auto-login with CAPTCHA solving via Google Gemini
+            # Try auto-login with CAPTCHA solving via 2captcha.com
             import os
-            gemini_key = (
-                self.grab_gemini_api_key
+            captcha_key = (
+                self.grab_captcha_api_key
+                or self.grab_gemini_api_key
                 or self.grab_openai_api_key
-                or os.environ.get("GEMINI_API_KEY", "")
+                or os.environ.get("CAPTCHA_API_KEY", "")
+                or os.environ.get("TWOCAPTCHA_API_KEY", "")
                 or None
             )
-            if not gemini_key:
+            if not captcha_key:
                 raise UserError(
-                    "Gemini API Key is not configured.\n\n"
-                    "Please enter the key in the 'Gemini API Key' field "
-                    "or set the GEMINI_API_KEY environment variable on the server."
+                    "2captcha API Key is not configured.\n\n"
+                    "Please enter the key in the '2captcha API Key' field "
+                    "or set the CAPTCHA_API_KEY environment variable on the server.\n"
+                    "Get your API key at: https://2captcha.com"
                 )
-            login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
+            login_ok = session.auto_login(captcha_api_key=captcha_key, max_attempts=5)
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"
@@ -881,7 +902,7 @@ class CollectorConfig(models.Model):
         """
         Fully automatic SPV invoice fetch:
         1. Load login page
-        2. Auto-solve CAPTCHA with Google Gemini Vision API
+        2. Auto-solve CAPTCHA with 2captcha.com service
         3. Login
         4. Fetch invoices
         """
@@ -907,19 +928,22 @@ class CollectorConfig(models.Model):
             )
 
             import os
-            gemini_key = (
-                self.spv_gemini_api_key
+            captcha_key = (
+                self.spv_captcha_api_key
+                or self.spv_gemini_api_key
                 or self.spv_openai_api_key
-                or os.environ.get("GEMINI_API_KEY", "")
+                or os.environ.get("CAPTCHA_API_KEY", "")
+                or os.environ.get("TWOCAPTCHA_API_KEY", "")
                 or None
             )
-            if not gemini_key:
+            if not captcha_key:
                 raise UserError(
-                    "Gemini API Key is not configured.\n\n"
-                    "Please enter the key in the 'SPV Gemini API Key' field "
-                    "or set the GEMINI_API_KEY environment variable on the server."
+                    "2captcha API Key is not configured.\n\n"
+                    "Please enter the key in the 'SPV 2captcha API Key' field "
+                    "or set the CAPTCHA_API_KEY environment variable on the server.\n"
+                    "Get your API key at: https://2captcha.com"
                 )
-            login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
+            login_ok = session.auto_login(captcha_api_key=captcha_key, max_attempts=5)
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"
@@ -1124,7 +1148,7 @@ class CollectorConfig(models.Model):
         """
         Fully automatic Shinhan invoice fetch:
         1. Load login page / get CAPTCHA canvas
-        2. Auto-solve CAPTCHA with Google Gemini Vision API
+        2. Auto-solve CAPTCHA with 2captcha.com service
         3. Login via API (JWT)
         4. Fetch invoices
         """
@@ -1150,19 +1174,22 @@ class CollectorConfig(models.Model):
             )
 
             import os
-            gemini_key = (
-                self.shinhan_gemini_api_key
+            captcha_key = (
+                self.shinhan_captcha_api_key
+                or self.shinhan_gemini_api_key
                 or self.shinhan_openai_api_key
-                or os.environ.get("GEMINI_API_KEY", "")
+                or os.environ.get("CAPTCHA_API_KEY", "")
+                or os.environ.get("TWOCAPTCHA_API_KEY", "")
                 or None
             )
-            if not gemini_key:
+            if not captcha_key:
                 raise UserError(
-                    "Gemini API Key is not configured.\n\n"
-                    "Please enter the key in the 'Shinhan Gemini API Key' field "
-                    "or set the GEMINI_API_KEY environment variable on the server."
+                    "2captcha API Key is not configured.\n\n"
+                    "Please enter the key in the 'Shinhan 2captcha API Key' field "
+                    "or set the CAPTCHA_API_KEY environment variable on the server.\n"
+                    "Get your API key at: https://2captcha.com"
                 )
-            login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
+            login_ok = session.auto_login(captcha_api_key=captcha_key, max_attempts=5)
 
             if not login_ok:
                 error_detail = session.last_error or "Unknown error"

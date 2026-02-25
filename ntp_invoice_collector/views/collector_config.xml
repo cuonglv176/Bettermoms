@@ -209,9 +209,9 @@
                             </group>
                             <group>
                                 <field name="grab_use_auto_captcha" />
-                                <field name="grab_gemini_api_key" password="True"
+                                <field name="grab_captcha_api_key" password="True"
                                        attrs="{'invisible': [('grab_use_auto_captcha', '=', False)]}"
-                                       placeholder="Nhập Google Gemini API Key (bắt buộc cho Auto Fetch)" />
+                                       placeholder="Nhập 2captcha API Key (bắt buộc cho Auto Fetch)" />
                                 <field name="grab_session_valid_until" readonly="1" />
                             </group>
                         </group>
@@ -222,13 +222,13 @@
                                  '|',
                                  ('provider', '!=', 'grab'),
                                  ('grab_use_auto_captcha', '=', False),
-                                 ('grab_gemini_api_key', '!=', False),
+                                 ('grab_captcha_api_key', '!=', False),
                              ]}">
-                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập Gemini API Key</strong>
+                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập 2captcha API Key</strong>
                             <p class="mb-0">
-                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>Google Gemini API Key</strong>
+                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>2captcha API Key</strong>
                                 vào ô bên trên. Lấy key tại:
-                                <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
+                                <a href="https://2captcha.com" target="_blank">2captcha.com</a>
                             </p>
                         </div>
                         <!-- Auto CAPTCHA info banner - Grab (key set) -->
@@ -237,11 +237,11 @@
                                  '|',
                                  ('provider', '!=', 'grab'),
                                  ('grab_use_auto_captcha', '=', False),
-                                 ('grab_gemini_api_key', '=', False),
+                                 ('grab_captcha_api_key', '=', False),
                              ]}">
-                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (Google Gemini)</strong>
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (2captcha.com)</strong>
                             <p class="mb-0">
-                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng Gemini,
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng 2captcha.com,
                                 đăng nhập và lấy hóa đơn từ Grab.
                             </p>
                         </div>
@@ -303,38 +303,39 @@
                             </group>
                             <group>
                                 <field name="spv_use_auto_captcha" />
-                                <field name="spv_gemini_api_key" password="True"
+                                <field name="spv_captcha_api_key" password="True"
                                        attrs="{'invisible': [('spv_use_auto_captcha', '=', False)]}"
-                                       placeholder="Nhập Google Gemini API Key (bắt buộc cho Auto Fetch)" />
+                                       placeholder="Nhập 2captcha API Key (bắt buộc cho Auto Fetch)" />
                                 <field name="spv_session_valid_until" readonly="1" />
                             </group>
                         </group>
 
-                        <!-- Auto CAPTCHA info banner - SPV -->
-                        <div class="alert alert-success"
+                        <!-- Auto CAPTCHA info banner - SPV (no key) -->
+                        <div class="alert alert-warning"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'spv'),
                                  ('spv_use_auto_captcha', '=', False),
-                                 ('spv_gemini_api_key', '!=', False),
+                                 ('spv_captcha_api_key', '!=', False),
                              ]}">
-                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập Gemini API Key</strong>
+                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập 2captcha API Key</strong>
                             <p class="mb-0">
-                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>Google Gemini API Key</strong>
+                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>2captcha API Key</strong>
                                 vào ô bên trên. Lấy key tại:
-                                <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
+                                <a href="https://2captcha.com" target="_blank">2captcha.com</a>
                             </p>
                         </div>
+                        <!-- Auto CAPTCHA info banner - SPV (key set) -->
                         <div class="alert alert-success"
                              attrs="{'invisible': [
                                  '|',
                                  ('provider', '!=', 'spv'),
                                  ('spv_use_auto_captcha', '=', False),
-                                 ('spv_gemini_api_key', '=', False),
+                                 ('spv_captcha_api_key', '=', False),
                              ]}">
-                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (Google Gemini)</strong>
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (2captcha.com)</strong>
                             <p class="mb-0">
-                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng Gemini,
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng 2captcha.com,
                                 đăng nhập và lấy hóa đơn từ SPV Tracuuhoadon.
                             </p>
                         </div>
@@ -395,9 +396,9 @@
                             </group>
                             <group>
                                 <field name="shinhan_use_auto_captcha" />
-                                <field name="shinhan_gemini_api_key" password="True"
+                                <field name="shinhan_captcha_api_key" password="True"
                                        attrs="{'invisible': [('shinhan_use_auto_captcha', '=', False)]}"
-                                       placeholder="Nhập Google Gemini API Key (bắt buộc cho Auto Fetch)" />
+                                       placeholder="Nhập 2captcha API Key (bắt buộc cho Auto Fetch)" />
                                 <field name="shinhan_token_valid_until" readonly="1" />
                             </group>
                         </group>
@@ -408,13 +409,13 @@
                                  '|',
                                  ('provider', '!=', 'shinhan'),
                                  ('shinhan_use_auto_captcha', '=', False),
-                                 ('shinhan_gemini_api_key', '!=', False),
+                                 ('shinhan_captcha_api_key', '!=', False),
                              ]}">
-                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập Gemini API Key</strong>
+                            <i class="fa fa-exclamation-triangle" /> <strong>Cần Nhập 2captcha API Key</strong>
                             <p class="mb-0">
-                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>Google Gemini API Key</strong>
+                                Để dùng <strong>⚡ Auto Fetch</strong>, hãy nhập <strong>2captcha API Key</strong>
                                 vào ô bên trên. Lấy key tại:
-                                <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
+                                <a href="https://2captcha.com" target="_blank">2captcha.com</a>
                             </p>
                         </div>
                         <!-- Auto CAPTCHA info banner - Shinhan (key set) -->
@@ -423,11 +424,11 @@
                                  '|',
                                  ('provider', '!=', 'shinhan'),
                                  ('shinhan_use_auto_captcha', '=', False),
-                                 ('shinhan_gemini_api_key', '=', False),
+                                 ('shinhan_captcha_api_key', '=', False),
                              ]}">
-                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (Google Gemini)</strong>
+                            <i class="fa fa-magic" /> <strong>Auto-CAPTCHA Đã Bật (2captcha.com)</strong>
                             <p class="mb-0">
-                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng Gemini,
+                                Nhấn <strong>⚡ Auto Fetch</strong> để tự động giải CAPTCHA bằng 2captcha.com,
                                 đăng nhập bằng JWT và lấy hóa đơn từ Shinhan Bank.
                             </p>
                         </div>
