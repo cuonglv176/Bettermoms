@@ -34,6 +34,7 @@ _logger = logging.getLogger(__name__)
 # ---- Constants ---------------------------------------------------------------
 DEFAULT_BASE_URL = "https://spv.tracuuhoadon.online"
 LOGIN_PATH = "/dang-nhap"
+LOGIN_POST_PATH = "/DangNhap/DangNhap"  # Actual form action URL (different from GET URL)
 CAPTCHA_PATH = "/Captcha"
 INVOICE_LIST_PATH = "/hoa-don"
 INVOICE_API_PATH = "/HoaDon/GetList"
@@ -176,8 +177,9 @@ class SpvEInvoiceSession:
             _logger.warning("SPV: prepare_login() not called; loading login page now...")
             self.prepare_login()
 
-        url = "%s%s" % (self.base_url, LOGIN_PATH)
-        _logger.info("SPV: Submitting login for user '%s'...", self.username)
+        login_get_url = "%s%s" % (self.base_url, LOGIN_PATH)
+        login_post_url = "%s%s" % (self.base_url, LOGIN_POST_PATH)
+        _logger.info("SPV: Submitting login for user '%s' to %s...", self.username, login_post_url)
 
         payload = {
             "__RequestVerificationToken": self._csrf_token or "",
@@ -189,14 +191,14 @@ class SpvEInvoiceSession:
             payload["nonce"] = self._nonce
 
         headers = {
-            "Referer": url,
+            "Referer": login_get_url,
             "Content-Type": "application/x-www-form-urlencoded",
             "Origin": self.base_url,
         }
 
         try:
             resp = self._session.post(
-                url,
+                login_post_url,
                 data=payload,
                 headers=headers,
                 timeout=REQUEST_TIMEOUT,
@@ -216,6 +218,7 @@ class SpvEInvoiceSession:
 
         # Check for login failure indicators
         failure_indicators = [
+            "\u0111\u0103ng nh\u1eadp kh\u00f4ng th\u00e0nh c\u00f4ng",  # "đăng nhập không thành công"
             "sai m\u00e3 captcha",
             "captcha kh\u00f4ng \u0111\u00fang",
             "sai t\u00ean \u0111\u0103ng nh\u1eadp",
@@ -223,7 +226,6 @@ class SpvEInvoiceSession:
             "th\u00f4ng tin \u0111\u0103ng nh\u1eadp kh\u00f4ng \u0111\u00fang",
             "invalid",
             "incorrect",
-            "dang-nhap",  # still on login page
         ]
         resp_lower = resp.text.lower()
         # If redirected away from login page, consider success
@@ -234,7 +236,7 @@ class SpvEInvoiceSession:
             # Still on login page — check for error messages
             for indicator in failure_indicators:
                 if indicator in resp_lower:
-                    self.last_error = "Login failed: found '%s' in response" % indicator
+                    self.last_error = "Login failed: %s" % indicator
                     _logger.warning("SPV: Login failed for '%s': %s", self.username, self.last_error)
                     return False
             # On login page but no clear error — might be a redirect issue
