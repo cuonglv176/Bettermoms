@@ -513,7 +513,19 @@ class CollectorConfig(models.Model):
             )
 
             # Try auto-login with CAPTCHA solving via Google Gemini
-            gemini_key = self.grab_gemini_api_key or self.grab_openai_api_key or None
+            import os
+            gemini_key = (
+                self.grab_gemini_api_key
+                or self.grab_openai_api_key
+                or os.environ.get("GEMINI_API_KEY", "")
+                or None
+            )
+            if not gemini_key:
+                raise UserError(
+                    "Gemini API Key is not configured.\n\n"
+                    "Please enter the key in the 'Gemini API Key' field "
+                    "or set the GEMINI_API_KEY environment variable on the server."
+                )
             login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
 
             if not login_ok:
@@ -869,7 +881,7 @@ class CollectorConfig(models.Model):
         """
         Fully automatic SPV invoice fetch:
         1. Load login page
-        2. Auto-solve CAPTCHA with OpenAI Vision API
+        2. Auto-solve CAPTCHA with Google Gemini Vision API
         3. Login
         4. Fetch invoices
         """
@@ -894,7 +906,19 @@ class CollectorConfig(models.Model):
                 base_url=base_url,
             )
 
-            gemini_key = self.spv_gemini_api_key or self.spv_openai_api_key or None
+            import os
+            gemini_key = (
+                self.spv_gemini_api_key
+                or self.spv_openai_api_key
+                or os.environ.get("GEMINI_API_KEY", "")
+                or None
+            )
+            if not gemini_key:
+                raise UserError(
+                    "Gemini API Key is not configured.\n\n"
+                    "Please enter the key in the 'SPV Gemini API Key' field "
+                    "or set the GEMINI_API_KEY environment variable on the server."
+                )
             login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
 
             if not login_ok:
@@ -1100,7 +1124,7 @@ class CollectorConfig(models.Model):
         """
         Fully automatic Shinhan invoice fetch:
         1. Load login page / get CAPTCHA canvas
-        2. Auto-solve CAPTCHA with OpenAI Vision API
+        2. Auto-solve CAPTCHA with Google Gemini Vision API
         3. Login via API (JWT)
         4. Fetch invoices
         """
@@ -1125,7 +1149,19 @@ class CollectorConfig(models.Model):
                 base_url=base_url,
             )
 
-            gemini_key = self.shinhan_gemini_api_key or self.shinhan_openai_api_key or None
+            import os
+            gemini_key = (
+                self.shinhan_gemini_api_key
+                or self.shinhan_openai_api_key
+                or os.environ.get("GEMINI_API_KEY", "")
+                or None
+            )
+            if not gemini_key:
+                raise UserError(
+                    "Gemini API Key is not configured.\n\n"
+                    "Please enter the key in the 'Shinhan Gemini API Key' field "
+                    "or set the GEMINI_API_KEY environment variable on the server."
+                )
             login_ok = session.auto_login(gemini_api_key=gemini_key, max_attempts=5)
 
             if not login_ok:

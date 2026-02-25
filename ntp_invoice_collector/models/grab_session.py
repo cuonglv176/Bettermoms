@@ -227,7 +227,7 @@ class GrabEInvoiceSession:
 
     def _solve_captcha_with_gemini(self, image_bytes, api_key):
         """
-        Use Google Gemini Vision API to read CAPTCHA text.
+        Use Google Gemini Vision API (google-genai SDK) to read CAPTCHA text.
 
         Args:
             image_bytes (bytes): Raw PNG/JPEG image data.
@@ -237,13 +237,11 @@ class GrabEInvoiceSession:
             str: The CAPTCHA text (typically 4 alphanumeric characters), or "".
         """
         try:
-            import google.generativeai as genai
-
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-
+            from google import genai as google_genai
             import PIL.Image
             import io as _io
+
+            client = google_genai.Client(api_key=api_key)
             image = PIL.Image.open(_io.BytesIO(image_bytes))
 
             prompt = (
@@ -255,7 +253,10 @@ class GrabEInvoiceSession:
                 "5/S, 8/B, 2/Z, 6/G, 9/g."
             )
 
-            response = model.generate_content([prompt, image])
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[prompt, image],
+            )
             answer = response.text.strip()
             # Clean: keep only alphanumeric characters
             answer = re.sub(r"[^A-Za-z0-9]", "", answer)
@@ -264,8 +265,8 @@ class GrabEInvoiceSession:
 
         except ImportError:
             _logger.error(
-                "google-generativeai or Pillow package not installed. "
-                "Run: pip install google-generativeai pillow"
+                "google-genai or Pillow package not installed. "
+                "Run: pip install google-genai pillow"
             )
             return ""
         except Exception as e:

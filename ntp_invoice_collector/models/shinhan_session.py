@@ -563,7 +563,7 @@ class ShinhanEInvoiceSession:
 
     def _solve_captcha_with_gemini(self, captcha_b64, api_key):
         """
-        Use Google Gemini Vision API to read the CAPTCHA text from a base64 image.
+        Use Google Gemini Vision API (google-genai SDK) to read the CAPTCHA text.
 
         Args:
             captcha_b64 (str): Base64-encoded image.
@@ -573,12 +573,11 @@ class ShinhanEInvoiceSession:
             str: Recognized CAPTCHA text, or empty string on failure.
         """
         try:
-            import google.generativeai as genai
+            from google import genai as google_genai
             import PIL.Image
             import io as _io
 
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            client = google_genai.Client(api_key=api_key)
 
             image_bytes = base64.b64decode(captcha_b64)
             image = PIL.Image.open(_io.BytesIO(image_bytes))
@@ -592,7 +591,10 @@ class ShinhanEInvoiceSession:
                 "Be precise — wrong answers will lock the account."
             )
 
-            response = model.generate_content([prompt, image])
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[prompt, image],
+            )
             answer = response.text.strip()
             # Clean: remove spaces and common noise characters
             answer = re.sub(r"[\s\.\,\!\?\-\_]", "", answer)
@@ -601,8 +603,8 @@ class ShinhanEInvoiceSession:
 
         except ImportError:
             _logger.warning(
-                "Shinhan: google-generativeai or Pillow not installed. "
-                "Run: pip install google-generativeai pillow"
+                "Shinhan: google-genai or Pillow not installed. "
+                "Run: pip install google-genai pillow"
             )
             return ""
         except Exception as e:
