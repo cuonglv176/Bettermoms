@@ -658,13 +658,13 @@ class SpvEInvoiceSession:
 
     def _solve_captcha_local(self, captcha_b64):
         """
-        Solve image CAPTCHA locally using PIL image preprocessing + Tesseract OCR.
-        No API key or internet connection required.
-        Requires: tesseract-ocr system package + pytesseract Python package.
+        Solve image CAPTCHA locally using EasyOCR (deep learning, handles italic/decorative fonts).
+        Falls back to Tesseract if EasyOCR is not available.
+        No API key or internet connection required after initial model download.
 
         Install on server:
-            apt-get install tesseract-ocr
-            pip install pytesseract pillow
+            pip install easyocr pillow scipy numpy
+            # EasyOCR will auto-download ~100MB model on first run
 
         Args:
             captcha_b64 (str): Base64-encoded CAPTCHA image.
@@ -674,56 +674,87 @@ class SpvEInvoiceSession:
         """
         try:
             import io as _io
-            from PIL import Image, ImageFilter, ImageEnhance, ImageOps
-
-            try:
-                import pytesseract
-            except ImportError:
-                _logger.warning(
-                    "SPV: pytesseract not installed. Run: pip install pytesseract"
-                )
-                return ""
+            import numpy as _np
+            from PIL import Image
 
             # Decode base64 image
             img_bytes = base64.b64decode(captcha_b64)
             img = Image.open(_io.BytesIO(img_bytes)).convert("RGB")
+            arr = _np.array(img)
 
-            # Preprocessing pipeline optimized for colored-text-on-white CAPTCHA:
-            # 1. Convert to grayscale
-            gray = img.convert("L")
+            # --- Preprocessing: extract blue text on white background ---
+            # SPV CAPTCHA: blue italic text (R<180, G<180, B=255) on white bg
+            text_pixels = (arr[:, :, 0] < 180) & (arr[:, :, 1] < 180)
+            mask = _np.where(text_pixels, 0, 255).astype(_np.uint8)
+            mask_img = Image.fromarray(mask, "L")
 
-            # 2. Boost contrast to separate text from background
-            enhanced = ImageEnhance.Contrast(gray).enhance(3.0)
+            # Upscale 4x for better recognition
+            big = mask_img.resize((img.width * 4, img.height * 4), Image.LANCZOS)
+            big_arr = _np.array(big)
+            big_bin = (big_arr < 128).astype(_np.uint8)
 
-            # 3. Apply binary threshold (text=black, background=white)
-            thresh = enhanced.point(lambda x: 0 if x < 160 else 255, "1")
+            # Remove small noise dots using connected component filtering
+            try:
+                from scipy import ndimage as _ndimage
+                labeled, _ = _ndimage.label(big_bin)
+                comp_sizes = _np.bincount(labeled.ravel())
+                too_small = comp_sizes < 80
+                too_small[0] = False
+                big_bin[too_small[labeled]] = 0
+            except ImportError:
+                pass  # Skip denoising if scipy not available
 
-            # 4. Scale up 4x for better OCR accuracy
-            big = thresh.resize(
-                (img.width * 4, img.height * 4), Image.NEAREST
-            )
+            # Convert to clean black-on-white image with padding
+            clean_arr = _np.where(big_bin, 0, 255).astype(_np.uint8)
+            clean = Image.fromarray(clean_arr, "L")
+            padded = Image.new("L", (clean.width + 40, clean.height + 40), 255)
+            padded.paste(clean, (20, 20))
+            padded_rgb = padded.convert("RGB")
 
-            # 5. Run Tesseract with single-word mode, alphanumeric only
-            config = (
-                "--psm 8 --oem 3 "
-                "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-            )
-            text = pytesseract.image_to_string(big, config=config).strip()
-            # Clean up extra whitespace/punctuation
-            text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", text)
+            # --- Try EasyOCR first (handles italic fonts well) ---
+            try:
+                import easyocr
+                # Use module-level reader cache to avoid re-loading model each call
+                if not hasattr(self, "_easyocr_reader"):
+                    _logger.info("SPV: Initializing EasyOCR reader (first run may take ~10s)...")
+                    self._easyocr_reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+                results = self._easyocr_reader.readtext(
+                    _np.array(padded_rgb),
+                    allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+                    detail=1,
+                )
+                if results:
+                    # Pick result with highest confidence
+                    best = max(results, key=lambda x: x[2])
+                    text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", best[1])
+                    _logger.info(
+                        "SPV: EasyOCR answer: '%s' (conf=%.2f)", text, best[2]
+                    )
+                    if text:
+                        return text
+            except ImportError:
+                _logger.warning(
+                    "SPV: easyocr not installed. Run: pip install easyocr\n"
+                    "Falling back to Tesseract OCR."
+                )
 
-            if not text:
-                # Fallback: try inverted image
-                inv = ImageOps.invert(gray)
-                big_inv = inv.resize((img.width * 3, img.height * 3), Image.LANCZOS)
-                text = pytesseract.image_to_string(
-                    big_inv,
-                    config="--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-                ).strip()
+            # --- Fallback: Tesseract OCR ---
+            try:
+                import pytesseract
+                config = (
+                    "--psm 8 --oem 3 "
+                    "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                )
+                text = pytesseract.image_to_string(padded, config=config).strip()
                 text = re.sub(r"[\s\.\,\!\?\-\_\|\\]", "", text)
-
-            _logger.info("SPV: Local OCR answer: '%s'", text)
-            return text
+                _logger.info("SPV: Tesseract OCR answer: '%s'", text)
+                return text
+            except ImportError:
+                _logger.warning(
+                    "SPV: Neither easyocr nor pytesseract is installed.\n"
+                    "Install one: pip install easyocr  OR  apt install tesseract-ocr && pip install pytesseract"
+                )
+                return ""
 
         except Exception as e:
             _logger.warning("SPV: Local OCR CAPTCHA solving failed: %s", e)

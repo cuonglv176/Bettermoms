@@ -407,13 +407,13 @@ class GrabEInvoiceSession:
 
     def _solve_captcha_local(self, image_bytes):
         """
-        Solve image CAPTCHA locally using PIL image preprocessing + Tesseract OCR.
-        No API key or internet connection required.
-        Requires: tesseract-ocr system package + pytesseract Python package.
+        Solve image CAPTCHA locally using EasyOCR (deep learning, handles italic/decorative fonts).
+        Falls back to Tesseract if EasyOCR is not available.
+        No API key or internet connection required after initial model download.
 
         Install on server:
-            apt-get install tesseract-ocr
-            pip install pytesseract pillow
+            pip install easyocr pillow scipy numpy
+            # EasyOCR will auto-download ~100MB model on first run
 
         Args:
             image_bytes (bytes): Raw PNG/JPEG image data.
@@ -423,44 +423,81 @@ class GrabEInvoiceSession:
         """
         try:
             import io as _io
-            import base64 as _b64
-            from PIL import Image, ImageFilter, ImageEnhance, ImageOps
-
-            try:
-                import pytesseract
-            except ImportError:
-                _logger.warning(
-                    "Grab: pytesseract not installed. Run: pip install pytesseract"
-                )
-                return ""
+            import numpy as _np
+            from PIL import Image
 
             img = Image.open(_io.BytesIO(image_bytes)).convert("RGB")
+            arr = _np.array(img)
 
-            # Preprocessing pipeline optimized for colored-text-on-white CAPTCHA
-            gray = img.convert("L")
-            enhanced = ImageEnhance.Contrast(gray).enhance(3.0)
-            thresh = enhanced.point(lambda x: 0 if x < 160 else 255, "1")
-            big = thresh.resize((img.width * 4, img.height * 4), Image.NEAREST)
+            # --- Preprocessing: extract colored text on white background ---
+            # Detect non-white pixels (text): R<180 AND G<180
+            text_pixels = (arr[:, :, 0] < 180) & (arr[:, :, 1] < 180)
+            mask = _np.where(text_pixels, 0, 255).astype(_np.uint8)
+            mask_img = Image.fromarray(mask, "L")
 
-            config = (
-                "--psm 8 --oem 3 "
-                "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-            )
-            text = pytesseract.image_to_string(big, config=config).strip()
-            text = re.sub(r"[^A-Za-z0-9]", "", text)
+            # Upscale 4x for better recognition
+            big = mask_img.resize((img.width * 4, img.height * 4), Image.LANCZOS)
+            big_arr = _np.array(big)
+            big_bin = (big_arr < 128).astype(_np.uint8)
 
-            if not text:
-                # Fallback: try inverted image
-                inv = ImageOps.invert(gray)
-                big_inv = inv.resize((img.width * 3, img.height * 3), Image.LANCZOS)
-                text = pytesseract.image_to_string(
-                    big_inv,
-                    config="--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-                ).strip()
+            # Remove small noise dots using connected component filtering
+            try:
+                from scipy import ndimage as _ndimage
+                labeled, _ = _ndimage.label(big_bin)
+                comp_sizes = _np.bincount(labeled.ravel())
+                too_small = comp_sizes < 80
+                too_small[0] = False
+                big_bin[too_small[labeled]] = 0
+            except ImportError:
+                pass  # Skip denoising if scipy not available
+
+            # Convert to clean black-on-white image with padding
+            clean_arr = _np.where(big_bin, 0, 255).astype(_np.uint8)
+            clean = Image.fromarray(clean_arr, "L")
+            padded = Image.new("L", (clean.width + 40, clean.height + 40), 255)
+            padded.paste(clean, (20, 20))
+            padded_rgb = padded.convert("RGB")
+
+            # --- Try EasyOCR first (handles italic fonts well) ---
+            try:
+                import easyocr
+                if not hasattr(self, "_easyocr_reader"):
+                    _logger.info("Grab: Initializing EasyOCR reader (first run may take ~10s)...")
+                    self._easyocr_reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+                results = self._easyocr_reader.readtext(
+                    _np.array(padded_rgb),
+                    allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+                    detail=1,
+                )
+                if results:
+                    best = max(results, key=lambda x: x[2])
+                    text = re.sub(r"[^A-Za-z0-9]", "", best[1])
+                    _logger.info("Grab: EasyOCR answer: '%s' (conf=%.2f)", text, best[2])
+                    if text:
+                        return text
+            except ImportError:
+                _logger.warning(
+                    "Grab: easyocr not installed. Run: pip install easyocr\n"
+                    "Falling back to Tesseract OCR."
+                )
+
+            # --- Fallback: Tesseract OCR ---
+            try:
+                import pytesseract
+                config = (
+                    "--psm 8 --oem 3 "
+                    "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                )
+                text = pytesseract.image_to_string(padded, config=config).strip()
                 text = re.sub(r"[^A-Za-z0-9]", "", text)
-
-            _logger.info("Grab: Local OCR answer: '%s'", text)
-            return text
+                _logger.info("Grab: Tesseract OCR answer: '%s'", text)
+                return text
+            except ImportError:
+                _logger.warning(
+                    "Grab: Neither easyocr nor pytesseract is installed.\n"
+                    "Install one: pip install easyocr  OR  apt install tesseract-ocr && pip install pytesseract"
+                )
+                return ""
 
         except Exception as e:
             _logger.error("Grab: Local OCR CAPTCHA solving error: %s", e)
