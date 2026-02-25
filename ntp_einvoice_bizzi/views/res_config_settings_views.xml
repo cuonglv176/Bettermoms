@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_einvoice_bizzi" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.einvoice.bizzi</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base_setup.action_general_configuration"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block"
+                     data-string="NTP E-Invoice Bizzi"
+                     string="NTP E-Invoice Bizzi"
+                     data-key="ntp_einvoice_bizzi">
+
+                    <!-- Bizzi API Configuration -->
+                    <h2>Cấu hình Bizzi API</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bizzi_api_url" string="Bizzi API URL"/>
+                                <div class="text-muted">
+                                    URL endpoint của Bizzi API (VD: https://api.bizzi.vn/v1)
+                                </div>
+                                <field name="bizzi_api_url" class="o_light_label"
+                                       placeholder="https://api.bizzi.vn/v1"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bizzi_api_key" string="Bizzi API Key"/>
+                                <div class="text-muted">
+                                    API Key để xác thực với Bizzi (liên hệ Bizzi để lấy)
+                                </div>
+                                <field name="bizzi_api_key" class="o_light_label"
+                                       password="True"
+                                       placeholder="Nhập Bizzi API Key..."/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bizzi_company_code" string="Bizzi Company Code"/>
+                                <div class="text-muted">
+                                    Mã công ty trên hệ thống Bizzi
+                                </div>
+                                <field name="bizzi_company_code" class="o_light_label"
+                                       placeholder="Nhập mã công ty..."/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label string="Kiểm tra kết nối"/>
+                                <div class="text-muted">
+                                    Kiểm tra kết nối đến Bizzi API với cấu hình hiện tại
+                                </div>
+                                <button name="action_test_bizzi_connection"
+                                        string="Kiểm tra kết nối Bizzi"
+                                        type="object"
+                                        class="btn btn-secondary mt8"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bizzi_timeout" string="Timeout (giây)"/>
+                                <field name="bizzi_timeout" class="o_light_label"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="bizzi_max_retries" string="Số lần thử lại"/>
+                                <field name="bizzi_max_retries" class="o_light_label"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Extension API Configuration -->
+                    <h2>Cấu hình Chrome/Edge Extension</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="extension_api_token" string="Extension API Token"/>
+                                <div class="text-muted">
+                                    Token xác thực cho Chrome/Edge Extension.
+                                    Copy token này vào cài đặt Extension.
+                                </div>
+                                <field name="extension_api_token" class="o_light_label"
+                                       placeholder="Chưa có token..."/>
+                                <button name="action_generate_extension_token"
+                                        string="Tạo Token mới"
+                                        type="object"
+                                        class="btn btn-primary mt8"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_left_pane"/>
+                            <div class="o_setting_right_pane">
+                                <label for="extension_batch_size" string="Batch Size"/>
+                                <div class="text-muted">
+                                    Số lượng hóa đơn tối đa trong mỗi lần đồng bộ từ Extension
+                                </div>
+                                <field name="extension_batch_size" class="o_light_label"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

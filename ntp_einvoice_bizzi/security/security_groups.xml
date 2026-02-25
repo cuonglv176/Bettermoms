@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- ============================================================ -->
+        <!-- Security Categories                                           -->
+        <!-- ============================================================ -->
+        <record id="module_category_einvoice_bizzi" model="ir.module.category">
+            <field name="name">NTP E-Invoice Bizzi</field>
+            <field name="description">Quản lý hóa đơn điện tử và tích hợp Bizzi</field>
+            <field name="sequence">100</field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- User Group: Người dùng thông thường                          -->
+        <!-- ============================================================ -->
+        <record id="group_einvoice_user" model="res.groups">
+            <field name="name">Người dùng E-Invoice</field>
+            <field name="category_id" ref="module_category_einvoice_bizzi"/>
+            <field name="comment">
+                Xem danh sách staging, xem chi tiết hóa đơn.
+            </field>
+        </record>
+
+        <!-- ============================================================ -->
+        <!-- Manager Group: Quản lý                                        -->
+        <!-- ============================================================ -->
+        <record id="group_einvoice_manager" model="res.groups">
+            <field name="name">Quản lý E-Invoice</field>
+            <field name="category_id" ref="module_category_einvoice_bizzi"/>
+            <field name="implied_ids" eval="[(4, ref('group_einvoice_user'))]"/>
+            <field name="comment">
+                Toàn quyền: Tạo, sửa, xóa staging, đẩy sang Bizzi, cấu hình hệ thống.
+            </field>
+            <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ================================================================ -->
+    <!-- List View: Danh sách Staging                                      -->
+    <!-- ================================================================ -->
+    <record id="view_invoice_staging_list" model="ir.ui.view">
+        <field name="name">invoice.staging.queue.list</field>
+        <field name="model">invoice.staging.queue</field>
+        <field name="arch" type="xml">
+            <tree string="Hóa đơn Staging"
+                  decoration-success="bizzi_status == 'processed'"
+                  decoration-warning="bizzi_status == 'pushed'"
+                  decoration-danger="bizzi_status == 'failed'"
+                  decoration-muted="bizzi_status == 'draft'"
+                  multi_edit="1">
+                <field name="invoice_number"/>
+                <field name="source"/>
+                <field name="invoice_date"/>
+                <field name="seller_name"/>
+                <field name="seller_tax_code"/>
+                <field name="amount_total" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="has_pdf" widget="boolean_toggle" string="PDF"/>
+                <field name="has_xml" widget="boolean_toggle" string="XML"/>
+                <field name="bizzi_status" widget="badge"
+                       decoration-success="bizzi_status == 'processed'"
+                       decoration-warning="bizzi_status == 'pushed'"
+                       decoration-danger="bizzi_status == 'failed'"
+                       decoration-info="bizzi_status == 'draft'"/>
+                <field name="bizzi_push_date" optional="show"/>
+                <field name="create_date" optional="show"/>
+                <button name="action_push_to_bizzi"
+                        string="Đẩy Bizzi"
+                        type="object"
+                        icon="fa-upload"
+                        attrs="{'invisible': [('bizzi_status', 'not in', ['draft', 'failed'])]}"
+                        class="btn-primary"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ================================================================ -->
+    <!-- Form View: Chi tiết Staging                                       -->
+    <!-- ================================================================ -->
+    <record id="view_invoice_staging_form" model="ir.ui.view">
+        <field name="name">invoice.staging.queue.form</field>
+        <field name="model">invoice.staging.queue</field>
+        <field name="arch" type="xml">
+            <form string="Chi tiết Hóa đơn Staging">
+                <header>
+                    <button name="action_push_to_bizzi"
+                            string="Đẩy sang Bizzi"
+                            type="object"
+                            class="btn-primary"
+                            attrs="{'invisible': [('bizzi_status', 'not in', ['draft', 'failed'])]}"/>
+                    <button name="action_reset_to_draft"
+                            string="Reset về Nháp"
+                            type="object"
+                            class="btn-secondary"
+                            attrs="{'invisible': [('bizzi_status', '!=', 'failed')]}"/>
+                    <field name="bizzi_status" widget="statusbar"
+                           statusbar_visible="draft,pushed,processed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_pdf"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-file-pdf-o"
+                                attrs="{'invisible': [('has_pdf', '=', False)]}">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Xem PDF</span>
+                            </div>
+                        </button>
+                    </div>
+                    <group>
+                        <group string="Thông tin hóa đơn">
+                            <field name="invoice_number"/>
+                            <field name="invoice_code"/>
+                            <field name="invoice_symbol"/>
+                            <field name="invoice_date"/>
+                            <field name="source"/>
+                        </group>
+                        <group string="Thông tin nhà cung cấp">
+                            <field name="seller_name"/>
+                            <field name="seller_tax_code"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Số tiền">
+                            <field name="amount_untaxed" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="amount_tax" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="amount_total" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="currency_id"/>
+                        </group>
+                        <group string="Trạng thái Bizzi">
+                            <field name="bizzi_status"/>
+                            <field name="bizzi_document_id"
+                                   attrs="{'invisible': [('bizzi_document_id', '=', False)]}"/>
+                            <field name="bizzi_push_date"
+                                   attrs="{'invisible': [('bizzi_push_date', '=', False)]}"/>
+                            <field name="retry_count"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="File đính kèm">
+                            <field name="pdf_file" filename="pdf_filename" widget="binary"/>
+                            <field name="pdf_filename"/>
+                            <field name="xml_file" filename="xml_filename" widget="binary"/>
+                            <field name="xml_filename"/>
+                        </group>
+                        <group string="Thông tin đồng bộ">
+                            <field name="extension_sync_date"/>
+                            <field name="extension_session_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Log Bizzi" name="bizzi_log"
+                              attrs="{'invisible': [('bizzi_response_log', '=', False)]}">
+                            <field name="bizzi_response_log" widget="text" readonly="1"/>
+                        </page>
+                        <page string="Chi tiết lỗi" name="error_details"
+                              attrs="{'invisible': [('error_message', '=', False)]}">
+                            <field name="error_message" widget="text" readonly="1"/>
+                        </page>
+                        <page string="Dữ liệu thô" name="raw_data"
+                              groups="ntp_einvoice_bizzi.group_einvoice_manager">
+                            <field name="raw_data" widget="text" readonly="1"/>
+                        </page>
+                        <page string="Ghi chú" name="notes">
+                            <field name="notes" placeholder="Thêm ghi chú..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================================================================ -->
+    <!-- Search View                                                        -->
+    <!-- ================================================================ -->
+    <record id="view_invoice_staging_search" model="ir.ui.view">
+        <field name="name">invoice.staging.queue.search</field>
+        <field name="model">invoice.staging.queue</field>
+        <field name="arch" type="xml">
+            <search string="Tìm kiếm Hóa đơn Staging">
+                <field name="invoice_number" string="Số hóa đơn"/>
+                <field name="seller_name" string="Nhà cung cấp"/>
+                <field name="seller_tax_code" string="MST nhà cung cấp"/>
+                <field name="invoice_code" string="Mã tra cứu"/>
+                <separator/>
+                <filter string="Nháp" name="filter_draft"
+                        domain="[('bizzi_status', '=', 'draft')]"/>
+                <filter string="Đã đẩy Bizzi" name="filter_pushed"
+                        domain="[('bizzi_status', '=', 'pushed')]"/>
+                <filter string="Bizzi xử lý xong" name="filter_processed"
+                        domain="[('bizzi_status', '=', 'processed')]"/>
+                <filter string="Lỗi" name="filter_failed"
+                        domain="[('bizzi_status', '=', 'failed')]"/>
+                <separator/>
+                <filter string="Grab" name="filter_grab"
+                        domain="[('source', '=', 'grab')]"/>
+                <filter string="Tracuuhoadon" name="filter_tracuu"
+                        domain="[('source', '=', 'tracuu')]"/>
+                <filter string="Shinhan" name="filter_shinhan"
+                        domain="[('source', '=', 'shinhan')]"/>
+                <separator/>
+                <filter string="Có file PDF" name="filter_has_pdf"
+                        domain="[('has_pdf', '=', True)]"/>
+                <filter string="Hôm nay" name="filter_today"
+                        domain="[('create_date', '&gt;=', datetime.datetime.now().strftime('%Y-%m-%d 00:00:00'))]"/>
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Nguồn" name="group_source" context="{'group_by': 'source'}"/>
+                    <filter string="Trạng thái Bizzi" name="group_status"
+                            context="{'group_by': 'bizzi_status'}"/>
+                    <filter string="Ngày lập" name="group_date"
+                            context="{'group_by': 'invoice_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ================================================================ -->
+    <!-- Actions                                                            -->
+    <!-- ================================================================ -->
+    <record id="action_invoice_staging_list" model="ir.actions.act_window">
+        <field name="name">Hóa đơn Staging</field>
+        <field name="res_model">invoice.staging.queue</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_invoice_staging_search"/>
+        <field name="context">{'search_default_filter_draft': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Chưa có hóa đơn staging nào
+            </p>
+            <p>
+                Sử dụng Chrome/Edge Extension để đồng bộ hóa đơn từ Grab,
+                Tracuuhoadon hoặc Shinhan Bank.
+            </p>
+        </field>
+    </record>
+
+    <!-- Action: Xem tất cả -->
+    <record id="action_invoice_staging_all" model="ir.actions.act_window">
+        <field name="name">Tất cả Hóa đơn Staging</field>
+        <field name="res_model">invoice.staging.queue</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_invoice_staging_search"/>
+        <field name="context">{}</field>
+    </record>
+</odoo>

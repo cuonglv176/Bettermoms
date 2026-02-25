@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NTP E-Invoice Fetcher</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- ================================================================ -->
+  <!-- Header                                                             -->
+  <!-- ================================================================ -->
+  <header class="header">
+    <div class="header-logo">
+      <span class="header-icon">📄</span>
+      <span class="header-title">NTP E-Invoice</span>
+    </div>
+    <button id="btn-settings" class="btn-icon" title="Cài đặt">⚙️</button>
+  </header>
+
+  <!-- ================================================================ -->
+  <!-- Screen 1: Configuration                                            -->
+  <!-- ================================================================ -->
+  <div id="screen-config" class="screen active">
+    <div class="screen-content">
+      <h2 class="screen-title">Cấu hình & Quét dữ liệu</h2>
+
+      <!-- Connection Status -->
+      <div id="connection-status" class="status-bar status-unknown">
+        <span class="status-dot"></span>
+        <span id="connection-text">Chưa kiểm tra kết nối</span>
+        <button id="btn-check-connection" class="btn-link">Kiểm tra</button>
+      </div>
+
+      <!-- Fetch Days -->
+      <div class="form-group">
+        <label for="input-days" class="form-label">
+          Số ngày cần lấy hóa đơn
+        </label>
+        <div class="input-with-unit">
+          <input
+            type="number"
+            id="input-days"
+            class="form-input"
+            min="1"
+            max="365"
+            value="30"
+            placeholder="30"
+          />
+          <span class="input-unit">ngày</span>
+        </div>
+        <p class="form-hint">Lấy hóa đơn trong vòng X ngày gần nhất</p>
+      </div>
+
+      <!-- Sources Selection -->
+      <div class="form-group">
+        <label class="form-label">Nguồn dữ liệu</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item">
+            <input type="checkbox" id="src-grab" value="grab" checked />
+            <span class="checkbox-label">
+              <span class="source-icon grab">G</span> Grab E-Invoice
+            </span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" id="src-tracuu" value="tracuu" checked />
+            <span class="checkbox-label">
+              <span class="source-icon tracuu">T</span> SPV Tracuuhoadon
+            </span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" id="src-shinhan" value="shinhan" checked />
+            <span class="checkbox-label">
+              <span class="source-icon shinhan">S</span> Shinhan Bank
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <button id="btn-start-fetch" class="btn btn-primary btn-full">
+        <span class="btn-icon">🔍</span>
+        Bắt đầu quét dữ liệu
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Screen 2: Fetching Progress                                        -->
+  <!-- ================================================================ -->
+  <div id="screen-fetching" class="screen">
+    <div class="screen-content">
+      <h2 class="screen-title">Đang quét dữ liệu...</h2>
+
+      <div class="fetch-progress">
+        <div class="source-status" id="status-grab">
+          <span class="source-icon grab">G</span>
+          <span class="source-name">Grab</span>
+          <span class="source-count" id="count-grab">-</span>
+          <span class="source-spinner" id="spinner-grab">⏳</span>
+        </div>
+        <div class="source-status" id="status-tracuu">
+          <span class="source-icon tracuu">T</span>
+          <span class="source-name">Tracuuhoadon</span>
+          <span class="source-count" id="count-tracuu">-</span>
+          <span class="source-spinner" id="spinner-tracuu">⏳</span>
+        </div>
+        <div class="source-status" id="status-shinhan">
+          <span class="source-icon shinhan">S</span>
+          <span class="source-name">Shinhan</span>
+          <span class="source-count" id="count-shinhan">-</span>
+          <span class="source-spinner" id="spinner-shinhan">⏳</span>
+        </div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div id="fetch-progress-bar" class="progress-bar" style="width: 0%"></div>
+      </div>
+      <p id="fetch-progress-text" class="progress-text">Đang kết nối...</p>
+
+      <button id="btn-cancel-fetch" class="btn btn-secondary btn-full">
+        Hủy
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Screen 3: Preview Board                                            -->
+  <!-- ================================================================ -->
+  <div id="screen-preview" class="screen">
+    <div class="screen-content no-padding">
+      <!-- Preview Header -->
+      <div class="preview-header">
+        <div class="preview-stats">
+          <span id="preview-total">0 hóa đơn</span>
+          <span class="stats-sep">|</span>
+          <span id="preview-selected">0 đã chọn</span>
+          <span class="stats-sep">|</span>
+          <span id="preview-pdf-ok" class="text-success">0 có PDF</span>
+        </div>
+        <div class="preview-actions-top">
+          <button id="btn-select-all" class="btn-link">Chọn tất cả</button>
+          <span class="sep">|</span>
+          <button id="btn-deselect-all" class="btn-link">Bỏ chọn</button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <input type="text" id="filter-search" class="filter-input" placeholder="🔍 Tìm kiếm..." />
+        <select id="filter-source" class="filter-select">
+          <option value="">Tất cả nguồn</option>
+          <option value="grab">Grab</option>
+          <option value="tracuu">Tracuuhoadon</option>
+          <option value="shinhan">Shinhan</option>
+        </select>
+        <select id="filter-pdf" class="filter-select">
+          <option value="">Tất cả</option>
+          <option value="ok">Có PDF</option>
+          <option value="error">Lỗi PDF</option>
+        </select>
+      </div>
+
+      <!-- Invoice Table -->
+      <div class="table-container">
+        <table class="invoice-table">
+          <thead>
+            <tr>
+              <th class="col-check">
+                <input type="checkbox" id="check-all-header" title="Chọn/bỏ chọn tất cả" />
+              </th>
+              <th class="col-source">Nguồn</th>
+              <th class="col-number">Số HĐ</th>
+              <th class="col-date">Ngày lập</th>
+              <th class="col-seller">Nhà cung cấp</th>
+              <th class="col-amount">Tổng tiền</th>
+              <th class="col-pdf">PDF</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-table-body">
+            <!-- Rows generated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Preview Footer Actions -->
+      <div class="preview-footer">
+        <button id="btn-rescan" class="btn btn-secondary">
+          🔄 Quét lại
+        </button>
+        <button id="btn-sync" class="btn btn-primary" disabled>
+          ☁️ Đồng bộ lên Hệ thống
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Screen 4: Syncing Progress                                         -->
+  <!-- ================================================================ -->
+  <div id="screen-syncing" class="screen">
+    <div class="screen-content">
+      <h2 class="screen-title">Đang đồng bộ...</h2>
+
+      <div class="sync-progress-info">
+        <span id="sync-current">0</span>
+        <span> / </span>
+        <span id="sync-total">0</span>
+        <span> hóa đơn</span>
+      </div>
+
+      <div class="progress-bar-container large">
+        <div id="sync-progress-bar" class="progress-bar" style="width: 0%"></div>
+      </div>
+
+      <div id="sync-current-invoice" class="sync-current-text">
+        Đang xử lý...
+      </div>
+
+      <!-- Live Log -->
+      <div id="sync-log" class="sync-log">
+        <!-- Log entries added dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Screen 5: Result                                                   -->
+  <!-- ================================================================ -->
+  <div id="screen-result" class="screen">
+    <div class="screen-content">
+      <div class="result-icon" id="result-icon">✅</div>
+      <h2 class="screen-title" id="result-title">Đồng bộ hoàn tất!</h2>
+
+      <div class="result-stats">
+        <div class="stat-card success">
+          <div class="stat-number" id="result-success">0</div>
+          <div class="stat-label">Thành công</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-number" id="result-duplicate">0</div>
+          <div class="stat-label">Trùng lặp</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-number" id="result-error">0</div>
+          <div class="stat-label">Lỗi</div>
+        </div>
+      </div>
+
+      <!-- Error Details -->
+      <div id="result-errors-section" class="result-errors" style="display:none">
+        <h4>Chi tiết lỗi:</h4>
+        <div id="result-errors-list"></div>
+      </div>
+
+      <div class="result-actions">
+        <button id="btn-view-odoo" class="btn btn-secondary">
+          🔗 Xem trên Odoo
+        </button>
+        <button id="btn-done" class="btn btn-primary">
+          ✓ Xong
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Screen 6: Settings                                                 -->
+  <!-- ================================================================ -->
+  <div id="screen-settings" class="screen">
+    <div class="screen-content">
+      <div class="settings-header">
+        <button id="btn-back-settings" class="btn-icon">←</button>
+        <h2 class="screen-title">Cài đặt</h2>
+      </div>
+
+      <div class="form-group">
+        <label for="setting-odoo-url" class="form-label">Odoo Server URL</label>
+        <input
+          type="url"
+          id="setting-odoo-url"
+          class="form-input"
+          placeholder="http://localhost:8069"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="setting-api-token" class="form-label">API Token</label>
+        <div class="input-with-action">
+          <input
+            type="password"
+            id="setting-api-token"
+            class="form-input"
+            placeholder="Nhập token từ Odoo..."
+          />
+          <button id="btn-toggle-token" class="btn-icon" title="Hiện/ẩn token">👁</button>
+        </div>
+        <p class="form-hint">
+          Lấy token tại: Odoo → Cài đặt → NTP E-Invoice Bizzi → Tạo Token mới
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label for="setting-batch-size" class="form-label">Batch Size</label>
+        <input
+          type="number"
+          id="setting-batch-size"
+          class="form-input"
+          min="1"
+          max="50"
+          value="10"
+          placeholder="10"
+        />
+        <p class="form-hint">Số hóa đơn gửi mỗi lần (khuyến nghị: 10)</p>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-test-connection" class="btn btn-secondary btn-full">
+          🔌 Kiểm tra kết nối
+        </button>
+        <button id="btn-save-settings" class="btn btn-primary btn-full">
+          💾 Lưu cài đặt
+        </button>
+      </div>
+
+      <div id="settings-status" class="settings-status"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" style="display:none"></div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

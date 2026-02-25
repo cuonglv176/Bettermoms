@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ================================================================ -->
+    <!-- Menu: NTP E-Invoice Bizzi                                         -->
+    <!-- ================================================================ -->
+
+    <!-- Root Menu -->
+    <menuitem id="menu_einvoice_bizzi_root"
+              name="E-Invoice Bizzi"
+              sequence="85"
+              web_icon="ntp_einvoice_bizzi,static/src/img/module_icon.png"
+              groups="ntp_einvoice_bizzi.group_einvoice_user"/>
+
+    <!-- Staging Invoices -->
+    <menuitem id="menu_einvoice_bizzi_staging"
+              name="Hóa đơn Staging"
+              parent="menu_einvoice_bizzi_root"
+              sequence="10"
+              groups="ntp_einvoice_bizzi.group_einvoice_user"/>
+
+    <menuitem id="menu_invoice_staging_draft"
+              name="Chờ đẩy Bizzi (Nháp)"
+              parent="menu_einvoice_bizzi_staging"
+              action="action_invoice_staging_list"
+              sequence="10"
+              groups="ntp_einvoice_bizzi.group_einvoice_user"/>
+
+    <menuitem id="menu_invoice_staging_all"
+              name="Tất cả hóa đơn"
+              parent="menu_einvoice_bizzi_staging"
+              action="action_invoice_staging_all"
+              sequence="20"
+              groups="ntp_einvoice_bizzi.group_einvoice_user"/>
+
+    <!-- Configuration -->
+    <menuitem id="menu_einvoice_bizzi_config"
+              name="Cấu hình"
+              parent="menu_einvoice_bizzi_root"
+              sequence="100"
+              groups="ntp_einvoice_bizzi.group_einvoice_manager"/>
+
+    <menuitem id="menu_einvoice_bizzi_settings"
+              name="Cài đặt Bizzi API"
+              parent="menu_einvoice_bizzi_config"
+              action="base_setup.action_general_configuration"
+              sequence="10"
+              groups="ntp_einvoice_bizzi.group_einvoice_manager"/>
+</odoo>
