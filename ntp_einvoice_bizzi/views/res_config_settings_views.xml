@@ -51,12 +51,12 @@
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_left_pane"/>
                             <div class="o_setting_right_pane">
-                                <label string="Kiểm tra kết nối"/>
+                                <div class="o_form_label">Kiểm tra kết nối Bizzi</div>
                                 <div class="text-muted">
                                     Kiểm tra kết nối đến Bizzi API với cấu hình hiện tại
                                 </div>
                                 <button name="action_test_bizzi_connection"
-                                        string="Kiểm tra kết nối Bizzi"
+                                        string="Kiểm tra kết nối"
                                         type="object"
                                         class="btn btn-secondary mt8"/>
                             </div>
