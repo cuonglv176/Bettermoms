@@ -80,6 +80,7 @@
                             <field name="invoice_symbol"/>
                             <field name="invoice_date"/>
                             <field name="source"/>
+                            <field name="has_pdf"/>
                         </group>
                         <group string="Thông tin nhà cung cấp">
                             <field name="seller_name"/>
