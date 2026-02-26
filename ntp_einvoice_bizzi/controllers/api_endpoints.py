@@ -3,12 +3,11 @@
 API Endpoints cho Chrome/Edge Extension.
 Nhận dữ liệu hóa đơn và tạo bản ghi staging.
 
-Lưu ý về type='json' vs type='http' trong Odoo:
-- type='json'  → Odoo xử lý JSON-RPC, tự parse body, trả về JSON-RPC response
-- type='http'  → Odoo xử lý plain HTTP, cần tự parse body
-
-Extension gửi Content-Type: application/json → Odoo tự động route sang JSON-RPC handler.
-Do đó tất cả POST endpoints phải dùng type='json'.
+Lưu ý về type='json' trong Odoo:
+- Extension gửi JSON-RPC: {"jsonrpc":"2.0","method":"call","id":xxx,"params":{...}}
+- Odoo tự động unwrap "params" và truyền vào **kwargs
+- request.jsonrequest chứa TOÀN BỘ JSON-RPC body (bao gồm jsonrpc, method, id, params)
+- Do đó, PHẢI dùng kwargs (đã unwrap) hoặc request.jsonrequest.get("params", {})
 """
 import json
 import logging
@@ -19,9 +18,7 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
-# Giới hạn kích thước payload (50MB)
 MAX_PAYLOAD_SIZE = 50 * 1024 * 1024
-# Số lượng hóa đơn tối đa trong một batch
 MAX_BATCH_SIZE = 50
 
 
@@ -60,6 +57,32 @@ def _validate_token():
     except Exception as e:
         _logger.error("Extension API: Lỗi xác thực token: %s", str(e), exc_info=True)
         return False, {"success": False, "error": "Lỗi xác thực: %s" % str(e)}
+
+
+def _get_json_data(**kwargs):
+    """
+    Lấy dữ liệu JSON từ request.
+    Odoo type='json' tự unwrap params → kwargs.
+    Fallback: lấy từ request.jsonrequest['params'] nếu kwargs rỗng.
+    """
+    # kwargs đã được Odoo unwrap từ params
+    if kwargs and any(k not in ('context',) for k in kwargs):
+        _logger.info("Extension API: Dữ liệu từ kwargs, keys=%s", list(kwargs.keys()))
+        return kwargs
+
+    # Fallback: lấy từ request.jsonrequest
+    if hasattr(request, 'jsonrequest') and request.jsonrequest:
+        jr = request.jsonrequest
+        # Nếu là JSON-RPC format, lấy params
+        if 'params' in jr:
+            _logger.info("Extension API: Dữ liệu từ jsonrequest.params, keys=%s", list(jr['params'].keys()))
+            return jr['params']
+        # Nếu là plain JSON (không phải JSON-RPC)
+        _logger.info("Extension API: Dữ liệu từ jsonrequest trực tiếp, keys=%s", list(jr.keys()))
+        return jr
+
+    _logger.warning("Extension API: Không tìm thấy dữ liệu trong request")
+    return {}
 
 
 class EInvoiceBizziController(http.Controller):
@@ -103,7 +126,7 @@ class EInvoiceBizziController(http.Controller):
         data = {
             "success": True,
             "message": "NTP E-Invoice Bizzi API is running",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "token_valid": token_valid if token else None,
         }
         return http.Response(
@@ -139,7 +162,7 @@ class EInvoiceBizziController(http.Controller):
         )
 
     # ====================================================================
-    # Sync Single Invoice (type='json' - nhận JSON từ Extension)
+    # Sync Single Invoice (type='json')
     # ====================================================================
     @http.route(
         "/api/einvoice/staging/create",
@@ -153,8 +176,19 @@ class EInvoiceBizziController(http.Controller):
         """
         Nhận một hóa đơn từ Extension và tạo bản ghi staging.
 
-        Extension gửi JSON body trực tiếp (không phải JSON-RPC params).
-        Odoo với type='json' sẽ parse body và truyền vào kwargs.
+        Extension gửi JSON-RPC:
+        {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "id": xxx,
+            "params": {
+                "invoice_number": "62952",
+                "source": "shinhan",
+                ...
+            }
+        }
+
+        Odoo unwrap "params" → kwargs chứa invoice_number, source, ...
         """
         try:
             # Xác thực token
@@ -162,12 +196,12 @@ class EInvoiceBizziController(http.Controller):
             if not is_valid:
                 return error_dict
 
-            # Lấy dữ liệu từ request body (Odoo type='json' parse tự động)
-            # Dữ liệu có thể nằm trong kwargs hoặc request.jsonrequest
-            invoice_data = request.jsonrequest if hasattr(request, 'jsonrequest') and request.jsonrequest else kwargs
+            # Lấy dữ liệu - ưu tiên kwargs (Odoo đã unwrap params)
+            invoice_data = _get_json_data(**kwargs)
 
             _logger.info(
-                "Extension API create_staging: invoice_number=%s, source=%s, from IP=%s",
+                "Extension API create_staging: data_keys=%s, invoice_number=%s, source=%s, from IP=%s",
+                list(invoice_data.keys()),
                 invoice_data.get("invoice_number", "N/A"),
                 invoice_data.get("source", "N/A"),
                 request.httprequest.remote_addr,
@@ -183,8 +217,10 @@ class EInvoiceBizziController(http.Controller):
             result = StagingModel.create_from_extension(invoice_data, session_id)
 
             _logger.info(
-                "Extension API create_staging result: success=%s, invoice=%s",
-                result.get("success"), invoice_data.get("invoice_number", "N/A"),
+                "Extension API create_staging result: success=%s, invoice=%s, error=%s",
+                result.get("success"),
+                invoice_data.get("invoice_number", "N/A"),
+                result.get("error", "none"),
             )
 
             return result
@@ -215,7 +251,7 @@ class EInvoiceBizziController(http.Controller):
             if not is_valid:
                 return error_dict
 
-            data = request.jsonrequest if hasattr(request, 'jsonrequest') and request.jsonrequest else kwargs
+            data = _get_json_data(**kwargs)
             invoices = data.get("invoices", [])
             session_id = data.get("session_id")
 
@@ -305,33 +341,36 @@ class EInvoiceBizziController(http.Controller):
                 domain.append(("bizzi_status", "=", status_filter))
 
             StagingModel = request.env["invoice.staging.queue"].sudo()
-            records = StagingModel.search(domain, limit=limit, offset=offset, order="id desc")
             total = StagingModel.search_count(domain)
+            records = StagingModel.search(domain, limit=limit, offset=offset, order="create_date desc")
 
-            data = []
-            for rec in records:
-                data.append({
-                    "id": rec.id,
-                    "invoice_number": rec.invoice_number,
-                    "invoice_date": rec.invoice_date.isoformat() if rec.invoice_date else None,
-                    "source": rec.source,
-                    "seller_name": rec.seller_name,
-                    "seller_tax_code": rec.seller_tax_code,
-                    "amount_total": rec.amount_total,
-                    "bizzi_status": rec.bizzi_status,
-                    "has_pdf": rec.has_pdf,
-                    "has_xml": rec.has_xml,
-                    "create_date": rec.create_date.isoformat() if rec.create_date else None,
-                })
+            data = {
+                "success": True,
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "records": [
+                    {
+                        "id": rec.id,
+                        "invoice_number": rec.invoice_number,
+                        "invoice_code": rec.invoice_code,
+                        "invoice_symbol": rec.invoice_symbol,
+                        "invoice_date": str(rec.invoice_date) if rec.invoice_date else None,
+                        "source": rec.source,
+                        "seller_tax_code": rec.seller_tax_code,
+                        "seller_name": rec.seller_name,
+                        "amount_total": rec.amount_total,
+                        "bizzi_status": rec.bizzi_status,
+                        "has_pdf": rec.has_pdf,
+                        "has_xml": rec.has_xml,
+                        "create_date": str(rec.create_date),
+                    }
+                    for rec in records
+                ],
+            }
 
             return http.Response(
-                json.dumps({
-                    "success": True,
-                    "total": total,
-                    "limit": limit,
-                    "offset": offset,
-                    "data": data,
-                }, ensure_ascii=False, default=str),
+                json.dumps(data, ensure_ascii=False, default=str),
                 headers=headers,
             )
 
@@ -342,43 +381,3 @@ class EInvoiceBizziController(http.Controller):
                 status=500,
                 headers=headers,
             )
-
-    # ====================================================================
-    # Manual Push to Bizzi (type='json')
-    # ====================================================================
-    @http.route(
-        "/api/einvoice/staging/<int:staging_id>/push-bizzi",
-        type="json",
-        auth="public",
-        methods=["POST"],
-        csrf=False,
-        cors="*",
-    )
-    def push_to_bizzi(self, staging_id, **kwargs):
-        """Đẩy một hóa đơn cụ thể sang Bizzi."""
-        try:
-            is_valid, error_dict = _validate_token()
-            if not is_valid:
-                return error_dict
-
-            StagingModel = request.env["invoice.staging.queue"].sudo()
-            record = StagingModel.browse(staging_id)
-
-            if not record.exists():
-                return {"success": False, "error": "Không tìm thấy bản ghi ID %d" % staging_id}
-
-            connector = request.env["bizzi.api.connector"].sudo()
-            success = connector.push_invoice_to_bizzi(record)
-
-            return {
-                "success": success,
-                "staging_id": staging_id,
-                "bizzi_status": record.bizzi_status,
-                "bizzi_document_id": record.bizzi_document_id,
-                "error": record.error_message if not success else None,
-            }
-
-        except Exception as e:
-            _logger.error("Extension API push_to_bizzi exception (ID %d): %s\n%s",
-                          staging_id, str(e), traceback.format_exc())
-            return {"success": False, "error": str(e)}
