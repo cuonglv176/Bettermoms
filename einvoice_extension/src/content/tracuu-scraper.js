@@ -465,10 +465,17 @@ class TracuuScraper {
    */
   async downloadPdf(invoice) {
     // Ưu tiên pdf_url, fallback sang view_url
-    const url = invoice.pdf_url || invoice.view_url;
+    let url = invoice.pdf_url || invoice.view_url;
 
-    if (!url || !url.startsWith('http')) {
+    if (!url) {
       return { pdf_base64: null, pdf_filename: null, pdf_status: 'no_link' };
+    }
+
+    // Xử lý relative URL
+    if (url.startsWith('/')) {
+      url = window.location.origin + url;
+    } else if (!url.startsWith('http')) {
+      url = window.location.origin + '/' + url;
     }
 
     try {
