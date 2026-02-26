@@ -6,7 +6,9 @@
  * Luồng hoạt động:
  * 1. Content script load trên trang web (đã đăng nhập)
  * 2. Popup gửi message SCRAPE_INVOICES → content script scrape DOM
- * 3. Content script trả về danh sách hóa đơn
+ * 3. Content script trả về danh sách hóa đơn (bao gồm pdf_url, xml_url)
+ * 4. Background gửi DOWNLOAD_FILES_BATCH → content script tải PDF/XML
+ * 5. Content script trả về base64 data
  *
  * Lưu ý: manifest.json inject scraper file TRƯỚC content-bridge.js
  * nên window.TracuuScraper / window.ShinhanScraper / window.GrabScraper
@@ -76,14 +78,12 @@
   // ====================================================================
   function waitForTable(timeout = 10000) {
     return new Promise((resolve) => {
-      // Kiểm tra ngay
       const table = document.querySelector('table');
       if (table && table.querySelectorAll('tbody tr').length > 0) {
         resolve(true);
         return;
       }
 
-      // Dùng MutationObserver để đợi DOM thay đổi
       const observer = new MutationObserver(() => {
         const t = document.querySelector('table');
         if (t && t.querySelectorAll('tbody tr').length > 0) {
@@ -97,7 +97,7 @@
 
       const timer = setTimeout(() => {
         observer.disconnect();
-        resolve(false); // Timeout nhưng vẫn thử scrape
+        resolve(false);
       }, timeout);
     });
   }
@@ -141,7 +141,7 @@
 
       case 'SCRAPE_INVOICES':
         handleScrapeInvoices().then(sendResponse);
-        return true; // Async response
+        return true;
 
       case 'DOWNLOAD_PDF':
         handleDownloadPdf(message.payload).then(sendResponse);
@@ -149,6 +149,14 @@
 
       case 'DOWNLOAD_PDFS_BATCH':
         handleDownloadPdfsBatch(message.payload).then(sendResponse);
+        return true;
+
+      case 'DOWNLOAD_FILES_BATCH':
+        handleDownloadFilesBatch(message.payload).then(sendResponse);
+        return true;
+
+      case 'FETCH_INVOICE_DETAILS':
+        handleFetchInvoiceDetails(message.payload).then(sendResponse);
         return true;
 
       default:
@@ -161,7 +169,6 @@
   // ====================================================================
   async function handleScrapeInvoices() {
     try {
-      // Đảm bảo scraper đã sẵn sàng
       if (!scraper) {
         initScraper();
       }
@@ -179,7 +186,6 @@
         };
       }
 
-      // Kiểm tra đăng nhập
       if (!scraper.isLoggedIn()) {
         return {
           success: false,
@@ -196,9 +202,9 @@
       }
 
       // Debug: log cấu trúc bảng trước khi scrape
-      const tables = document.querySelectorAll('table');
-      console.log(`[NTP E-Invoice] Số bảng trên trang: ${tables.length}`);
-      tables.forEach((t, i) => {
+      const tbls = document.querySelectorAll('table');
+      console.log(`[NTP E-Invoice] Số bảng trên trang: ${tbls.length}`);
+      tbls.forEach((t, i) => {
         const headers = Array.from(t.querySelectorAll('th')).map(h => h.textContent.trim());
         const rows = t.querySelectorAll('tbody tr').length;
         console.log(`[NTP E-Invoice] Bảng ${i}: ${rows} hàng, headers:`, headers);
@@ -232,7 +238,7 @@
   }
 
   // ====================================================================
-  // Download PDF Handler
+  // Download PDF Handler (single)
   // ====================================================================
   async function handleDownloadPdf(payload) {
     try {
@@ -258,7 +264,7 @@
   }
 
   // ====================================================================
-  // Batch Download PDFs Handler
+  // Batch Download PDFs Handler (legacy)
   // ====================================================================
   async function handleDownloadPdfsBatch(payload) {
     try {
@@ -268,34 +274,29 @@
 
       const { invoices } = payload;
       const results = [];
-      const CONCURRENT = 2;
 
-      for (let i = 0; i < invoices.length; i += CONCURRENT) {
-        const batch = invoices.slice(i, i + CONCURRENT);
-        const batchResults = await Promise.allSettled(
-          batch.map(inv => scraper.downloadPdf(inv))
-        );
-
-        batchResults.forEach((result, j) => {
-          const inv = batch[j];
-          if (result.status === 'fulfilled') {
-            results.push({
-              invoice_number: inv.invoice_number,
-              ...result.value,
-            });
-          } else {
-            results.push({
-              invoice_number: inv.invoice_number,
-              pdf_status: 'error',
-              pdf_error: result.reason?.message || 'Lỗi không xác định',
-            });
-          }
-        });
+      // Xử lý tuần tự (1 lần 1) để tránh conflict khi click simulation
+      for (let i = 0; i < invoices.length; i++) {
+        const inv = invoices[i];
+        try {
+          const pdfResult = await scraper.downloadPdf(inv);
+          results.push({
+            invoice_number: inv.invoice_number,
+            ...pdfResult,
+          });
+          console.log(`[NTP E-Invoice] PDF ${inv.invoice_number}: ${pdfResult.pdf_status}`);
+        } catch (e) {
+          results.push({
+            invoice_number: inv.invoice_number,
+            pdf_status: 'error',
+            pdf_error: e.message,
+          });
+        }
 
         chrome.runtime.sendMessage({
           type: 'PDF_DOWNLOAD_PROGRESS',
           source,
-          processed: Math.min(i + CONCURRENT, invoices.length),
+          processed: i + 1,
           total: invoices.length,
         }).catch(() => {});
       }
@@ -306,6 +307,127 @@
         downloaded: results.filter(r => r.pdf_status === 'downloaded').length,
         total: results.length,
       };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ====================================================================
+  // Batch Download Files (PDF + XML) Handler
+  // Xử lý tuần tự để tránh conflict khi dùng click simulation (Shinhan)
+  // ====================================================================
+  async function handleDownloadFilesBatch(payload) {
+    try {
+      if (!scraper) {
+        return { success: false, error: 'Scraper chưa sẵn sàng' };
+      }
+
+      const { invoices } = payload;
+      const results = [];
+
+      console.log(`[NTP E-Invoice] Bắt đầu tải files cho ${invoices.length} hóa đơn (source: ${source})`);
+
+      // Xử lý tuần tự (1 lần 1) - quan trọng cho Shinhan click simulation
+      for (let i = 0; i < invoices.length; i++) {
+        const inv = invoices[i];
+        const result = { invoice_number: inv.invoice_number };
+
+        // Tải PDF - kiểm tra có pdf_url hoặc _hasPdfLink (Shinhan click simulation)
+        if (inv.pdf_url || inv._hasPdfLink) {
+          try {
+            const pdfResult = await scraper.downloadPdf(inv);
+            Object.assign(result, pdfResult);
+            console.log(`[NTP E-Invoice] PDF ${inv.invoice_number}: ${pdfResult.pdf_status}, size=${pdfResult.pdf_base64 ? pdfResult.pdf_base64.length : 0}`);
+          } catch (e) {
+            result.pdf_status = 'error';
+            result.pdf_error = e.message;
+            console.warn(`[NTP E-Invoice] PDF error ${inv.invoice_number}:`, e.message);
+          }
+        } else {
+          result.pdf_status = 'no_link';
+          console.log(`[NTP E-Invoice] PDF ${inv.invoice_number}: no link`);
+        }
+
+        // Tải XML - kiểm tra có xml_url hoặc _hasXmlLink (Shinhan click simulation)
+        if ((inv.xml_url || inv._hasXmlLink) && typeof scraper.downloadXml === 'function') {
+          try {
+            const xmlResult = await scraper.downloadXml(inv);
+            Object.assign(result, xmlResult);
+            console.log(`[NTP E-Invoice] XML ${inv.invoice_number}: ${xmlResult.xml_base64 ? 'downloaded' : 'empty'}`);
+          } catch (e) {
+            result.xml_base64 = null;
+            result.xml_filename = null;
+            console.warn(`[NTP E-Invoice] XML error ${inv.invoice_number}:`, e.message);
+          }
+        }
+
+        results.push(result);
+
+        // Progress update
+        chrome.runtime.sendMessage({
+          type: 'PDF_DOWNLOAD_PROGRESS',
+          source,
+          processed: i + 1,
+          total: invoices.length,
+        }).catch(() => {});
+
+        // Delay giữa các lần download để tránh rate limit
+        if (i < invoices.length - 1) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+
+      const downloadedPdf = results.filter(r => r.pdf_status === 'downloaded').length;
+      const downloadedXml = results.filter(r => r.xml_base64).length;
+      console.log(`[NTP E-Invoice] Tải xong: ${downloadedPdf} PDF, ${downloadedXml} XML / ${results.length} tổng`);
+
+      return {
+        success: true,
+        results,
+        downloadedPdf,
+        downloadedXml,
+        total: results.length,
+      };
+    } catch (error) {
+      console.error(`[NTP E-Invoice] Lỗi tải files batch:`, error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ====================================================================
+  // Fetch Invoice Details (lấy thêm thông tin NCC từ trang chi tiết)
+  // Dùng cho Tracuuhoadon - bảng chính không có tên NCC
+  // ====================================================================
+  async function handleFetchInvoiceDetails(payload) {
+    try {
+      if (!scraper || typeof scraper.fetchInvoiceDetail !== 'function') {
+        return { success: false, error: 'Scraper không hỗ trợ lấy chi tiết' };
+      }
+
+      const { invoices } = payload;
+      const results = [];
+
+      console.log(`[NTP E-Invoice] Lấy chi tiết cho ${invoices.length} hóa đơn`);
+
+      for (const inv of invoices) {
+        try {
+          const detail = await scraper.fetchInvoiceDetail(inv);
+          results.push({
+            invoice_number: inv.invoice_number,
+            ...detail,
+          });
+          console.log(`[NTP E-Invoice] Chi tiết ${inv.invoice_number}:`, detail);
+          // Delay để tránh rate limit
+          await new Promise(r => setTimeout(r, 300));
+        } catch (e) {
+          results.push({
+            invoice_number: inv.invoice_number,
+            error: e.message,
+          });
+        }
+      }
+
+      return { success: true, results };
     } catch (error) {
       return { success: false, error: error.message };
     }

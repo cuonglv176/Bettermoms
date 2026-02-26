@@ -6,8 +6,9 @@
  * 1. Popup gửi FETCH_INVOICES → Background
  * 2. Background tìm tab đang mở các trang hóa đơn
  * 3. Background gửi SCRAPE_INVOICES → Content script trên tab đó
- * 4. Content script scrape DOM → trả về danh sách hóa đơn
- * 5. Background tổng hợp → trả về Popup
+ * 4. Content script scrape DOM → trả về danh sách hóa đơn (kèm pdf_url, xml_url hoặc _hasPdfLink, _hasXmlLink)
+ * 5. Background gửi DOWNLOAD_FILES_BATCH → Content script tải PDF/XML (fetch URL hoặc click simulation)
+ * 6. Background tổng hợp → trả về Popup
  */
 
 // ====================================================================
@@ -154,7 +155,24 @@ async function handleFetchInvoices(payload) {
 }
 
 /**
+ * Kiểm tra hóa đơn có file để tải không.
+ * Hỗ trợ cả 2 trường hợp:
+ * - URL thực (http/https) → fetch trực tiếp
+ * - Click simulation (Shinhan) → _hasPdfLink / _hasXmlLink
+ * - Có pdf_url hoặc xml_url bất kỳ
+ */
+function invoiceHasFiles(inv) {
+  return !!(
+    inv.pdf_url ||
+    inv.xml_url ||
+    inv._hasPdfLink ||
+    inv._hasXmlLink
+  );
+}
+
+/**
  * Gửi lệnh scrape đến content script trên tab cụ thể.
+ * Sau khi scrape xong, tự động tải PDF/XML cho các hóa đơn có link.
  */
 async function fetchFromTab(source) {
   const tabId = activeTabs[source];
@@ -195,33 +213,99 @@ async function fetchFromTab(source) {
       };
     }
 
-    // Nếu scrape thành công, tải PDF cho các hóa đơn có link
+    // Nếu scrape thành công, tải PDF + XML cho các hóa đơn có link
     if (response.success && response.invoices && response.invoices.length > 0) {
-      const invoicesWithPdfLink = response.invoices.filter(inv => inv.pdf_url);
+      // Tìm hóa đơn có file để tải (hỗ trợ cả URL thực và click simulation)
+      const invoicesWithFiles = response.invoices.filter(invoiceHasFiles);
 
-      if (invoicesWithPdfLink.length > 0) {
+      console.log(`[Background] ${source}: ${invoicesWithFiles.length}/${response.invoices.length} hóa đơn có file để tải`);
+
+      if (invoicesWithFiles.length > 0) {
         try {
-          const pdfResponse = await chrome.tabs.sendMessage(tabId, {
-            type: 'DOWNLOAD_PDFS_BATCH',
-            payload: { invoices: invoicesWithPdfLink },
+          console.log(`[Background] Bắt đầu tải PDF/XML cho ${invoicesWithFiles.length} hóa đơn từ ${source}...`);
+          console.log(`[Background] Hóa đơn đầu tiên:`, JSON.stringify({
+            invoice_number: invoicesWithFiles[0].invoice_number,
+            pdf_url: invoicesWithFiles[0].pdf_url,
+            xml_url: invoicesWithFiles[0].xml_url,
+            _hasPdfLink: invoicesWithFiles[0]._hasPdfLink,
+            _hasXmlLink: invoicesWithFiles[0]._hasXmlLink,
+            _rowIndex: invoicesWithFiles[0]._rowIndex,
+          }));
+
+          const fileResponse = await chrome.tabs.sendMessage(tabId, {
+            type: 'DOWNLOAD_FILES_BATCH',
+            payload: { invoices: invoicesWithFiles },
           });
 
-          if (pdfResponse && pdfResponse.success) {
-            const pdfMap = {};
-            pdfResponse.results.forEach(r => {
-              pdfMap[r.invoice_number] = r;
+          if (fileResponse && fileResponse.success) {
+            // Merge kết quả file vào invoices
+            const fileMap = {};
+            fileResponse.results.forEach(r => {
+              fileMap[r.invoice_number] = r;
             });
 
             response.invoices = response.invoices.map(inv => {
-              const pdfData = pdfMap[inv.invoice_number];
-              if (pdfData) {
-                return { ...inv, ...pdfData };
+              const fileData = fileMap[inv.invoice_number];
+              if (fileData) {
+                return {
+                  ...inv,
+                  pdf_base64: fileData.pdf_base64 || inv.pdf_base64,
+                  pdf_filename: fileData.pdf_filename || inv.pdf_filename,
+                  pdf_status: fileData.pdf_status || inv.pdf_status,
+                  xml_base64: fileData.xml_base64 || inv.xml_base64,
+                  xml_filename: fileData.xml_filename || inv.xml_filename,
+                };
               }
               return inv;
             });
+
+            console.log(`[Background] ${source}: Tải xong - ${fileResponse.downloadedPdf || 0} PDF, ${fileResponse.downloadedXml || 0} XML`);
+          } else {
+            console.warn(`[Background] ${source}: Lỗi tải files:`, fileResponse?.error);
           }
-        } catch (pdfErr) {
-          console.warn(`[Background] Lỗi tải PDF batch cho ${source}:`, pdfErr);
+        } catch (fileErr) {
+          console.warn(`[Background] Lỗi tải files batch cho ${source}:`, fileErr);
+        }
+      }
+
+      // Lấy chi tiết NCC cho tracuuhoadon (bảng chính không có cột NCC)
+      if (source === 'tracuu') {
+        const invoicesWithoutSeller = response.invoices.filter(
+          inv => !inv.seller_name && inv.view_url
+        );
+
+        if (invoicesWithoutSeller.length > 0) {
+          console.log(`[Background] Tracuu: Lấy chi tiết NCC cho ${invoicesWithoutSeller.length} hóa đơn...`);
+          try {
+            const detailResponse = await chrome.tabs.sendMessage(tabId, {
+              type: 'FETCH_INVOICE_DETAILS',
+              payload: { invoices: invoicesWithoutSeller },
+            });
+
+            if (detailResponse && detailResponse.success) {
+              const detailMap = {};
+              detailResponse.results.forEach(r => {
+                detailMap[r.invoice_number] = r;
+              });
+
+              response.invoices = response.invoices.map(inv => {
+                const detail = detailMap[inv.invoice_number];
+                if (detail) {
+                  return {
+                    ...inv,
+                    seller_name: detail.seller_name || inv.seller_name,
+                    seller_tax_code: detail.seller_tax_code || inv.seller_tax_code,
+                    invoice_code: detail.invoice_code || inv.invoice_code,
+                  };
+                }
+                return inv;
+              });
+
+              console.log(`[Background] Tracuu: Đã lấy chi tiết cho ${detailResponse.results.length} hóa đơn`);
+            }
+          } catch (detailErr) {
+            console.warn(`[Background] Lỗi lấy chi tiết NCC:`, detailErr);
+          }
         }
       }
     }
@@ -307,139 +391,136 @@ async function handleSyncInvoices(payload) {
   console.log(`[Background] API Token: ${config.apiToken ? config.apiToken.substring(0, 8) + '...' : 'EMPTY'}`);
   console.log(`[Background] Session ID: ${currentSessionId}`);
 
-  const BATCH_SIZE = 5;
+  for (let i = 0; i < invoices.length; i++) {
+    const invoice = invoices[i];
+    try {
+      const hasPdf = !!(invoice.pdf_base64);
+      const hasXml = !!(invoice.xml_base64);
+      console.log(`[Background] Syncing invoice ${i + 1}/${invoices.length}: ${invoice.invoice_number} (source: ${invoice.source}, pdf: ${hasPdf}, xml: ${hasXml})`);
 
-  for (let i = 0; i < invoices.length; i += BATCH_SIZE) {
-    const batch = invoices.slice(i, i + BATCH_SIZE);
+      const body = {
+        invoice_number: invoice.invoice_number || '',
+        invoice_code: invoice.invoice_code || '',
+        invoice_symbol: invoice.invoice_symbol || '',
+        invoice_date: invoice.invoice_date || '',
+        source: invoice.source || 'manual',
+        seller_tax_code: invoice.seller_tax_code || '',
+        seller_name: invoice.seller_name || '',
+        amount_untaxed: parseFloat(invoice.amount_untaxed) || 0,
+        amount_tax: parseFloat(invoice.amount_tax) || 0,
+        amount_total: parseFloat(invoice.amount_total) || 0,
+        pdf_base64: invoice.pdf_base64 || null,
+        pdf_filename: invoice.pdf_filename || null,
+        xml_base64: invoice.xml_base64 || null,
+        xml_filename: invoice.xml_filename || null,
+        session_id: currentSessionId,
+      };
 
-    for (const invoice of batch) {
+      console.log(`[Background] Request body summary:`, JSON.stringify({
+        invoice_number: body.invoice_number,
+        source: body.source,
+        seller_name: body.seller_name,
+        amount_total: body.amount_total,
+        has_pdf: !!body.pdf_base64,
+        pdf_size: body.pdf_base64 ? body.pdf_base64.length : 0,
+        has_xml: !!body.xml_base64,
+        xml_size: body.xml_base64 ? body.xml_base64.length : 0,
+      }));
+
+      const apiUrl = `${config.odooUrl}/api/einvoice/staging/create`;
+
+      const jsonRpcBody = {
+        jsonrpc: '2.0',
+        method: 'call',
+        id: Date.now(),
+        params: body,
+      };
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Extension-Token': config.apiToken,
+        },
+        body: JSON.stringify(jsonRpcBody),
+      });
+
+      const responseText = await response.text();
+      console.log(`[Background] Response status: ${response.status}`);
+      console.log(`[Background] Response body: ${responseText.substring(0, 500)}`);
+
+      let rpcResponse;
       try {
-        console.log(`[Background] Syncing invoice: ${invoice.invoice_number} (source: ${invoice.source})`);
-
-        const body = {
-          invoice_number: invoice.invoice_number || '',
-          invoice_code: invoice.invoice_code || '',
-          invoice_symbol: invoice.invoice_symbol || '',
-          invoice_date: invoice.invoice_date || '',
-          source: invoice.source || 'manual',
-          seller_tax_code: invoice.seller_tax_code || '',
-          seller_name: invoice.seller_name || '',
-          amount_untaxed: parseFloat(invoice.amount_untaxed) || 0,
-          amount_tax: parseFloat(invoice.amount_tax) || 0,
-          amount_total: parseFloat(invoice.amount_total) || 0,
-          pdf_base64: invoice.pdf_base64 || null,
-          pdf_filename: invoice.pdf_filename || null,
-          xml_base64: invoice.xml_base64 || null,
-          xml_filename: invoice.xml_filename || null,
-          session_id: currentSessionId,
-        };
-
-        console.log(`[Background] Request body (without pdf/xml):`, JSON.stringify({
-          ...body,
-          pdf_base64: body.pdf_base64 ? `[${body.pdf_base64.length} chars]` : null,
-          xml_base64: body.xml_base64 ? `[${body.xml_base64.length} chars]` : null,
-        }));
-
-        const apiUrl = `${config.odooUrl}/api/einvoice/staging/create`;
-        console.log(`[Background] POST ${apiUrl}`);
-
-        // Odoo type='json' nhận JSON-RPC format:
-        // Request: { "jsonrpc": "2.0", "method": "call", "params": { ...data } }
-        // Response: { "jsonrpc": "2.0", "id": null, "result": { ...result } }
-        //        or { "jsonrpc": "2.0", "id": null, "error": { "code": ..., "message": ..., "data": ... } }
-        const jsonRpcBody = {
-          jsonrpc: '2.0',
-          method: 'call',
-          id: Date.now(),
-          params: body,
-        };
-
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Extension-Token': config.apiToken,
-          },
-          body: JSON.stringify(jsonRpcBody),
-        });
-
-        const responseText = await response.text();
-        console.log(`[Background] Response status: ${response.status}`);
-        console.log(`[Background] Response body: ${responseText.substring(0, 500)}`);
-
-        let rpcResponse;
-        try {
-          rpcResponse = JSON.parse(responseText);
-        } catch (parseErr) {
-          console.error(`[Background] Response is not JSON:`, responseText.substring(0, 200));
-          results.errors++;
-          results.details.push({
-            invoice_number: invoice.invoice_number,
-            status: 'error',
-            error: `HTTP ${response.status}: Response không phải JSON - ${responseText.substring(0, 100)}`,
-          });
-          continue;
-        }
-
-        // Kiểm tra lỗi JSON-RPC level
-        if (rpcResponse.error) {
-          const rpcError = rpcResponse.error;
-          const errorMsg = rpcError.data?.message || rpcError.message || JSON.stringify(rpcError);
-          results.errors++;
-          results.details.push({
-            invoice_number: invoice.invoice_number,
-            status: 'error',
-            error: `Odoo RPC Error: ${errorMsg}`,
-          });
-          console.error(`[Background] ❌ RPC Error: ${invoice.invoice_number} → ${errorMsg}`);
-          continue;
-        }
-
-        // Lấy result từ JSON-RPC response
-        const data = rpcResponse.result || rpcResponse;
-
-        if (data.success) {
-          results.created++;
-          results.details.push({
-            invoice_number: invoice.invoice_number,
-            status: 'created',
-            staging_id: data.staging_id,
-          });
-          console.log(`[Background] ✅ Created: ${invoice.invoice_number} → staging_id=${data.staging_id}`);
-        } else if (data.duplicate) {
-          results.duplicates++;
-          results.details.push({
-            invoice_number: invoice.invoice_number,
-            status: 'duplicate',
-            message: data.error || 'Trùng lặp',
-          });
-          console.log(`[Background] ⚠️ Duplicate: ${invoice.invoice_number}`);
-        } else {
-          results.errors++;
-          const errorMsg = data.error || `HTTP ${response.status}: ${responseText.substring(0, 200)}`;
-          results.details.push({
-            invoice_number: invoice.invoice_number,
-            status: 'error',
-            error: errorMsg,
-          });
-          console.error(`[Background] ❌ Error: ${invoice.invoice_number} → ${errorMsg}`);
-        }
-      } catch (error) {
+        rpcResponse = JSON.parse(responseText);
+      } catch (parseErr) {
+        console.error(`[Background] Response is not JSON:`, responseText.substring(0, 200));
         results.errors++;
-        const errorMsg = `Network/Fetch error: ${error.message}`;
+        results.details.push({
+          invoice_number: invoice.invoice_number,
+          status: 'error',
+          error: `HTTP ${response.status}: Response không phải JSON - ${responseText.substring(0, 100)}`,
+        });
+        continue;
+      }
+
+      // Kiểm tra lỗi JSON-RPC level
+      if (rpcResponse.error) {
+        const rpcError = rpcResponse.error;
+        const errorMsg = rpcError.data?.message || rpcError.message || JSON.stringify(rpcError);
+        results.errors++;
+        results.details.push({
+          invoice_number: invoice.invoice_number,
+          status: 'error',
+          error: `Odoo RPC Error: ${errorMsg}`,
+        });
+        console.error(`[Background] ❌ RPC Error: ${invoice.invoice_number} → ${errorMsg}`);
+        continue;
+      }
+
+      // Lấy result từ JSON-RPC response
+      const data = rpcResponse.result || rpcResponse;
+
+      if (data.success) {
+        results.created++;
+        results.details.push({
+          invoice_number: invoice.invoice_number,
+          status: 'created',
+          staging_id: data.staging_id,
+        });
+        console.log(`[Background] ✅ Created: ${invoice.invoice_number} → staging_id=${data.staging_id}`);
+      } else if (data.duplicate) {
+        results.duplicates++;
+        results.details.push({
+          invoice_number: invoice.invoice_number,
+          status: 'duplicate',
+          message: data.error || 'Trùng lặp',
+        });
+        console.log(`[Background] ⚠️ Duplicate: ${invoice.invoice_number}`);
+      } else {
+        results.errors++;
+        const errorMsg = data.error || `HTTP ${response.status}: ${responseText.substring(0, 200)}`;
         results.details.push({
           invoice_number: invoice.invoice_number,
           status: 'error',
           error: errorMsg,
         });
-        console.error(`[Background] ❌ Exception syncing ${invoice.invoice_number}:`, error);
+        console.error(`[Background] ❌ Error: ${invoice.invoice_number} → ${errorMsg}`);
       }
+    } catch (error) {
+      results.errors++;
+      const errorMsg = `Network/Fetch error: ${error.message}`;
+      results.details.push({
+        invoice_number: invoice.invoice_number,
+        status: 'error',
+        error: errorMsg,
+      });
+      console.error(`[Background] ❌ Exception syncing ${invoice.invoice_number}:`, error);
     }
 
     // Gửi progress
     chrome.runtime.sendMessage({
       type: 'SYNC_PROGRESS',
-      processed: Math.min(i + BATCH_SIZE, invoices.length),
+      processed: i + 1,
       total: invoices.length,
     }).catch(() => {});
   }
