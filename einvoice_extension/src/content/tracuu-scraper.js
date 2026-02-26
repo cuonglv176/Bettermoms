@@ -1,352 +1,319 @@
 /**
  * tracuu-scraper.js
  * Trích xuất dữ liệu hóa đơn từ spv.tracuuhoadon.online
+ * Đọc trực tiếp DOM bảng HTML trên trang đã đăng nhập.
  *
- * Credentials: ID: 0108951191 / Pass: Ntptech*1019
+ * Cấu trúc bảng (từ phân tích thực tế):
+ * Cột: STT | Thao tác (Xem | Tải về) | Số hóa đơn | Mẫu số | Ký hiệu | Ngày HĐ | Tổng tiền | Ký
+ * Bảng dùng DataTable plugin (jQuery)
  */
-
-import { parseAmount, normalizeDate } from '../utils/validators.js';
-import { downloadPdfAsBase64, generatePdfFilename } from '../utils/pdf-handler.js';
-
-const SPV_BASE_URL = 'https://spv.tracuuhoadon.online';
-const SPV_API_BASE = `${SPV_BASE_URL}/api`;
-
-const ENDPOINTS = {
-  LOGIN: '/auth/login',
-  INVOICE_LIST: '/hoa-don/danh-sach',
-  INVOICE_DETAIL: '/hoa-don/{id}',
-  INVOICE_DOWNLOAD_PDF: '/hoa-don/{id}/pdf',
-  INVOICE_DOWNLOAD_XML: '/hoa-don/{id}/xml',
-};
 
 /**
- * TracuuScraper - Lấy hóa đơn từ SPV Tracuuhoadon portal.
+ * TracuuScraper - Scrape hóa đơn trực tiếp từ DOM trang tracuuhoadon.
+ * Chạy trong context của content script (có quyền truy cập DOM).
  */
-export class TracuuScraper {
+class TracuuScraper {
   constructor() {
-    this.authToken = null;
-    this.isAuthenticated = false;
-    this.csrfToken = null;
+    this.source = 'tracuu';
   }
 
   /**
-   * Đăng nhập vào SPV Tracuuhoadon.
-   * @param {string} username - MST: 0108951191
-   * @param {string} password
-   * @returns {boolean}
+   * Kiểm tra trang đã đăng nhập chưa.
    */
-  async login(username, password) {
-    try {
-      // Lấy trang đăng nhập để lấy CSRF token
-      const loginPageResp = await fetch(`${SPV_BASE_URL}/dang-nhap`, {
-        credentials: 'include',
-      });
-      const html = await loginPageResp.text();
-      this.csrfToken = this._extractCsrfToken(html);
-
-      // Thử API login trước
-      const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      };
-      if (this.csrfToken) {
-        headers['X-CSRF-Token'] = this.csrfToken;
-      }
-
-      const apiResp = await fetch(`${SPV_API_BASE}${ENDPOINTS.LOGIN}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ username, password }),
-        credentials: 'include',
-      });
-
-      if (apiResp.ok) {
-        const data = await apiResp.json();
-        this.authToken = data.token || data.access_token || data.jwt || null;
-        this.isAuthenticated = true;
-        console.log('[TracuuScraper] Đăng nhập API thành công');
-        return true;
-      }
-
-      // Fallback: form-based login
-      const formHeaders = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Referer': `${SPV_BASE_URL}/dang-nhap`,
-      };
-      if (this.csrfToken) {
-        formHeaders['X-CSRF-Token'] = this.csrfToken;
-      }
-
-      const formData = new URLSearchParams({ username, password });
-      if (this.csrfToken) formData.append('_token', this.csrfToken);
-
-      const formResp = await fetch(`${SPV_BASE_URL}/dang-nhap`, {
-        method: 'POST',
-        headers: formHeaders,
-        body: formData.toString(),
-        credentials: 'include',
-        redirect: 'follow',
-      });
-
-      this.isAuthenticated = formResp.ok || formResp.redirected;
-      console.log('[TracuuScraper] Đăng nhập form:', this.isAuthenticated ? 'thành công' : 'thất bại');
-      return this.isAuthenticated;
-    } catch (error) {
-      console.error('[TracuuScraper] Lỗi đăng nhập:', error);
+  isLoggedIn() {
+    // Nếu đang ở trang đăng nhập thì chưa đăng nhập
+    if (window.location.pathname.includes('dang-nhap')) {
       return false;
     }
+    // Kiểm tra có bảng dữ liệu hoặc menu user không
+    const hasTable = document.querySelector('table') !== null;
+    const hasUserMenu = document.querySelector('.dropdown-toggle, .user-info, [class*="user"], [class*="account"]') !== null;
+    const hasInvoiceList = window.location.pathname.includes('danh-sach') || window.location.pathname.includes('hoa-don');
+    return hasTable || hasUserMenu || hasInvoiceList;
   }
 
   /**
-   * Lấy danh sách hóa đơn.
-   * @param {number} days - Số ngày cần lấy
-   * @returns {Array}
+   * Lấy danh sách hóa đơn từ bảng HTML trên trang hiện tại.
+   * @returns {Array} Danh sách hóa đơn
    */
-  async fetchInvoices(days = 30) {
-    if (!this.isAuthenticated) {
-      throw new Error('Chưa đăng nhập vào SPV Tracuuhoadon');
+  scrapeInvoices() {
+    const invoices = [];
+
+    // Tìm tất cả bảng trên trang
+    const tables = document.querySelectorAll('table');
+    if (tables.length === 0) {
+      console.warn('[TracuuScraper] Không tìm thấy bảng nào trên trang');
+      return invoices;
     }
 
-    const dateTo = new Date();
-    const dateFrom = new Date();
-    dateFrom.setDate(dateFrom.getDate() - days);
-
-    const formatDate = (d) => {
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      return `${dd}/${mm}/${yyyy}`;
-    };
-
-    const invoices = [];
-    let page = 1;
-    let hasMore = true;
-
-    while (hasMore) {
-      try {
-        const params = new URLSearchParams({
-          tu_ngay: formatDate(dateFrom),
-          den_ngay: formatDate(dateTo),
-          trang: page,
-          so_luong: 50,
-        });
-
-        const headers = {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        };
-        if (this.authToken) {
-          headers['Authorization'] = `Bearer ${this.authToken}`;
-        }
-        if (this.csrfToken) {
-          headers['X-CSRF-Token'] = this.csrfToken;
-        }
-
-        const response = await fetch(
-          `${SPV_API_BASE}${ENDPOINTS.INVOICE_LIST}?${params}`,
-          { headers, credentials: 'include' }
-        );
-
-        if (!response.ok) {
-          // Thử scrape HTML nếu API không hoạt động
-          const htmlInvoices = await this._scrapeHtmlList(dateFrom, dateTo, page);
-          if (htmlInvoices.length > 0) {
-            invoices.push(...htmlInvoices);
-          }
-          hasMore = false;
-          break;
-        }
-
-        const data = await response.json();
-        const pageInvoices = this._parseInvoiceList(data);
-
-        if (pageInvoices.length === 0) {
-          hasMore = false;
-        } else {
-          invoices.push(...pageInvoices);
-          page++;
-          const total = data.total || data.tong_so || 0;
-          hasMore = invoices.length < total && pageInvoices.length === 50;
-        }
-      } catch (error) {
-        console.error('[TracuuScraper] Lỗi lấy trang', page, ':', error);
+    // Tìm bảng chứa hóa đơn (bảng có cột "Số hóa đơn")
+    let invoiceTable = null;
+    for (const table of tables) {
+      const headers = table.querySelectorAll('th');
+      const headerTexts = Array.from(headers).map(h => h.textContent.trim().toLowerCase());
+      if (headerTexts.some(h => h.includes('số hóa đơn') || h.includes('so hoa don') || h.includes('số hđ'))) {
+        invoiceTable = table;
         break;
       }
     }
 
-    console.log(`[TracuuScraper] Lấy được ${invoices.length} hóa đơn từ SPV`);
-    return invoices;
-  }
-
-  /**
-   * Scrape danh sách hóa đơn từ HTML (fallback).
-   */
-  async _scrapeHtmlList(dateFrom, dateTo, page) {
-    try {
-      const formatDate = (d) => {
-        const dd = String(d.getDate()).padStart(2, '0');
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        return `${dd}/${mm}/${d.getFullYear()}`;
-      };
-
-      const params = new URLSearchParams({
-        tu_ngay: formatDate(dateFrom),
-        den_ngay: formatDate(dateTo),
-        trang: page,
-      });
-
-      const response = await fetch(
-        `${SPV_BASE_URL}/hoa-don?${params}`,
-        { credentials: 'include' }
-      );
-
-      if (!response.ok) return [];
-
-      const html = await response.text();
-      return this._parseHtmlTable(html);
-    } catch (error) {
-      console.error('[TracuuScraper] Lỗi scrape HTML:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Parse bảng HTML để lấy dữ liệu hóa đơn.
-   */
-  _parseHtmlTable(html) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const rows = doc.querySelectorAll('table tbody tr, .invoice-list .invoice-item');
-    const invoices = [];
-
-    rows.forEach(row => {
-      const cells = row.querySelectorAll('td');
-      if (cells.length < 5) return;
-
-      const invoice = {
-        source: 'tracuu',
-        external_id: row.dataset.id || row.getAttribute('data-id') || '',
-        invoice_number: cells[0]?.textContent?.trim() || '',
-        invoice_code: cells[1]?.textContent?.trim() || '',
-        invoice_symbol: cells[2]?.textContent?.trim() || '',
-        invoice_date: normalizeDate(cells[3]?.textContent?.trim() || ''),
-        seller_tax_code: cells[4]?.textContent?.trim() || '',
-        seller_name: cells[5]?.textContent?.trim() || '',
-        amount_total: parseAmount(cells[6]?.textContent?.trim() || '0'),
-        amount_untaxed: 0,
-        amount_tax: 0,
-        pdf_url: null,
-        pdf_base64: null,
-        pdf_filename: null,
-        pdf_status: 'pending',
-      };
-
-      // Lấy link PDF nếu có
-      const pdfLink = row.querySelector('a[href*="pdf"], a[href*="download"]');
-      if (pdfLink) {
-        invoice.pdf_url = pdfLink.href;
+    if (!invoiceTable) {
+      // Fallback: lấy bảng đầu tiên có nhiều hơn 3 cột
+      for (const table of tables) {
+        const headers = table.querySelectorAll('th');
+        if (headers.length >= 5) {
+          invoiceTable = table;
+          break;
+        }
       }
+    }
 
-      if (invoice.invoice_number) {
-        invoices.push(invoice);
+    if (!invoiceTable) {
+      console.warn('[TracuuScraper] Không tìm thấy bảng hóa đơn');
+      return invoices;
+    }
+
+    // Xác định vị trí các cột dựa trên header
+    const headers = Array.from(invoiceTable.querySelectorAll('thead th, th'));
+    const colMap = this._mapColumns(headers);
+
+    console.log('[TracuuScraper] Column mapping:', colMap);
+
+    // Lấy dữ liệu từ các hàng
+    const rows = invoiceTable.querySelectorAll('tbody tr');
+    console.log(`[TracuuScraper] Tìm thấy ${rows.length} hàng trong bảng`);
+
+    rows.forEach((row, index) => {
+      try {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 4) return; // Bỏ qua hàng quá ngắn
+
+        const invoice = this._parseRow(cells, colMap, row);
+        if (invoice && invoice.invoice_number) {
+          invoice._id = `tracuu_${index}_${Date.now()}`;
+          invoices.push(invoice);
+        }
+      } catch (err) {
+        console.warn(`[TracuuScraper] Lỗi parse hàng ${index}:`, err);
       }
     });
 
+    console.log(`[TracuuScraper] Scrape được ${invoices.length} hóa đơn`);
     return invoices;
   }
 
   /**
-   * Tải file PDF cho một hóa đơn.
+   * Map tên cột sang vị trí index.
    */
-  async downloadInvoicePdf(invoice) {
+  _mapColumns(headers) {
+    const map = {
+      stt: -1,
+      thao_tac: -1,
+      so_hoa_don: -1,
+      mau_so: -1,
+      ky_hieu: -1,
+      ngay_hd: -1,
+      tong_tien: -1,
+      ky: -1,
+      mst: -1,
+      ten_ncc: -1,
+    };
+
+    headers.forEach((th, idx) => {
+      const text = th.textContent.trim().toLowerCase();
+      if (text.includes('stt') || text === '#') {
+        map.stt = idx;
+      } else if (text.includes('thao tác') || text.includes('thao_tac') || text.includes('action')) {
+        map.thao_tac = idx;
+      } else if (text.includes('số hóa đơn') || text.includes('số hđ') || text.includes('so hoa don') || text.includes('invoice no')) {
+        map.so_hoa_don = idx;
+      } else if (text.includes('mẫu số') || text.includes('mau so') || text.includes('template')) {
+        map.mau_so = idx;
+      } else if (text.includes('ký hiệu') || text.includes('ky hieu') || text.includes('serial') || text.includes('symbol')) {
+        map.ky_hieu = idx;
+      } else if (text.includes('ngày') || text.includes('date') || text.includes('ngay')) {
+        map.ngay_hd = idx;
+      } else if (text.includes('tổng tiền') || text.includes('tong tien') || text.includes('thành tiền') || text.includes('amount') || text.includes('total')) {
+        map.tong_tien = idx;
+      } else if (text === 'ký' || text === 'sign') {
+        map.ky = idx;
+      } else if (text.includes('mã số thuế') || text.includes('mst') || text.includes('tax')) {
+        map.mst = idx;
+      } else if (text.includes('tên') && (text.includes('bán') || text.includes('ncc') || text.includes('seller'))) {
+        map.ten_ncc = idx;
+      }
+    });
+
+    // Fallback cho bảng tracuuhoadon chuẩn:
+    // STT(0) | Thao tác(1) | Số hóa đơn(2) | Mẫu số(3) | Ký hiệu(4) | Ngày HĐ(5) | Tổng tiền(6) | Ký(7)
+    if (map.so_hoa_don === -1 && headers.length >= 7) {
+      map.stt = 0;
+      map.thao_tac = 1;
+      map.so_hoa_don = 2;
+      map.mau_so = 3;
+      map.ky_hieu = 4;
+      map.ngay_hd = 5;
+      map.tong_tien = 6;
+      map.ky = 7;
+    }
+
+    return map;
+  }
+
+  /**
+   * Parse một hàng trong bảng thành object hóa đơn.
+   */
+  _parseRow(cells, colMap, row) {
+    const getText = (idx) => {
+      if (idx < 0 || idx >= cells.length) return '';
+      return cells[idx].textContent.trim();
+    };
+
+    const invoiceNumber = getText(colMap.so_hoa_don);
+    if (!invoiceNumber) return null;
+
+    // Lấy link PDF/download từ cột thao tác
+    let pdfUrl = null;
+    let viewUrl = null;
+    if (colMap.thao_tac >= 0 && colMap.thao_tac < cells.length) {
+      const links = cells[colMap.thao_tac].querySelectorAll('a');
+      links.forEach(link => {
+        const linkText = link.textContent.trim().toLowerCase();
+        const href = link.href || link.getAttribute('href') || '';
+        if (linkText.includes('tải') || linkText.includes('download') || href.includes('download') || href.includes('pdf')) {
+          pdfUrl = href;
+        }
+        if (linkText.includes('xem') || linkText.includes('view')) {
+          viewUrl = href;
+        }
+      });
+    }
+
+    // Cũng tìm link PDF/download trong toàn bộ hàng
+    if (!pdfUrl) {
+      const allLinks = row.querySelectorAll('a');
+      allLinks.forEach(link => {
+        const href = link.href || link.getAttribute('href') || '';
+        const text = link.textContent.trim().toLowerCase();
+        if (text.includes('tải về') || text.includes('download') || href.includes('pdf') || href.includes('download')) {
+          pdfUrl = href;
+        }
+      });
+    }
+
+    // Parse số tiền
+    const amountStr = getText(colMap.tong_tien);
+    const amount = this._parseAmount(amountStr);
+
+    // Parse ngày
+    const dateStr = getText(colMap.ngay_hd);
+    const normalizedDate = this._normalizeDate(dateStr);
+
+    return {
+      source: 'tracuu',
+      invoice_number: invoiceNumber,
+      invoice_code: '', // Tracuuhoadon không hiển thị mã tra cứu trong bảng
+      invoice_symbol: getText(colMap.ky_hieu),
+      invoice_date: normalizedDate,
+      seller_tax_code: getText(colMap.mst),
+      seller_name: getText(colMap.ten_ncc),
+      amount_untaxed: 0,
+      amount_tax: 0,
+      amount_total: amount,
+      pdf_url: pdfUrl,
+      view_url: viewUrl,
+      pdf_base64: null,
+      pdf_filename: null,
+      pdf_status: pdfUrl ? 'pending' : 'no_link',
+    };
+  }
+
+  /**
+   * Tải PDF cho một hóa đơn.
+   * @param {Object} invoice
+   * @returns {Promise<Object>}
+   */
+  async downloadPdf(invoice) {
+    if (!invoice.pdf_url && !invoice.view_url) {
+      return { pdf_base64: null, pdf_filename: null, pdf_status: 'no_link' };
+    }
+
+    const url = invoice.pdf_url || invoice.view_url;
+
     try {
-      const pdfUrl = invoice.pdf_url ||
-        `${SPV_API_BASE}${ENDPOINTS.INVOICE_DOWNLOAD_PDF.replace('{id}', invoice.external_id)}`;
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/pdf,application/octet-stream,*/*',
+        },
+      });
 
-      const headers = {};
-      if (this.authToken) {
-        headers['Authorization'] = `Bearer ${this.authToken}`;
+      if (!response.ok) {
+        return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: `HTTP ${response.status}` };
       }
 
-      const result = await downloadPdfAsBase64(pdfUrl, headers);
-
-      if (result.success) {
-        return {
-          pdf_base64: result.base64,
-          pdf_filename: result.filename || generatePdfFilename(invoice.invoice_number, 'tracuu'),
-        };
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: 'File trống' };
       }
 
-      return { pdf_base64: null, pdf_filename: null, pdf_error: result.error };
-    } catch (error) {
-      return { pdf_base64: null, pdf_filename: null, pdf_error: error.message };
+      const base64 = await this._blobToBase64(blob);
+      const filename = `tracuu_${invoice.invoice_number}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      return {
+        pdf_base64: base64,
+        pdf_filename: filename,
+        pdf_status: 'downloaded',
+      };
+    } catch (err) {
+      return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: err.message };
     }
   }
 
   /**
-   * Tải file XML cho một hóa đơn.
+   * Parse số tiền từ chuỗi hiển thị.
    */
-  async downloadInvoiceXml(invoice) {
-    try {
-      const xmlUrl = `${SPV_API_BASE}${ENDPOINTS.INVOICE_DOWNLOAD_XML.replace('{id}', invoice.external_id)}`;
+  _parseAmount(str) {
+    if (!str) return 0;
+    const cleaned = str.replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.-]/g, '');
+    return parseFloat(cleaned) || 0;
+  }
 
-      const headers = {};
-      if (this.authToken) {
-        headers['Authorization'] = `Bearer ${this.authToken}`;
-      }
+  /**
+   * Chuẩn hóa ngày sang YYYY-MM-DD.
+   */
+  _normalizeDate(str) {
+    if (!str) return null;
+    const trimmed = str.trim();
 
-      const response = await fetch(xmlUrl, { headers, credentials: 'include' });
-      if (!response.ok) return { xml_base64: null };
+    // DD/MM/YYYY
+    const m1 = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
 
-      const blob = await response.blob();
+    // DD-MM-YYYY
+    const m2 = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    return null;
+  }
+
+  /**
+   * Chuyển Blob sang Base64.
+   */
+  _blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      const base64 = await new Promise((resolve) => {
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
-
-      return {
-        xml_base64: base64,
-        xml_filename: `invoice_${invoice.invoice_number}.xml`,
-      };
-    } catch (error) {
-      return { xml_base64: null };
-    }
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('Lỗi đọc file'));
+      reader.readAsDataURL(blob);
+    });
   }
+}
 
-  _parseInvoiceList(data) {
-    const items = data.data || data.items || data.hoa_don || data.result || [];
-    if (!Array.isArray(items)) return [];
-    return items.map(item => this._parseInvoiceItem(item)).filter(Boolean);
-  }
-
-  _parseInvoiceItem(raw) {
-    if (!raw) return null;
-    const invoiceNumber = raw.so_hoa_don || raw.invoiceNumber || raw.invoice_number || '';
-    if (!invoiceNumber) return null;
-
-    return {
-      source: 'tracuu',
-      external_id: String(raw.id || ''),
-      invoice_number: String(invoiceNumber),
-      invoice_code: String(raw.ma_tra_cuu || raw.invoiceCode || ''),
-      invoice_symbol: String(raw.ky_hieu || raw.invoiceSymbol || ''),
-      invoice_date: normalizeDate(raw.ngay_lap || raw.invoiceDate || ''),
-      seller_tax_code: String(raw.mst_ncc || raw.sellerTaxCode || ''),
-      seller_name: String(raw.ten_ncc || raw.sellerName || ''),
-      amount_untaxed: parseAmount(raw.tien_truoc_thue || raw.amountUntaxed || 0),
-      amount_tax: parseAmount(raw.tien_thue || raw.amountTax || 0),
-      amount_total: parseAmount(raw.tong_tien || raw.amountTotal || 0),
-      pdf_url: raw.link_pdf || raw.pdfUrl || null,
-      pdf_base64: null,
-      pdf_filename: null,
-      pdf_status: 'pending',
-    };
-  }
-
-  _extractCsrfToken(html) {
-    const match = html.match(/name="_token"\s+value="([^"]+)"/);
-    return match ? match[1] : null;
-  }
+// Export cho content script sử dụng
+if (typeof window !== 'undefined') {
+  window.TracuuScraper = TracuuScraper;
 }

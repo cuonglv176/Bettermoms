@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTP E-Invoice Fetcher",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Tự động lấy hóa đơn điện tử từ Grab, Tracuuhoadon, Shinhan và đồng bộ vào Odoo",
   "author": "NTP",
   "icons": {
@@ -18,17 +18,29 @@
     "default_title": "NTP E-Invoice Fetcher"
   },
   "background": {
-    "service_worker": "src/background/background.js",
-    "type": "module"
+    "service_worker": "src/background/background.js"
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://vn.einvoice.grab.com/*",
-        "https://spv.tracuuhoadon.online/*",
-        "https://einvoice.shinhan.com.vn/*"
-      ],
+      "matches": ["https://vn.einvoice.grab.com/*", "https://*.einvoice.grab.com/*"],
       "js": [
+        "src/content/grab-scraper.js",
+        "src/content/content-bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://spv.tracuuhoadon.online/*", "https://*.tracuuhoadon.online/*"],
+      "js": [
+        "src/content/tracuu-scraper.js",
+        "src/content/content-bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://einvoice.shinhan.com.vn/*", "https://*.shinhan.com.vn/*"],
+      "js": [
+        "src/content/shinhan-scraper.js",
         "src/content/content-bridge.js"
       ],
       "run_at": "document_idle"
@@ -38,15 +50,18 @@
     "storage",
     "tabs",
     "scripting",
-    "activeTab",
-    "cookies"
+    "activeTab"
   ],
   "host_permissions": [
     "https://vn.einvoice.grab.com/*",
+    "https://*.einvoice.grab.com/*",
     "https://spv.tracuuhoadon.online/*",
+    "https://*.tracuuhoadon.online/*",
     "https://einvoice.shinhan.com.vn/*",
+    "https://*.shinhan.com.vn/*",
     "http://localhost/*",
-    "http://127.0.0.1/*"
+    "http://127.0.0.1/*",
+    "https://*/*"
   ],
   "web_accessible_resources": [
     {
@@ -56,8 +71,11 @@
       ],
       "matches": [
         "https://vn.einvoice.grab.com/*",
+        "https://*.einvoice.grab.com/*",
         "https://spv.tracuuhoadon.online/*",
-        "https://einvoice.shinhan.com.vn/*"
+        "https://*.tracuuhoadon.online/*",
+        "https://einvoice.shinhan.com.vn/*",
+        "https://*.shinhan.com.vn/*"
       ]
     }
   ],

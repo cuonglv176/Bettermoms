@@ -1,11 +1,13 @@
 /**
  * popup.js
  * Logic chính cho Extension popup.
- * Quản lý 6 màn hình: Config → Fetching → Preview → Syncing → Result → Settings
+ * Quản lý các màn hình: Config → Fetching → Preview → Syncing → Result → Settings
+ *
+ * Luồng mới:
+ * 1. User mở popup → kiểm tra tabs đang mở
+ * 2. User bấm "Quét lại" → gửi FETCH_INVOICES → background → content scripts scrape DOM
+ * 3. Hiển thị kết quả → User chọn hóa đơn → bấm "Đồng bộ lên Hệ thống"
  */
-
-import { getConfig, saveConfig, getInvoices, saveInvoices, generateSessionId } from '../utils/storage.js';
-import { validateConfig } from '../utils/validators.js';
 
 // ====================================================================
 // State Management
@@ -15,14 +17,141 @@ let state = {
   invoices: [],
   filteredInvoices: [],
   selectedIds: new Set(),
-  fetchDays: 30,
-  selectedSources: ['grab', 'tracuu', 'shinhan'],
   config: null,
   syncResults: null,
-  sessionId: null,
   isFetching: false,
   isSyncing: false,
+  tabStatus: {},
 };
+
+// ====================================================================
+// Initialization
+// ====================================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load config
+  state.config = await loadConfig();
+  applyConfig();
+
+  // Kiểm tra tabs đang mở
+  await checkOpenTabs();
+
+  // Load cached invoices nếu có
+  const cached = await loadCachedInvoices();
+  if (cached && cached.length > 0) {
+    state.invoices = cached;
+    state.filteredInvoices = [...cached];
+    state.selectedIds = new Set(
+      cached.filter(inv => inv.pdf_status === 'downloaded' && inv.pdf_base64).map(inv => inv._id)
+    );
+    renderInvoiceTable(state.filteredInvoices);
+    updatePreviewStats();
+    showScreen('preview');
+  } else {
+    showScreen('config');
+  }
+
+  // Bind events
+  bindEvents();
+
+  // Listen for progress messages
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'FETCH_PROGRESS') {
+      updateFetchProgress(message);
+    } else if (message.type === 'SYNC_PROGRESS') {
+      updateSyncProgress(message);
+    }
+  });
+});
+
+// ====================================================================
+// Config
+// ====================================================================
+async function loadConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['odooUrl', 'apiToken', 'fetchDays'], (data) => {
+      resolve({
+        odooUrl: data.odooUrl || '',
+        apiToken: data.apiToken || '',
+        fetchDays: data.fetchDays || 30,
+      });
+    });
+  });
+}
+
+async function saveConfig(config) {
+  return new Promise((resolve) => {
+    chrome.storage.local.set(config, resolve);
+  });
+}
+
+function applyConfig() {
+  const urlInput = document.getElementById('input-odoo-url');
+  const tokenInput = document.getElementById('input-api-token');
+  const daysInput = document.getElementById('input-days');
+
+  if (urlInput && state.config.odooUrl) urlInput.value = state.config.odooUrl;
+  if (tokenInput && state.config.apiToken) tokenInput.value = state.config.apiToken;
+  if (daysInput && state.config.fetchDays) daysInput.value = state.config.fetchDays;
+}
+
+// ====================================================================
+// Cache Invoices
+// ====================================================================
+async function loadCachedInvoices() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['cachedInvoices'], (data) => {
+      resolve(data.cachedInvoices || []);
+    });
+  });
+}
+
+async function saveCachedInvoices(invoices) {
+  // Lưu nhưng bỏ pdf_base64 để tiết kiệm storage
+  const light = invoices.map(inv => ({
+    ...inv,
+    pdf_base64: inv.pdf_base64 ? '[HAS_DATA]' : null,
+  }));
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ cachedInvoices: light }, resolve);
+  });
+}
+
+// ====================================================================
+// Check Open Tabs
+// ====================================================================
+async function checkOpenTabs() {
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'CHECK_TABS' });
+    if (response && response.success) {
+      state.tabStatus = response.tabs;
+      updateTabStatusUI();
+    }
+  } catch (err) {
+    console.warn('[Popup] Lỗi kiểm tra tabs:', err);
+  }
+}
+
+function updateTabStatusUI() {
+  const sources = ['grab', 'tracuu', 'shinhan'];
+  sources.forEach(source => {
+    const statusEl = document.getElementById(`tab-status-${source}`);
+    if (!statusEl) return;
+
+    const info = state.tabStatus[source];
+    if (info && info.found) {
+      if (info.loggedIn) {
+        statusEl.textContent = '✅ Đã đăng nhập';
+        statusEl.className = 'tab-status ok';
+      } else {
+        statusEl.textContent = '⚠️ Chưa đăng nhập';
+        statusEl.className = 'tab-status warning';
+      }
+    } else {
+      statusEl.textContent = '❌ Chưa mở trang';
+      statusEl.className = 'tab-status error';
+    }
+  });
+}
 
 // ====================================================================
 // Screen Navigation
@@ -47,8 +176,9 @@ function formatCurrency(amount) {
 function formatDate(dateStr) {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    const parts = dateStr.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
   } catch { return dateStr; }
 }
 
@@ -57,11 +187,17 @@ function getSourceLabel(source) {
   return labels[source] || source.charAt(0).toUpperCase();
 }
 
+function getSourceName(source) {
+  const names = { grab: 'Grab', tracuu: 'Tracuuhoadon', shinhan: 'Shinhan' };
+  return names[source] || source;
+}
+
 // ====================================================================
 // Toast Notification
 // ====================================================================
 function showToast(message, duration = 3000) {
   const toast = document.getElementById('toast');
+  if (!toast) return;
   toast.textContent = message;
   toast.style.display = 'block';
   setTimeout(() => { toast.style.display = 'none'; }, duration);
@@ -72,6 +208,8 @@ function showToast(message, duration = 3000) {
 // ====================================================================
 function renderInvoiceTable(invoices) {
   const tbody = document.getElementById('invoice-table-body');
+  if (!tbody) return;
+
   if (!invoices || invoices.length === 0) {
     tbody.innerHTML = `
       <tr>
@@ -82,25 +220,27 @@ function renderInvoiceTable(invoices) {
     return;
   }
 
-  tbody.innerHTML = invoices.map((inv, index) => {
+  tbody.innerHTML = invoices.map((inv) => {
     const isSelected = state.selectedIds.has(inv._id);
     const hasPdf = inv.pdf_status === 'downloaded' && inv.pdf_base64;
     const pdfIcon = hasPdf
-      ? '<span class="pdf-ok" title="Đã tải PDF">✓</span>'
-      : `<span class="pdf-error" title="${inv.pdf_error || 'Lỗi tải PDF'}">✗</span>`;
+      ? '<span class="pdf-ok" title="Đã tải PDF">&#10003;</span>'
+      : (inv.pdf_status === 'no_link'
+        ? '<span class="pdf-na" title="Không có link PDF">-</span>'
+        : '<span class="pdf-error" title="' + (inv.pdf_error || 'Lỗi tải PDF') + '">&#10007;</span>');
 
     return `
       <tr class="${isSelected ? 'selected' : ''}" data-id="${inv._id}">
         <td class="col-check">
           <input type="checkbox" class="row-checkbox" data-id="${inv._id}"
-                 ${isSelected ? 'checked' : ''} ${!hasPdf ? 'disabled title="Không có PDF"' : ''}/>
+                 ${isSelected ? 'checked' : ''} />
         </td>
         <td class="col-source">
           <span class="source-icon ${inv.source}">${getSourceLabel(inv.source)}</span>
         </td>
         <td class="col-number" title="${inv.invoice_number}">${inv.invoice_number}</td>
         <td class="col-date">${formatDate(inv.invoice_date)}</td>
-        <td class="col-seller" title="${inv.seller_name}">${inv.seller_name || '-'}</td>
+        <td class="col-seller" title="${inv.seller_name || ''}">${inv.seller_name || '-'}</td>
         <td class="col-amount">${formatCurrency(inv.amount_total)}</td>
         <td class="col-pdf">${pdfIcon}</td>
       </tr>`;
@@ -129,25 +269,35 @@ function updatePreviewStats() {
     inv => inv.pdf_status === 'downloaded' && inv.pdf_base64
   ).length;
 
-  document.getElementById('preview-total').textContent = `${total} hóa đơn`;
-  document.getElementById('preview-selected').textContent = `${selected} đã chọn`;
-  document.getElementById('preview-pdf-ok').textContent = `${pdfOk} có PDF`;
+  const totalEl = document.getElementById('preview-total');
+  const selectedEl = document.getElementById('preview-selected');
+  const pdfEl = document.getElementById('preview-pdf-ok');
+
+  if (totalEl) totalEl.textContent = `${total} hóa đơn`;
+  if (selectedEl) selectedEl.textContent = `${selected} đã chọn`;
+  if (pdfEl) pdfEl.textContent = `${pdfOk} có PDF`;
 
   const syncBtn = document.getElementById('btn-sync');
-  syncBtn.disabled = selected === 0;
-  syncBtn.textContent = selected > 0
-    ? `☁️ Đồng bộ ${selected} hóa đơn`
-    : '☁️ Đồng bộ lên Hệ thống';
+  if (syncBtn) {
+    syncBtn.disabled = selected === 0;
+    syncBtn.textContent = selected > 0
+      ? `Đồng bộ ${selected} hóa đơn`
+      : 'Đồng bộ lên Hệ thống';
+  }
 }
 
 function applyFilters() {
-  const search = document.getElementById('filter-search').value.toLowerCase();
-  const sourceFilter = document.getElementById('filter-source').value;
-  const pdfFilter = document.getElementById('filter-pdf').value;
+  const searchEl = document.getElementById('filter-search');
+  const sourceEl = document.getElementById('filter-source');
+  const pdfEl = document.getElementById('filter-pdf');
+
+  const search = searchEl ? searchEl.value.toLowerCase() : '';
+  const sourceFilter = sourceEl ? sourceEl.value : '';
+  const pdfFilter = pdfEl ? pdfEl.value : '';
 
   state.filteredInvoices = state.invoices.filter(inv => {
     const matchSearch = !search ||
-      inv.invoice_number.toLowerCase().includes(search) ||
+      (inv.invoice_number || '').toLowerCase().includes(search) ||
       (inv.seller_name || '').toLowerCase().includes(search) ||
       (inv.seller_tax_code || '').includes(search);
 
@@ -170,13 +320,14 @@ function applyFilters() {
 async function startFetch() {
   if (state.isFetching) return;
 
-  const daysInput = document.getElementById('input-days');
-  const days = parseInt(daysInput.value) || 30;
-
   const sources = [];
-  if (document.getElementById('src-grab').checked) sources.push('grab');
-  if (document.getElementById('src-tracuu').checked) sources.push('tracuu');
-  if (document.getElementById('src-shinhan').checked) sources.push('shinhan');
+  const srcGrab = document.getElementById('src-grab');
+  const srcTracuu = document.getElementById('src-tracuu');
+  const srcShinhan = document.getElementById('src-shinhan');
+
+  if (srcGrab && srcGrab.checked) sources.push('grab');
+  if (srcTracuu && srcTracuu.checked) sources.push('tracuu');
+  if (srcShinhan && srcShinhan.checked) sources.push('shinhan');
 
   if (sources.length === 0) {
     showToast('Vui lòng chọn ít nhất một nguồn dữ liệu');
@@ -184,70 +335,72 @@ async function startFetch() {
   }
 
   state.isFetching = true;
-  state.fetchDays = days;
-  state.selectedSources = sources;
 
   // Reset UI
   sources.forEach(src => {
-    document.getElementById(`count-${src}`).textContent = '-';
-    document.getElementById(`spinner-${src}`).textContent = '⏳';
-  });
-  ['grab', 'tracuu', 'shinhan'].forEach(src => {
-    if (!sources.includes(src)) {
-      const el = document.getElementById(`status-${src}`);
-      if (el) el.style.opacity = '0.4';
-    }
+    const countEl = document.getElementById(`count-${src}`);
+    const spinnerEl = document.getElementById(`spinner-${src}`);
+    if (countEl) countEl.textContent = '-';
+    if (spinnerEl) spinnerEl.textContent = '⏳';
   });
 
-  document.getElementById('fetch-progress-bar').style.width = '0%';
-  document.getElementById('fetch-progress-text').textContent = 'Đang kết nối...';
+  const progressBar = document.getElementById('fetch-progress-bar');
+  const progressText = document.getElementById('fetch-progress-text');
+  if (progressBar) progressBar.style.width = '0%';
+  if (progressText) progressText.textContent = 'Đang quét dữ liệu từ các trang web...';
 
   showScreen('fetching');
 
   try {
-    // Gửi message đến background để fetch
     const response = await chrome.runtime.sendMessage({
       type: 'FETCH_INVOICES',
-      payload: { days, sources },
+      payload: { sources },
     });
 
-    if (response.success) {
+    if (response && response.invoices && response.invoices.length > 0) {
+      // Gán _id nếu chưa có
       state.invoices = response.invoices.map((inv, i) => ({
         ...inv,
-        _id: `inv_${i}_${Date.now()}`,
+        _id: inv._id || `inv_${i}_${Date.now()}`,
       }));
 
-      // Auto-select tất cả hóa đơn có PDF
-      state.selectedIds = new Set(
-        state.invoices
-          .filter(inv => inv.pdf_status === 'downloaded' && inv.pdf_base64)
-          .map(inv => inv._id)
-      );
+      // Auto-select tất cả hóa đơn
+      state.selectedIds = new Set(state.invoices.map(inv => inv._id));
 
-      // Cập nhật stats theo nguồn
+      // Cập nhật stats
       sources.forEach(src => {
         const count = response.stats?.[src] || 0;
-        document.getElementById(`count-${src}`).textContent = count;
-        document.getElementById(`spinner-${src}`).textContent = count > 0 ? '✅' : '⚠️';
+        const countEl = document.getElementById(`count-${src}`);
+        const spinnerEl = document.getElementById(`spinner-${src}`);
+        if (countEl) countEl.textContent = count;
+        if (spinnerEl) spinnerEl.textContent = count > 0 ? '✅' : '⚠️';
       });
 
       // Hiển thị lỗi nếu có
-      if (Object.keys(response.errors || {}).length > 0) {
-        const errorSources = Object.keys(response.errors).join(', ');
-        showToast(`Lỗi từ: ${errorSources}. Xem console để biết thêm.`, 5000);
+      if (response.errors && Object.keys(response.errors).length > 0) {
+        const errorMsgs = Object.entries(response.errors)
+          .map(([src, err]) => `${getSourceName(src)}: ${err}`)
+          .join('\n');
+        showToast(errorMsgs, 5000);
       }
 
+      // Cache và hiển thị
+      await saveCachedInvoices(state.invoices);
       state.filteredInvoices = [...state.invoices];
       renderInvoiceTable(state.filteredInvoices);
       updatePreviewStats();
       showScreen('preview');
     } else {
-      showToast(`Lỗi: ${response.error}`, 5000);
+      // Không có hóa đơn nào
+      const errorMsg = response?.errors
+        ? Object.entries(response.errors).map(([src, err]) => `${getSourceName(src)}: ${err}`).join('\n')
+        : 'Không tìm thấy hóa đơn nào. Hãy đảm bảo đã mở và đăng nhập vào các trang web.';
+      showToast(errorMsg, 5000);
       showScreen('config');
     }
   } catch (error) {
     console.error('[Popup] Lỗi fetch:', error);
-    showToast(`Lỗi kết nối: ${error.message}`, 5000);
+    showToast(`Lỗi: ${error.message}`, 5000);
     showScreen('config');
   } finally {
     state.isFetching = false;
@@ -267,64 +420,48 @@ async function startSync() {
   }
 
   state.isSyncing = true;
-  state.sessionId = generateSessionId();
 
   // Reset sync UI
-  document.getElementById('sync-current').textContent = '0';
-  document.getElementById('sync-total').textContent = selectedInvoices.length;
-  document.getElementById('sync-progress-bar').style.width = '0%';
-  document.getElementById('sync-log').innerHTML = '';
+  const syncCurrent = document.getElementById('sync-current');
+  const syncTotal = document.getElementById('sync-total');
+  const syncProgressBar = document.getElementById('sync-progress-bar');
+  const syncLog = document.getElementById('sync-log');
+
+  if (syncCurrent) syncCurrent.textContent = '0';
+  if (syncTotal) syncTotal.textContent = selectedInvoices.length;
+  if (syncProgressBar) syncProgressBar.style.width = '0%';
+  if (syncLog) syncLog.innerHTML = '';
 
   showScreen('syncing');
-
-  // Lắng nghe progress từ background
-  const progressListener = (message) => {
-    if (message.type === 'SYNC_PROGRESS') {
-      const percent = Math.round((message.processed / message.total) * 100);
-      document.getElementById('sync-progress-bar').style.width = `${percent}%`;
-      document.getElementById('sync-current').textContent = message.processed;
-    }
-  };
-  chrome.runtime.onMessage.addListener(progressListener);
 
   try {
     const response = await chrome.runtime.sendMessage({
       type: 'SYNC_INVOICES',
       payload: {
         invoices: selectedInvoices,
-        sessionId: state.sessionId,
+        sessionId: `session_${Date.now()}`,
       },
     });
 
-    chrome.runtime.onMessage.removeListener(progressListener);
+    if (response && response.success) {
+      state.syncResults = response;
 
-    state.syncResults = response;
+      // Hiển thị kết quả
+      const resultCreated = document.getElementById('result-created');
+      const resultDuplicates = document.getElementById('result-duplicates');
+      const resultErrors = document.getElementById('result-errors');
 
-    // Hiển thị kết quả
-    document.getElementById('result-success').textContent = response.created || 0;
-    document.getElementById('result-duplicate').textContent = response.duplicates || 0;
-    document.getElementById('result-error').textContent = response.errors || 0;
+      if (resultCreated) resultCreated.textContent = response.created || 0;
+      if (resultDuplicates) resultDuplicates.textContent = response.duplicates || 0;
+      if (resultErrors) resultErrors.textContent = response.errors || 0;
 
-    if (response.errors > 0) {
-      document.getElementById('result-icon').textContent = '⚠️';
-      document.getElementById('result-title').textContent = 'Đồng bộ hoàn tất (có lỗi)';
-      const errorSection = document.getElementById('result-errors-section');
-      errorSection.style.display = 'block';
-      const errorList = document.getElementById('result-errors-list');
-      const errorDetails = (response.details || []).filter(d => !d.success && !d.duplicate);
-      errorList.innerHTML = errorDetails.map(e =>
-        `<div style="font-size:11px;padding:2px 0;">• ${e.invoice_number}: ${e.error}</div>`
-      ).join('');
+      showScreen('result');
     } else {
-      document.getElementById('result-icon').textContent = '✅';
-      document.getElementById('result-title').textContent = 'Đồng bộ thành công!';
+      showToast(`Lỗi đồng bộ: ${response?.error || 'Không xác định'}`, 5000);
+      showScreen('preview');
     }
-
-    showScreen('result');
   } catch (error) {
-    chrome.runtime.onMessage.removeListener(progressListener);
-    console.error('[Popup] Lỗi sync:', error);
-    showToast(`Lỗi đồng bộ: ${error.message}`, 5000);
+    showToast(`Lỗi: ${error.message}`, 5000);
     showScreen('preview');
   } finally {
     state.isSyncing = false;
@@ -332,182 +469,127 @@ async function startSync() {
 }
 
 // ====================================================================
-// Settings
+// Progress Updates
 // ====================================================================
-async function loadSettings() {
-  const config = await getConfig();
-  state.config = config;
-  document.getElementById('setting-odoo-url').value = config.odooUrl || '';
-  document.getElementById('setting-api-token').value = config.apiToken || '';
-  document.getElementById('setting-batch-size').value = config.batchSize || 10;
+function updateFetchProgress(message) {
+  const progressBar = document.getElementById('fetch-progress-bar');
+  const progressText = document.getElementById('fetch-progress-text');
+  if (message.total > 0) {
+    const percent = Math.round((message.processed / message.total) * 100);
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    if (progressText) progressText.textContent = `Đang tải PDF: ${message.processed}/${message.total}`;
+  }
 }
 
-async function saveSettings() {
-  const odooUrl = document.getElementById('setting-odoo-url').value.trim();
-  const apiToken = document.getElementById('setting-api-token').value.trim();
-  const batchSize = parseInt(document.getElementById('setting-batch-size').value) || 10;
-
-  const config = { odooUrl, apiToken, batchSize, fetchDays: state.fetchDays };
-  const validation = validateConfig(config);
-
-  const statusEl = document.getElementById('settings-status');
-
-  if (!validation.valid) {
-    statusEl.className = 'settings-status error';
-    statusEl.textContent = validation.errors.join('. ');
-    return;
+function updateSyncProgress(message) {
+  const syncProgressBar = document.getElementById('sync-progress-bar');
+  const syncCurrent = document.getElementById('sync-current');
+  if (message.total > 0) {
+    const percent = Math.round((message.processed / message.total) * 100);
+    if (syncProgressBar) syncProgressBar.style.width = `${percent}%`;
+    if (syncCurrent) syncCurrent.textContent = message.processed;
   }
+}
+
+// ====================================================================
+// Select All / Deselect All
+// ====================================================================
+function selectAll() {
+  state.selectedIds = new Set(state.filteredInvoices.map(inv => inv._id));
+  renderInvoiceTable(state.filteredInvoices);
+  updatePreviewStats();
+}
+
+function deselectAll() {
+  state.selectedIds.clear();
+  renderInvoiceTable(state.filteredInvoices);
+  updatePreviewStats();
+}
+
+// ====================================================================
+// Settings
+// ====================================================================
+async function saveSettings() {
+  const urlInput = document.getElementById('input-odoo-url');
+  const tokenInput = document.getElementById('input-api-token');
+  const daysInput = document.getElementById('input-days');
+
+  const config = {
+    odooUrl: urlInput ? urlInput.value.trim().replace(/\/+$/, '') : '',
+    apiToken: tokenInput ? tokenInput.value.trim() : '',
+    fetchDays: daysInput ? parseInt(daysInput.value) || 30 : 30,
+  };
 
   await saveConfig(config);
   state.config = config;
-
-  statusEl.className = 'settings-status success';
-  statusEl.textContent = '✓ Đã lưu cài đặt thành công!';
-  setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+  showToast('Đã lưu cài đặt');
 }
 
 async function testConnection() {
-  const statusEl = document.getElementById('settings-status');
-  statusEl.className = 'settings-status';
-  statusEl.style.display = 'block';
-  statusEl.textContent = '🔌 Đang kiểm tra kết nối...';
-
-  const response = await chrome.runtime.sendMessage({
-    type: 'HEALTH_CHECK',
-    payload: {},
-  });
-
-  if (response.success) {
-    statusEl.className = 'settings-status success';
-    statusEl.textContent = '✅ Kết nối thành công! ' + (response.message || '');
-  } else {
-    statusEl.className = 'settings-status error';
-    statusEl.textContent = '❌ Lỗi kết nối: ' + (response.error || 'Không xác định');
-  }
-}
-
-async function checkConnection() {
-  const statusEl = document.getElementById('connection-status');
-  const textEl = document.getElementById('connection-text');
-
-  textEl.textContent = 'Đang kiểm tra...';
-  statusEl.className = 'status-bar status-unknown';
-
-  const response = await chrome.runtime.sendMessage({
-    type: 'HEALTH_CHECK',
-    payload: {},
-  });
-
-  if (response.success) {
-    statusEl.className = 'status-bar status-ok';
-    textEl.textContent = 'Đã kết nối Odoo';
-  } else {
-    statusEl.className = 'status-bar status-error';
-    textEl.textContent = response.error || 'Không thể kết nối';
-  }
-}
-
-// ====================================================================
-// Initialize
-// ====================================================================
-document.addEventListener('DOMContentLoaded', async () => {
-  // Load config
-  await loadSettings();
-
-  // Auto check connection
-  checkConnection().catch(() => {});
-
-  // ---- Config Screen Events ----
-  document.getElementById('btn-start-fetch').addEventListener('click', startFetch);
-  document.getElementById('btn-check-connection').addEventListener('click', checkConnection);
-  document.getElementById('btn-settings').addEventListener('click', () => {
-    loadSettings();
-    showScreen('settings');
-  });
-
-  // ---- Fetching Screen Events ----
-  document.getElementById('btn-cancel-fetch').addEventListener('click', () => {
-    state.isFetching = false;
-    showScreen('config');
-  });
-
-  // Listen for fetch progress from background
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === 'FETCH_PROGRESS') {
-      const percent = Math.round((message.processed / message.total) * 100);
-      document.getElementById('fetch-progress-bar').style.width = `${percent}%`;
-      document.getElementById('fetch-progress-text').textContent =
-        `${message.source}: ${message.processed}/${message.total} hóa đơn`;
-      document.getElementById(`count-${message.source}`).textContent = message.processed;
-    }
-  });
-
-  // ---- Preview Screen Events ----
-  document.getElementById('btn-select-all').addEventListener('click', () => {
-    state.filteredInvoices
-      .filter(inv => inv.pdf_status === 'downloaded' && inv.pdf_base64)
-      .forEach(inv => state.selectedIds.add(inv._id));
-    renderInvoiceTable(state.filteredInvoices);
-    updatePreviewStats();
-  });
-
-  document.getElementById('btn-deselect-all').addEventListener('click', () => {
-    state.selectedIds.clear();
-    renderInvoiceTable(state.filteredInvoices);
-    updatePreviewStats();
-  });
-
-  document.getElementById('check-all-header').addEventListener('change', (e) => {
-    if (e.target.checked) {
-      state.filteredInvoices
-        .filter(inv => inv.pdf_status === 'downloaded' && inv.pdf_base64)
-        .forEach(inv => state.selectedIds.add(inv._id));
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'HEALTH_CHECK' });
+    if (response && response.success) {
+      showToast('Kết nối Odoo thành công!');
     } else {
-      state.filteredInvoices.forEach(inv => state.selectedIds.delete(inv._id));
+      showToast(`Lỗi: ${response?.error || 'Không thể kết nối'}`, 5000);
     }
-    renderInvoiceTable(state.filteredInvoices);
-    updatePreviewStats();
-  });
+  } catch (err) {
+    showToast(`Lỗi: ${err.message}`, 5000);
+  }
+}
 
-  document.getElementById('btn-sync').addEventListener('click', startSync);
-  document.getElementById('btn-rescan').addEventListener('click', () => {
-    state.invoices = [];
-    state.selectedIds.clear();
+// ====================================================================
+// Bind Events
+// ====================================================================
+function bindEvents() {
+  // Fetch button
+  const btnFetch = document.getElementById('btn-fetch');
+  if (btnFetch) btnFetch.addEventListener('click', startFetch);
+
+  // Rescan button
+  const btnRescan = document.getElementById('btn-rescan');
+  if (btnRescan) btnRescan.addEventListener('click', () => {
     showScreen('config');
   });
 
-  // Filter events
-  document.getElementById('filter-search').addEventListener('input', applyFilters);
-  document.getElementById('filter-source').addEventListener('change', applyFilters);
-  document.getElementById('filter-pdf').addEventListener('change', applyFilters);
+  // Sync button
+  const btnSync = document.getElementById('btn-sync');
+  if (btnSync) btnSync.addEventListener('click', startSync);
 
-  // ---- Result Screen Events ----
-  document.getElementById('btn-done').addEventListener('click', () => {
-    state.invoices = [];
-    state.selectedIds.clear();
-    showScreen('config');
+  // Select all / Deselect all
+  const btnSelectAll = document.getElementById('btn-select-all');
+  const btnDeselectAll = document.getElementById('btn-deselect-all');
+  if (btnSelectAll) btnSelectAll.addEventListener('click', selectAll);
+  if (btnDeselectAll) btnDeselectAll.addEventListener('click', deselectAll);
+
+  // Filters
+  const filterSearch = document.getElementById('filter-search');
+  const filterSource = document.getElementById('filter-source');
+  const filterPdf = document.getElementById('filter-pdf');
+  if (filterSearch) filterSearch.addEventListener('input', applyFilters);
+  if (filterSource) filterSource.addEventListener('change', applyFilters);
+  if (filterPdf) filterPdf.addEventListener('change', applyFilters);
+
+  // Settings
+  const btnSettings = document.getElementById('btn-settings');
+  if (btnSettings) btnSettings.addEventListener('click', () => showScreen('settings'));
+
+  const btnSaveSettings = document.getElementById('btn-save-settings');
+  if (btnSaveSettings) btnSaveSettings.addEventListener('click', saveSettings);
+
+  const btnTestConnection = document.getElementById('btn-test-connection');
+  if (btnTestConnection) btnTestConnection.addEventListener('click', testConnection);
+
+  const btnBackFromSettings = document.getElementById('btn-back-settings');
+  if (btnBackFromSettings) btnBackFromSettings.addEventListener('click', () => {
+    showScreen(state.invoices.length > 0 ? 'preview' : 'config');
   });
 
-  document.getElementById('btn-view-odoo').addEventListener('click', async () => {
-    const config = await getConfig();
-    if (config.odooUrl) {
-      chrome.tabs.create({ url: `${config.odooUrl}/web#action=ntp_einvoice_bizzi.action_invoice_staging_list` });
-    }
-  });
+  // Result screen - back button
+  const btnBackFromResult = document.getElementById('btn-back-result');
+  if (btnBackFromResult) btnBackFromResult.addEventListener('click', () => showScreen('config'));
 
-  // ---- Settings Screen Events ----
-  document.getElementById('btn-back-settings').addEventListener('click', () => {
-    showScreen('config');
-  });
-
-  document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
-  document.getElementById('btn-test-connection').addEventListener('click', testConnection);
-
-  document.getElementById('btn-toggle-token').addEventListener('click', () => {
-    const input = document.getElementById('setting-api-token');
-    input.type = input.type === 'password' ? 'text' : 'password';
-  });
-
-  // Initial screen
-  showScreen('config');
-});
+  // Refresh tabs button
+  const btnRefreshTabs = document.getElementById('btn-refresh-tabs');
+  if (btnRefreshTabs) btnRefreshTabs.addEventListener('click', checkOpenTabs);
+}

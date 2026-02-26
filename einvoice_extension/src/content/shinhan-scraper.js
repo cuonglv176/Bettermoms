@@ -1,284 +1,404 @@
 /**
  * shinhan-scraper.js
  * Trích xuất dữ liệu hóa đơn từ einvoice.shinhan.com.vn
+ * Đọc trực tiếp DOM bảng HTML trên trang đã đăng nhập.
  *
- * Credentials: ID: 0108951191 / Pass: 625843b5
+ * Cấu trúc bảng (từ phân tích thực tế - Angular 7 app):
+ * table.table.table-bordered
+ * Headers (16 cột):
+ *   0: STT
+ *   1: Loại hóa đơn
+ *   2: Mã số thuế người bán
+ *   3: Tên người bán
+ *   4: Ký hiệu
+ *   5: Số hóa đơn
+ *   6: Ngày hóa đơn
+ *   7: Tên hàng hóa, dịch vụ
+ *   8: Loại tiền
+ *   9: Tỷ giá
+ *   10: Cộng tiền hàng hóa, dịch vụ
+ *   11: Thuế suất thuế GTGT
+ *   12: Tiền thuế GTGT
+ *   13: Tổng cộng thanh toán
+ *   14: Tải về (XML | PDF links)
+ *   15: Thao tác (Xem icon)
  */
-
-import { parseAmount, normalizeDate } from '../utils/validators.js';
-import { downloadPdfAsBase64, generatePdfFilename } from '../utils/pdf-handler.js';
-
-const SHINHAN_BASE_URL = 'https://einvoice.shinhan.com.vn';
-const SHINHAN_API_BASE = `${SHINHAN_BASE_URL}/api`;
-
-const ENDPOINTS = {
-  LOGIN: '/auth/login',
-  INVOICE_LIST: '/invoice/list',
-  INVOICE_DETAIL: '/invoice/{id}',
-  INVOICE_PDF: '/invoice/{id}/download/pdf',
-  INVOICE_XML: '/invoice/{id}/download/xml',
-};
 
 /**
- * ShinhanScraper - Lấy hóa đơn từ Shinhan Bank e-invoice portal.
+ * ShinhanScraper - Scrape hóa đơn trực tiếp từ DOM trang Shinhan.
+ * Chạy trong context của content script.
  */
-export class ShinhanScraper {
+class ShinhanScraper {
   constructor() {
-    this.authToken = null;
-    this.refreshToken = null;
-    this.isAuthenticated = false;
-    this.tokenExpiry = null;
+    this.source = 'shinhan';
   }
 
   /**
-   * Đăng nhập vào Shinhan e-invoice.
-   * @param {string} username - 0108951191
-   * @param {string} password - 625843b5
-   * @returns {boolean}
+   * Kiểm tra trang đã đăng nhập chưa.
    */
-  async login(username, password) {
-    try {
-      // Shinhan thường dùng JWT-based API authentication
-      const response = await fetch(`${SHINHAN_API_BASE}${ENDPOINTS.LOGIN}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': SHINHAN_BASE_URL,
-          'Referer': `${SHINHAN_BASE_URL}/#/login`,
-        },
-        body: JSON.stringify({
-          username,
-          password,
-          remember: false,
-        }),
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        this.authToken = data.token || data.access_token || data.accessToken || null;
-        this.refreshToken = data.refresh_token || data.refreshToken || null;
-        this.isAuthenticated = !!this.authToken;
-
-        if (this.authToken && data.expires_in) {
-          this.tokenExpiry = Date.now() + (data.expires_in * 1000);
-        }
-
-        console.log('[ShinhanScraper] Đăng nhập thành công');
-        return this.isAuthenticated;
+  isLoggedIn() {
+    // Kiểm tra nút "Đăng xuất" có hiển thị không
+    const logoutBtn = document.querySelector('button, a');
+    const allButtons = document.querySelectorAll('button, a');
+    for (const btn of allButtons) {
+      const text = btn.textContent.trim().toLowerCase();
+      if (text.includes('đăng xuất') || text.includes('logout') || text.includes('sign out')) {
+        return true;
       }
-
-      // Thử với payload khác nhau
-      const altResponse = await fetch(`${SHINHAN_API_BASE}${ENDPOINTS.LOGIN}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ id: username, pw: password }),
-        credentials: 'include',
-      });
-
-      if (altResponse.ok) {
-        const data = await altResponse.json();
-        this.authToken = data.token || data.access_token || data.jwt || null;
-        this.isAuthenticated = !!this.authToken;
-        return this.isAuthenticated;
-      }
-
-      console.warn('[ShinhanScraper] Đăng nhập thất bại, HTTP:', response.status);
-      return false;
-    } catch (error) {
-      console.error('[ShinhanScraper] Lỗi đăng nhập:', error);
-      return false;
     }
+    // Kiểm tra có text "Chào mừng" không
+    const bodyText = document.body.innerText || '';
+    if (bodyText.includes('Chào mừng') || bodyText.includes('quý khách')) {
+      return true;
+    }
+    return false;
   }
 
   /**
-   * Kiểm tra và refresh token nếu cần.
+   * Lấy danh sách hóa đơn từ bảng HTML trên trang hiện tại.
+   * @returns {Array} Danh sách hóa đơn
    */
-  async _ensureValidToken() {
-    if (!this.authToken) return false;
-    if (this.tokenExpiry && Date.now() > this.tokenExpiry - 60000) {
-      // Token sắp hết hạn, refresh
-      if (this.refreshToken) {
-        try {
-          const response = await fetch(`${SHINHAN_API_BASE}/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: this.refreshToken }),
-            credentials: 'include',
-          });
-          if (response.ok) {
-            const data = await response.json();
-            this.authToken = data.token || data.access_token || this.authToken;
-          }
-        } catch (e) {
-          console.warn('[ShinhanScraper] Lỗi refresh token:', e);
-        }
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Lấy danh sách hóa đơn.
-   * @param {number} days - Số ngày cần lấy
-   * @returns {Array}
-   */
-  async fetchInvoices(days = 30) {
-    if (!this.isAuthenticated) {
-      throw new Error('Chưa đăng nhập vào Shinhan e-invoice');
-    }
-
-    await this._ensureValidToken();
-
-    const dateTo = new Date();
-    const dateFrom = new Date();
-    dateFrom.setDate(dateFrom.getDate() - days);
-
-    const formatDate = (d) => d.toISOString().split('T')[0];
-
+  scrapeInvoices() {
     const invoices = [];
-    let page = 1;
-    let hasMore = true;
 
-    while (hasMore) {
-      try {
-        const params = new URLSearchParams({
-          fromDate: formatDate(dateFrom),
-          toDate: formatDate(dateTo),
-          page: page,
-          size: 50,
-          pageSize: 50,
-        });
+    // Tìm bảng chính (table.table.table-bordered)
+    let invoiceTable = document.querySelector('table.table.table-bordered');
 
-        const response = await fetch(
-          `${SHINHAN_API_BASE}${ENDPOINTS.INVOICE_LIST}?${params}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${this.authToken}`,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'include',
-          }
-        );
-
-        if (!response.ok) {
-          console.warn('[ShinhanScraper] Lỗi lấy danh sách trang', page, ':', response.status);
-          break;
+    if (!invoiceTable) {
+      // Fallback: tìm bảng có nhiều cột nhất
+      const tables = document.querySelectorAll('table');
+      let maxCols = 0;
+      for (const table of tables) {
+        const headers = table.querySelectorAll('th');
+        if (headers.length > maxCols) {
+          maxCols = headers.length;
+          invoiceTable = table;
         }
-
-        const data = await response.json();
-        const pageInvoices = this._parseInvoiceList(data);
-
-        if (pageInvoices.length === 0) {
-          hasMore = false;
-        } else {
-          invoices.push(...pageInvoices);
-          page++;
-          const total = data.total || data.totalElements || data.totalCount || 0;
-          hasMore = invoices.length < total && pageInvoices.length === 50;
-        }
-      } catch (error) {
-        console.error('[ShinhanScraper] Lỗi lấy trang', page, ':', error);
-        break;
       }
     }
 
-    console.log(`[ShinhanScraper] Lấy được ${invoices.length} hóa đơn từ Shinhan`);
+    if (!invoiceTable) {
+      console.warn('[ShinhanScraper] Không tìm thấy bảng hóa đơn');
+      return invoices;
+    }
+
+    // Xác định vị trí các cột dựa trên header
+    const headers = Array.from(invoiceTable.querySelectorAll('thead th, th'));
+    const colMap = this._mapColumns(headers);
+
+    console.log('[ShinhanScraper] Column mapping:', colMap);
+
+    // Lấy dữ liệu từ các hàng
+    const rows = invoiceTable.querySelectorAll('tbody tr');
+    console.log(`[ShinhanScraper] Tìm thấy ${rows.length} hàng trong bảng`);
+
+    rows.forEach((row, index) => {
+      try {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 5) return; // Bỏ qua hàng quá ngắn
+
+        const invoice = this._parseRow(cells, colMap, row);
+        if (invoice && invoice.invoice_number) {
+          invoice._id = `shinhan_${index}_${Date.now()}`;
+          invoices.push(invoice);
+        }
+      } catch (err) {
+        console.warn(`[ShinhanScraper] Lỗi parse hàng ${index}:`, err);
+      }
+    });
+
+    console.log(`[ShinhanScraper] Scrape được ${invoices.length} hóa đơn`);
     return invoices;
   }
 
   /**
-   * Tải file PDF cho một hóa đơn.
+   * Map tên cột sang vị trí index.
    */
-  async downloadInvoicePdf(invoice) {
+  _mapColumns(headers) {
+    const map = {
+      stt: -1,
+      loai_hd: -1,
+      mst_ban: -1,
+      ten_ban: -1,
+      ky_hieu: -1,
+      so_hd: -1,
+      ngay_hd: -1,
+      ten_hang: -1,
+      loai_tien: -1,
+      ty_gia: -1,
+      cong_tien: -1,
+      thue_suat: -1,
+      tien_thue: -1,
+      tong_cong: -1,
+      tai_ve: -1,
+      thao_tac: -1,
+    };
+
+    headers.forEach((th, idx) => {
+      const text = th.textContent.trim().toLowerCase();
+      if (text === 'stt' || text === '#') {
+        map.stt = idx;
+      } else if (text.includes('loại hóa đơn') || text.includes('loại hđ')) {
+        map.loai_hd = idx;
+      } else if (text.includes('mã số thuế') && text.includes('bán')) {
+        map.mst_ban = idx;
+      } else if (text.includes('tên người bán') || text.includes('tên ncc')) {
+        map.ten_ban = idx;
+      } else if (text.includes('ký hiệu') || text.includes('serial')) {
+        map.ky_hieu = idx;
+      } else if (text.includes('số hóa đơn') || text.includes('số hđ')) {
+        map.so_hd = idx;
+      } else if (text.includes('ngày hóa đơn') || text.includes('ngày hđ')) {
+        map.ngay_hd = idx;
+      } else if (text.includes('tên hàng') || text.includes('dịch vụ')) {
+        map.ten_hang = idx;
+      } else if (text.includes('loại tiền') && !text.includes('cộng')) {
+        map.loai_tien = idx;
+      } else if (text.includes('tỷ giá')) {
+        map.ty_gia = idx;
+      } else if (text.includes('cộng tiền') || text.includes('tiền hàng')) {
+        map.cong_tien = idx;
+      } else if (text.includes('thuế suất')) {
+        map.thue_suat = idx;
+      } else if (text.includes('tiền thuế')) {
+        map.tien_thue = idx;
+      } else if (text.includes('tổng cộng') || text.includes('thanh toán')) {
+        map.tong_cong = idx;
+      } else if (text.includes('tải về') || text.includes('download')) {
+        map.tai_ve = idx;
+      } else if (text.includes('thao tác') || text.includes('action')) {
+        map.thao_tac = idx;
+      }
+    });
+
+    // Fallback cho bảng Shinhan chuẩn 16 cột
+    if (map.so_hd === -1 && headers.length >= 14) {
+      map.stt = 0;
+      map.loai_hd = 1;
+      map.mst_ban = 2;
+      map.ten_ban = 3;
+      map.ky_hieu = 4;
+      map.so_hd = 5;
+      map.ngay_hd = 6;
+      map.ten_hang = 7;
+      map.loai_tien = 8;
+      map.ty_gia = 9;
+      map.cong_tien = 10;
+      map.thue_suat = 11;
+      map.tien_thue = 12;
+      map.tong_cong = 13;
+      if (headers.length >= 15) map.tai_ve = 14;
+      if (headers.length >= 16) map.thao_tac = 15;
+    }
+
+    return map;
+  }
+
+  /**
+   * Parse một hàng trong bảng thành object hóa đơn.
+   */
+  _parseRow(cells, colMap, row) {
+    const getText = (idx) => {
+      if (idx < 0 || idx >= cells.length) return '';
+      return cells[idx].textContent.trim();
+    };
+
+    const invoiceNumber = getText(colMap.so_hd);
+    if (!invoiceNumber) return null;
+
+    // Lấy link PDF và XML từ cột "Tải về"
+    let pdfUrl = null;
+    let xmlUrl = null;
+    if (colMap.tai_ve >= 0 && colMap.tai_ve < cells.length) {
+      const links = cells[colMap.tai_ve].querySelectorAll('a');
+      links.forEach(link => {
+        const linkText = link.textContent.trim().toUpperCase();
+        const href = link.href || link.getAttribute('href') || '';
+        const onclick = link.getAttribute('onclick') || '';
+        if (linkText.includes('PDF') || href.includes('pdf')) {
+          pdfUrl = href || onclick;
+        }
+        if (linkText.includes('XML') || href.includes('xml')) {
+          xmlUrl = href || onclick;
+        }
+      });
+    }
+
+    // Cũng tìm link trong toàn bộ hàng
+    if (!pdfUrl || !xmlUrl) {
+      const allLinks = row.querySelectorAll('a');
+      allLinks.forEach(link => {
+        const text = link.textContent.trim().toUpperCase();
+        const href = link.href || link.getAttribute('href') || '';
+        if (!pdfUrl && (text === 'PDF' || href.includes('pdf'))) {
+          pdfUrl = href;
+        }
+        if (!xmlUrl && (text === 'XML' || href.includes('xml'))) {
+          xmlUrl = href;
+        }
+      });
+    }
+
+    // Parse số tiền
+    const amountUntaxed = this._parseAmount(getText(colMap.cong_tien));
+    const amountTax = this._parseAmount(getText(colMap.tien_thue));
+    const amountTotal = this._parseAmount(getText(colMap.tong_cong));
+
+    // Parse ngày
+    const dateStr = getText(colMap.ngay_hd);
+    const normalizedDate = this._normalizeDate(dateStr);
+
+    return {
+      source: 'shinhan',
+      invoice_number: invoiceNumber,
+      invoice_code: '',
+      invoice_symbol: getText(colMap.ky_hieu),
+      invoice_date: normalizedDate,
+      seller_tax_code: getText(colMap.mst_ban),
+      seller_name: getText(colMap.ten_ban),
+      amount_untaxed: amountUntaxed,
+      amount_tax: amountTax,
+      amount_total: amountTotal || (amountUntaxed + amountTax),
+      pdf_url: pdfUrl,
+      xml_url: xmlUrl,
+      pdf_base64: null,
+      pdf_filename: null,
+      xml_base64: null,
+      xml_filename: null,
+      pdf_status: pdfUrl ? 'pending' : 'no_link',
+    };
+  }
+
+  /**
+   * Tải PDF cho một hóa đơn.
+   */
+  async downloadPdf(invoice) {
+    if (!invoice.pdf_url) {
+      return { pdf_base64: null, pdf_filename: null, pdf_status: 'no_link' };
+    }
+
     try {
-      await this._ensureValidToken();
-
-      const pdfUrl = invoice.pdf_url ||
-        `${SHINHAN_API_BASE}${ENDPOINTS.INVOICE_PDF.replace('{id}', invoice.external_id)}`;
-
-      const result = await downloadPdfAsBase64(pdfUrl, {
-        'Authorization': `Bearer ${this.authToken}`,
+      const response = await fetch(invoice.pdf_url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/pdf,application/octet-stream,*/*',
+        },
       });
 
-      if (result.success) {
-        return {
-          pdf_base64: result.base64,
-          pdf_filename: result.filename || generatePdfFilename(invoice.invoice_number, 'shinhan'),
-        };
+      if (!response.ok) {
+        return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: `HTTP ${response.status}` };
       }
 
-      return { pdf_base64: null, pdf_filename: null, pdf_error: result.error };
-    } catch (error) {
-      return { pdf_base64: null, pdf_filename: null, pdf_error: error.message };
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: 'File trống' };
+      }
+
+      const base64 = await this._blobToBase64(blob);
+      const filename = `shinhan_${invoice.invoice_number}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      return {
+        pdf_base64: base64,
+        pdf_filename: filename,
+        pdf_status: 'downloaded',
+      };
+    } catch (err) {
+      return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: err.message };
     }
   }
 
   /**
-   * Tải file XML cho một hóa đơn.
+   * Tải XML cho một hóa đơn.
    */
-  async downloadInvoiceXml(invoice) {
+  async downloadXml(invoice) {
+    if (!invoice.xml_url) {
+      return { xml_base64: null, xml_filename: null };
+    }
+
     try {
-      await this._ensureValidToken();
-
-      const xmlUrl = `${SHINHAN_API_BASE}${ENDPOINTS.INVOICE_XML.replace('{id}', invoice.external_id)}`;
-
-      const response = await fetch(xmlUrl, {
-        headers: { 'Authorization': `Bearer ${this.authToken}` },
+      const response = await fetch(invoice.xml_url, {
         credentials: 'include',
       });
 
-      if (!response.ok) return { xml_base64: null };
+      if (!response.ok) return { xml_base64: null, xml_filename: null };
 
       const blob = await response.blob();
-      const base64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
+      if (blob.size === 0) return { xml_base64: null, xml_filename: null };
 
-      return {
-        xml_base64: base64,
-        xml_filename: `shinhan_${invoice.invoice_number}.xml`,
-      };
-    } catch (error) {
-      return { xml_base64: null };
+      const base64 = await this._blobToBase64(blob);
+      const filename = `shinhan_${invoice.invoice_number}.xml`;
+
+      return { xml_base64: base64, xml_filename: filename };
+    } catch (err) {
+      return { xml_base64: null, xml_filename: null };
     }
   }
 
-  _parseInvoiceList(data) {
-    const items = data.content || data.data || data.items || data.invoices || [];
-    if (!Array.isArray(items)) return [];
-    return items.map(item => this._parseInvoiceItem(item)).filter(Boolean);
+  /**
+   * Parse số tiền từ chuỗi hiển thị.
+   */
+  _parseAmount(str) {
+    if (!str) return 0;
+    // Shinhan hiển thị số dạng: 9,000.00 hoặc 9.000,00
+    // Detect format: nếu có dấu phẩy trước dấu chấm cuối → English format (9,000.00)
+    // Nếu có dấu chấm trước dấu phẩy cuối → VN format (9.000,00)
+    const cleaned = str.replace(/[^\d.,]/g, '');
+    if (!cleaned) return 0;
+
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+
+    let result;
+    if (lastComma > lastDot) {
+      // VN format: 9.000,00 → replace . with nothing, , with .
+      result = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      // English format: 9,000.00 → replace , with nothing
+      result = cleaned.replace(/,/g, '');
+    }
+
+    return parseFloat(result) || 0;
   }
 
-  _parseInvoiceItem(raw) {
-    if (!raw) return null;
-    const invoiceNumber = raw.invoiceNo || raw.invoiceNumber || raw.invoice_number || '';
-    if (!invoiceNumber) return null;
+  /**
+   * Chuẩn hóa ngày sang YYYY-MM-DD.
+   */
+  _normalizeDate(str) {
+    if (!str) return null;
+    const trimmed = str.trim();
 
-    return {
-      source: 'shinhan',
-      external_id: String(raw.id || raw.invoiceId || ''),
-      invoice_number: String(invoiceNumber),
-      invoice_code: String(raw.invoiceCode || raw.lookupCode || ''),
-      invoice_symbol: String(raw.invoiceSymbol || raw.serial || ''),
-      invoice_date: normalizeDate(raw.invoiceDate || raw.issuedDate || ''),
-      seller_tax_code: String(raw.sellerTaxCode || raw.supplierTaxCode || ''),
-      seller_name: String(raw.sellerName || raw.supplierName || ''),
-      amount_untaxed: parseAmount(raw.amountBeforeTax || raw.subtotal || 0),
-      amount_tax: parseAmount(raw.taxAmount || raw.vatAmount || 0),
-      amount_total: parseAmount(raw.totalAmount || raw.amount || 0),
-      pdf_url: raw.pdfUrl || raw.downloadUrl || null,
-      pdf_base64: null,
-      pdf_filename: null,
-      pdf_status: 'pending',
-    };
+    // DD/MM/YYYY
+    const m1 = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+
+    // DD-MM-YYYY
+    const m2 = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+
+    // YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    // DD.MM.YYYY
+    const m3 = trimmed.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (m3) return `${m3[3]}-${m3[2]}-${m3[1]}`;
+
+    return null;
   }
+
+  /**
+   * Chuyển Blob sang Base64.
+   */
+  _blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('Lỗi đọc file'));
+      reader.readAsDataURL(blob);
+    });
+  }
+}
+
+// Export cho content script sử dụng
+if (typeof window !== 'undefined') {
+  window.ShinhanScraper = ShinhanScraper;
 }
