@@ -343,22 +343,33 @@ async function handleSyncInvoices(payload) {
         const apiUrl = `${config.odooUrl}/api/einvoice/staging/create`;
         console.log(`[Background] POST ${apiUrl}`);
 
+        // Odoo type='json' nhận JSON-RPC format:
+        // Request: { "jsonrpc": "2.0", "method": "call", "params": { ...data } }
+        // Response: { "jsonrpc": "2.0", "id": null, "result": { ...result } }
+        //        or { "jsonrpc": "2.0", "id": null, "error": { "code": ..., "message": ..., "data": ... } }
+        const jsonRpcBody = {
+          jsonrpc: '2.0',
+          method: 'call',
+          id: Date.now(),
+          params: body,
+        };
+
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Extension-Token': config.apiToken,
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(jsonRpcBody),
         });
 
         const responseText = await response.text();
         console.log(`[Background] Response status: ${response.status}`);
         console.log(`[Background] Response body: ${responseText.substring(0, 500)}`);
 
-        let data;
+        let rpcResponse;
         try {
-          data = JSON.parse(responseText);
+          rpcResponse = JSON.parse(responseText);
         } catch (parseErr) {
           console.error(`[Background] Response is not JSON:`, responseText.substring(0, 200));
           results.errors++;
@@ -370,7 +381,24 @@ async function handleSyncInvoices(payload) {
           continue;
         }
 
-        if (response.status === 201 && data.success) {
+        // Kiểm tra lỗi JSON-RPC level
+        if (rpcResponse.error) {
+          const rpcError = rpcResponse.error;
+          const errorMsg = rpcError.data?.message || rpcError.message || JSON.stringify(rpcError);
+          results.errors++;
+          results.details.push({
+            invoice_number: invoice.invoice_number,
+            status: 'error',
+            error: `Odoo RPC Error: ${errorMsg}`,
+          });
+          console.error(`[Background] ❌ RPC Error: ${invoice.invoice_number} → ${errorMsg}`);
+          continue;
+        }
+
+        // Lấy result từ JSON-RPC response
+        const data = rpcResponse.result || rpcResponse;
+
+        if (data.success) {
           results.created++;
           results.details.push({
             invoice_number: invoice.invoice_number,
@@ -378,7 +406,7 @@ async function handleSyncInvoices(payload) {
             staging_id: data.staging_id,
           });
           console.log(`[Background] ✅ Created: ${invoice.invoice_number} → staging_id=${data.staging_id}`);
-        } else if (response.status === 409 || data.duplicate) {
+        } else if (data.duplicate) {
           results.duplicates++;
           results.details.push({
             invoice_number: invoice.invoice_number,

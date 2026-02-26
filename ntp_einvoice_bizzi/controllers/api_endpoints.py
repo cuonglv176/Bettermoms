@@ -2,13 +2,20 @@
 """
 API Endpoints cho Chrome/Edge Extension.
 Nhận dữ liệu hóa đơn và tạo bản ghi staging.
+
+Lưu ý về type='json' vs type='http' trong Odoo:
+- type='json'  → Odoo xử lý JSON-RPC, tự parse body, trả về JSON-RPC response
+- type='http'  → Odoo xử lý plain HTTP, cần tự parse body
+
+Extension gửi Content-Type: application/json → Odoo tự động route sang JSON-RPC handler.
+Do đó tất cả POST endpoints phải dùng type='json'.
 """
 import json
 import logging
 import traceback
 
 from odoo import http
-from odoo.http import request, Response
+from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
@@ -17,31 +24,12 @@ MAX_PAYLOAD_SIZE = 50 * 1024 * 1024
 # Số lượng hóa đơn tối đa trong một batch
 MAX_BATCH_SIZE = 50
 
-# CORS Headers
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Extension-Token, Accept",
-    "Access-Control-Max-Age": "3600",
-}
-
-
-def _get_json_response(data, status=200):
-    """Tạo JSON response chuẩn với CORS headers."""
-    return Response(
-        json.dumps(data, ensure_ascii=False, default=str),
-        status=status,
-        mimetype="application/json",
-        headers=CORS_HEADERS,
-    )
-
 
 def _validate_token():
     """
     Xác thực token từ Extension.
-    Returns: (is_valid, error_response)
+    Returns: (is_valid, error_dict_or_None)
     """
-    # Lấy token từ header
     token = request.httprequest.headers.get("X-Extension-Token") or \
             request.httprequest.headers.get("Authorization", "").replace("Bearer ", "")
 
@@ -50,50 +38,35 @@ def _validate_token():
             "Extension API: Thiếu token từ IP %s",
             request.httprequest.remote_addr
         )
-        return False, _get_json_response(
-            {"success": False, "error": "Thiếu token xác thực. Vui lòng cấu hình API Token trong Extension."},
-            status=401
-        )
+        return False, {"success": False, "error": "Thiếu token xác thực. Vui lòng cấu hình API Token trong Extension."}
 
-    # Kiểm tra token trong database
     try:
         ICP = request.env["ir.config_parameter"].sudo()
         valid_token = ICP.get_param("ntp_einvoice_bizzi.extension_api_token", "")
 
         if not valid_token:
             _logger.warning("Extension API: Chưa cấu hình token trên Odoo")
-            return False, _get_json_response(
-                {"success": False, "error": "Chưa cấu hình API Token trên Odoo. Vào Cài đặt → NTP E-Invoice Bizzi → Tạo Token."},
-                status=403
-            )
+            return False, {"success": False, "error": "Chưa cấu hình API Token trên Odoo. Vào Cài đặt → NTP E-Invoice Bizzi → Tạo Token."}
 
         if token != valid_token:
             _logger.warning(
-                "Extension API: Token không khớp từ IP %s (received: %s..., expected: %s...)",
+                "Extension API: Token không khớp từ IP %s",
                 request.httprequest.remote_addr,
-                token[:8] if len(token) > 8 else token,
-                valid_token[:8] if len(valid_token) > 8 else valid_token,
             )
-            return False, _get_json_response(
-                {"success": False, "error": "Token không hợp lệ. Kiểm tra lại API Token trong Extension."},
-                status=403
-            )
+            return False, {"success": False, "error": "Token không hợp lệ. Kiểm tra lại API Token trong Extension."}
 
         return True, None
 
     except Exception as e:
         _logger.error("Extension API: Lỗi xác thực token: %s", str(e), exc_info=True)
-        return False, _get_json_response(
-            {"success": False, "error": "Lỗi xác thực: %s" % str(e)},
-            status=500
-        )
+        return False, {"success": False, "error": "Lỗi xác thực: %s" % str(e)}
 
 
 class EInvoiceBizziController(http.Controller):
     """Controller xử lý API requests từ Chrome/Edge Extension."""
 
     # ====================================================================
-    # Health Check (không cần token)
+    # Health Check (type='http', không cần token)
     # ====================================================================
     @http.route(
         "/api/einvoice/health",
@@ -105,12 +78,18 @@ class EInvoiceBizziController(http.Controller):
     )
     def health_check(self, **kwargs):
         """Kiểm tra kết nối đến Odoo API."""
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Extension-Token",
+            "Content-Type": "application/json",
+        }
+
         if request.httprequest.method == "OPTIONS":
-            return _get_json_response({})
+            return http.Response("{}", headers=headers)
 
         _logger.info("Health check from IP: %s", request.httprequest.remote_addr)
 
-        # Nếu có token, kiểm tra luôn
         token = request.httprequest.headers.get("X-Extension-Token", "")
         token_valid = False
         if token:
@@ -121,16 +100,19 @@ class EInvoiceBizziController(http.Controller):
             except Exception:
                 pass
 
-        return _get_json_response({
+        data = {
             "success": True,
             "message": "NTP E-Invoice Bizzi API is running",
-            "version": "1.1.0",
+            "version": "1.2.0",
             "token_valid": token_valid if token else None,
-            "database": request.env.cr.dbname if request.env.cr else None,
-        })
+        }
+        return http.Response(
+            json.dumps(data, ensure_ascii=False),
+            headers=headers,
+        )
 
     # ====================================================================
-    # CORS Preflight Handler
+    # CORS Preflight (type='http')
     # ====================================================================
     @http.route(
         [
@@ -146,14 +128,22 @@ class EInvoiceBizziController(http.Controller):
     )
     def handle_options(self, **kwargs):
         """Handle CORS preflight requests."""
-        return _get_json_response({})
+        return http.Response(
+            "{}",
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Extension-Token",
+                "Content-Type": "application/json",
+            },
+        )
 
     # ====================================================================
-    # Sync Single Invoice
+    # Sync Single Invoice (type='json' - nhận JSON từ Extension)
     # ====================================================================
     @http.route(
         "/api/einvoice/staging/create",
-        type="http",
+        type="json",
         auth="public",
         methods=["POST"],
         csrf=False,
@@ -162,79 +152,56 @@ class EInvoiceBizziController(http.Controller):
     def create_staging(self, **kwargs):
         """
         Nhận một hóa đơn từ Extension và tạo bản ghi staging.
+
+        Extension gửi JSON body trực tiếp (không phải JSON-RPC params).
+        Odoo với type='json' sẽ parse body và truyền vào kwargs.
         """
         try:
             # Xác thực token
-            is_valid, error_response = _validate_token()
+            is_valid, error_dict = _validate_token()
             if not is_valid:
-                return error_response
+                return error_dict
 
-            # Parse request body
-            body = request.httprequest.get_data(as_text=True)
+            # Lấy dữ liệu từ request body (Odoo type='json' parse tự động)
+            # Dữ liệu có thể nằm trong kwargs hoặc request.jsonrequest
+            invoice_data = request.jsonrequest if hasattr(request, 'jsonrequest') and request.jsonrequest else kwargs
+
             _logger.info(
-                "Extension API create_staging: Received %d bytes from IP %s",
-                len(body) if body else 0,
+                "Extension API create_staging: invoice_number=%s, source=%s, from IP=%s",
+                invoice_data.get("invoice_number", "N/A"),
+                invoice_data.get("source", "N/A"),
                 request.httprequest.remote_addr,
             )
 
-            if not body:
-                return _get_json_response(
-                    {"success": False, "error": "Request body trống"},
-                    status=400
-                )
+            if not invoice_data:
+                return {"success": False, "error": "Request body trống"}
 
-            # Kiểm tra kích thước
-            if len(body.encode("utf-8")) > MAX_PAYLOAD_SIZE:
-                return _get_json_response(
-                    {"success": False, "error": "Payload quá lớn (tối đa 50MB)"},
-                    status=413
-                )
-
-            invoice_data = json.loads(body)
             session_id = invoice_data.get("session_id")
-
-            # Log dữ liệu nhận được (bỏ pdf/xml base64 để tránh log quá dài)
-            log_data = {k: v for k, v in invoice_data.items()
-                        if k not in ("pdf_base64", "xml_base64")}
-            log_data["has_pdf_base64"] = bool(invoice_data.get("pdf_base64"))
-            log_data["has_xml_base64"] = bool(invoice_data.get("xml_base64"))
-            _logger.info("Extension API create_staging data: %s", json.dumps(log_data, ensure_ascii=False))
 
             # Tạo bản ghi staging
             StagingModel = request.env["invoice.staging.queue"].sudo()
             result = StagingModel.create_from_extension(invoice_data, session_id)
 
-            _logger.info("Extension API create_staging result: %s", json.dumps(result, ensure_ascii=False, default=str))
-
-            if result.get("success"):
-                return _get_json_response(result, status=201)
-            elif result.get("duplicate"):
-                return _get_json_response(result, status=409)
-            else:
-                return _get_json_response(result, status=422)
-
-        except json.JSONDecodeError as e:
-            _logger.error("Extension API: JSON parse error: %s", str(e))
-            return _get_json_response(
-                {"success": False, "error": "JSON không hợp lệ: %s" % str(e)},
-                status=400
+            _logger.info(
+                "Extension API create_staging result: success=%s, invoice=%s",
+                result.get("success"), invoice_data.get("invoice_number", "N/A"),
             )
+
+            return result
+
         except Exception as e:
             _logger.error(
                 "Extension API create_staging exception: %s\n%s",
                 str(e), traceback.format_exc()
             )
-            return _get_json_response(
-                {"success": False, "error": "Lỗi server: %s" % str(e)},
-                status=500
-            )
+            return {"success": False, "error": "Lỗi server: %s" % str(e)}
 
     # ====================================================================
-    # Batch Sync
+    # Batch Sync (type='json')
     # ====================================================================
     @http.route(
         "/api/einvoice/staging/batch",
-        type="http",
+        type="json",
         auth="public",
         methods=["POST"],
         csrf=False,
@@ -244,24 +211,11 @@ class EInvoiceBizziController(http.Controller):
         """Nhận nhiều hóa đơn cùng lúc từ Extension (batch upload)."""
         try:
             # Xác thực token
-            is_valid, error_response = _validate_token()
+            is_valid, error_dict = _validate_token()
             if not is_valid:
-                return error_response
+                return error_dict
 
-            body = request.httprequest.get_data(as_text=True)
-            if not body:
-                return _get_json_response(
-                    {"success": False, "error": "Request body trống"},
-                    status=400
-                )
-
-            if len(body.encode("utf-8")) > MAX_PAYLOAD_SIZE:
-                return _get_json_response(
-                    {"success": False, "error": "Payload quá lớn (tối đa 50MB)"},
-                    status=413
-                )
-
-            data = json.loads(body)
+            data = request.jsonrequest if hasattr(request, 'jsonrequest') and request.jsonrequest else kwargs
             invoices = data.get("invoices", [])
             session_id = data.get("session_id")
 
@@ -271,19 +225,13 @@ class EInvoiceBizziController(http.Controller):
             )
 
             if not invoices:
-                return _get_json_response(
-                    {"success": False, "error": "Danh sách hóa đơn trống"},
-                    status=400
-                )
+                return {"success": False, "error": "Danh sách hóa đơn trống"}
 
             if len(invoices) > MAX_BATCH_SIZE:
-                return _get_json_response(
-                    {
-                        "success": False,
-                        "error": "Batch quá lớn. Tối đa %d hóa đơn/batch" % MAX_BATCH_SIZE
-                    },
-                    status=400
-                )
+                return {
+                    "success": False,
+                    "error": "Batch quá lớn. Tối đa %d hóa đơn/batch" % MAX_BATCH_SIZE
+                }
 
             StagingModel = request.env["invoice.staging.queue"].sudo()
             results = []
@@ -307,29 +255,21 @@ class EInvoiceBizziController(http.Controller):
                 created_count, duplicate_count, error_count,
             )
 
-            return _get_json_response({
+            return {
                 "success": True,
                 "total": len(invoices),
                 "created": created_count,
                 "duplicates": duplicate_count,
                 "errors": error_count,
                 "results": results,
-            }, status=200 if error_count == 0 else 207)
+            }
 
-        except json.JSONDecodeError as e:
-            return _get_json_response(
-                {"success": False, "error": "JSON không hợp lệ: %s" % str(e)},
-                status=400
-            )
         except Exception as e:
             _logger.error("Extension API batch exception: %s\n%s", str(e), traceback.format_exc())
-            return _get_json_response(
-                {"success": False, "error": "Lỗi server: %s" % str(e)},
-                status=500
-            )
+            return {"success": False, "error": "Lỗi server: %s" % str(e)}
 
     # ====================================================================
-    # Get Staging List
+    # Get Staging List (type='http' - GET request)
     # ====================================================================
     @http.route(
         "/api/einvoice/staging/list",
@@ -341,11 +281,19 @@ class EInvoiceBizziController(http.Controller):
     )
     def list_staging(self, **kwargs):
         """Lấy danh sách staging records."""
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Content-Type": "application/json",
+        }
+
         try:
-            # Xác thực token
-            is_valid, error_response = _validate_token()
+            is_valid, error_dict = _validate_token()
             if not is_valid:
-                return error_response
+                return http.Response(
+                    json.dumps(error_dict, ensure_ascii=False),
+                    status=403,
+                    headers=headers,
+                )
 
             params = request.httprequest.args
             limit = min(int(params.get("limit", 50)), 200)
@@ -376,67 +324,61 @@ class EInvoiceBizziController(http.Controller):
                     "create_date": rec.create_date.isoformat() if rec.create_date else None,
                 })
 
-            return _get_json_response({
-                "success": True,
-                "total": total,
-                "limit": limit,
-                "offset": offset,
-                "data": data,
-            })
+            return http.Response(
+                json.dumps({
+                    "success": True,
+                    "total": total,
+                    "limit": limit,
+                    "offset": offset,
+                    "data": data,
+                }, ensure_ascii=False, default=str),
+                headers=headers,
+            )
 
         except Exception as e:
             _logger.error("Extension API list exception: %s\n%s", str(e), traceback.format_exc())
-            return _get_json_response(
-                {"success": False, "error": str(e)},
-                status=500
+            return http.Response(
+                json.dumps({"success": False, "error": str(e)}, ensure_ascii=False),
+                status=500,
+                headers=headers,
             )
 
     # ====================================================================
-    # Manual Push to Bizzi
+    # Manual Push to Bizzi (type='json')
     # ====================================================================
     @http.route(
         "/api/einvoice/staging/<int:staging_id>/push-bizzi",
-        type="http",
+        type="json",
         auth="public",
-        methods=["POST", "OPTIONS"],
+        methods=["POST"],
         csrf=False,
         cors="*",
     )
     def push_to_bizzi(self, staging_id, **kwargs):
         """Đẩy một hóa đơn cụ thể sang Bizzi."""
-        if request.httprequest.method == "OPTIONS":
-            return _get_json_response({})
-
         try:
-            # Xác thực token
-            is_valid, error_response = _validate_token()
+            is_valid, error_dict = _validate_token()
             if not is_valid:
-                return error_response
+                return error_dict
 
             StagingModel = request.env["invoice.staging.queue"].sudo()
             record = StagingModel.browse(staging_id)
 
             if not record.exists():
-                return _get_json_response(
-                    {"success": False, "error": "Không tìm thấy bản ghi ID %d" % staging_id},
-                    status=404
-                )
+                return {"success": False, "error": "Không tìm thấy bản ghi ID %d" % staging_id}
 
             connector = request.env["bizzi.api.connector"].sudo()
             success = connector.push_invoice_to_bizzi(record)
 
-            return _get_json_response({
+            return {
                 "success": success,
                 "staging_id": staging_id,
                 "bizzi_status": record.bizzi_status,
                 "bizzi_document_id": record.bizzi_document_id,
                 "error": record.error_message if not success else None,
-            })
+            }
 
         except Exception as e:
             _logger.error("Extension API push_to_bizzi exception (ID %d): %s\n%s",
                           staging_id, str(e), traceback.format_exc())
-            return _get_json_response(
-                {"success": False, "error": str(e)},
-                status=500
-            )
+            return {"success": False, "error": str(e)}
