@@ -3,12 +3,14 @@
  * Trích xuất dữ liệu hóa đơn từ einvoice.shinhan.com.vn
  * Đọc trực tiếp DOM bảng HTML trên trang đã đăng nhập (Angular app).
  *
- * Bảng đầy đủ (16 cột):
- * STT | Loại HĐ | MST người bán | Tên người bán | Ký hiệu | Số HĐ | Ngày HĐ | Tên hàng | Loại tiền | Tỷ giá | Cộng tiền | Thuế suất | Tiền thuế | Tổng cộng | Tải về | Thao tác
+ * CHẠY TRONG ISOLATED WORLD (content script context).
+ * Giao tiếp với shinhan-interceptor.js (MAIN world) qua CustomEvent.
  *
- * QUAN TRỌNG: Link PDF/XML trên Shinhan KHÔNG có href.
- * Angular xử lý click event → gọi API → tạo Blob → tạo <a download> ẩn → click.
- * Cần intercept toàn bộ chuỗi này để capture file data thay vì download về máy.
+ * Luồng download PDF/XML:
+ * 1. Content script dispatch click event trên link PDF/XML (Angular nhận được vì click event propagate qua cả 2 worlds)
+ * 2. Angular xử lý click → gọi API → tạo Blob → tạo <a download> → gọi .click()
+ * 3. Interceptor (MAIN world) chặn .click() → capture base64 → dispatch 'ntp-file-intercepted'
+ * 4. Content script nhận event → lưu base64 → trả về cho background
  *
  * URL: https://einvoice.shinhan.com.vn/#/invoice-list
  */
@@ -16,172 +18,53 @@
 class ShinhanScraper {
   constructor() {
     this.source = 'shinhan';
-    this._interceptedFiles = [];
-    this._isInterceptorReady = false;
-    this._setupInterceptor();
+    this._capturedFiles = [];
+    this._fileResolvers = [];
+    this._setupEventListeners();
   }
 
   /**
-   * Setup interceptor toàn diện để bắt file PDF/XML khi Angular download.
-   *
-   * Angular download flow:
-   * 1. Click link → Angular service gọi HTTP API (XHR hoặc fetch)
-   * 2. Nhận response (ArrayBuffer/Blob)
-   * 3. Tạo Blob URL: URL.createObjectURL(blob)
-   * 4. Tạo <a href="blob:..." download="filename"> ẩn
-   * 5. Gọi a.click() → browser download file
-   *
-   * Ta intercept ở nhiều điểm để đảm bảo bắt được file.
+   * Lắng nghe CustomEvent từ main world interceptor.
    */
-  _setupInterceptor() {
-    const self = this;
-
-    // ============================================================
-    // Interceptor 1: Override URL.createObjectURL
-    // Bắt khi Angular tạo Blob URL cho download
-    // ============================================================
-    const origCreateObjectURL = URL.createObjectURL.bind(URL);
-    URL.createObjectURL = function (obj) {
-      const blobUrl = origCreateObjectURL(obj);
-
-      if (obj instanceof Blob && obj.size > 100) {
-        const type = obj.type || '';
-        console.log(`[ShinhanScraper] Blob URL created: type="${type}", size=${obj.size}, url=${blobUrl}`);
-
-        // Đọc blob data ngay lập tức
-        const reader = new FileReader();
-        reader.onload = function () {
-          const base64 = reader.result.split(',')[1];
-          const fileType = (type.includes('xml') || type.includes('text/xml')) ? 'xml' : 'pdf';
-          console.log(`[ShinhanScraper] Captured ${fileType} from Blob: size=${base64.length}`);
-          self._interceptedFiles.push({
-            type: fileType,
-            base64: base64,
-            blobUrl: blobUrl,
-            size: obj.size,
-            contentType: type,
-            timestamp: Date.now(),
-            filename: null, // Sẽ được set bởi interceptor <a download>
-          });
-        };
-        reader.readAsDataURL(obj);
-      }
-
-      return blobUrl;
-    };
-
-    // ============================================================
-    // Interceptor 2: Override HTMLAnchorElement.prototype.click
-    // Bắt TẤT CẢ <a>.click() - kể cả element tạo trước interceptor
-    // Đây là cách chắc chắn nhất vì Angular luôn gọi .click()
-    // ============================================================
-    const origAnchorClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function () {
-      const href = this.href || '';
-      const download = this.download || this.getAttribute('download') || '';
-
-      if (href.startsWith('blob:') && download) {
-        console.log(`[ShinhanScraper] Intercepted <a>.click(): download="${download}", href="${href}"`);
-
-        // Tìm file đã capture từ Blob URL
-        const captured = self._interceptedFiles.find(f => f.blobUrl === href);
-        if (captured) {
-          captured.filename = download;
-          // Xác định type từ filename nếu chưa rõ
-          if (download.toLowerCase().endsWith('.xml')) {
-            captured.type = 'xml';
-          } else if (download.toLowerCase().endsWith('.pdf')) {
-            captured.type = 'pdf';
-          }
-          console.log(`[ShinhanScraper] Matched: "${download}" → ${captured.type}, base64 size=${captured.base64?.length || 0}`);
-        } else {
-          console.warn(`[ShinhanScraper] Blob URL not found in intercepted files: ${href}`);
-          // Fallback: đọc blob từ URL
-          fetch(href).then(r => r.blob()).then(blob => {
-            const reader = new FileReader();
-            reader.onload = function () {
-              const base64 = reader.result.split(',')[1];
-              const fileType = download.toLowerCase().endsWith('.xml') ? 'xml' : 'pdf';
-              self._interceptedFiles.push({
-                type: fileType,
-                base64: base64,
-                blobUrl: href,
-                size: blob.size,
-                filename: download,
-                timestamp: Date.now(),
-              });
-              console.log(`[ShinhanScraper] Fallback captured: "${download}" → ${fileType}`);
-            };
-            reader.readAsDataURL(blob);
-          }).catch(e => console.warn('[ShinhanScraper] Fallback fetch failed:', e));
-        }
-
-        // KHÔNG gọi click gốc → ngăn download về máy
-        // Cleanup blob URL sau 2 giây
-        setTimeout(() => {
-          try { URL.revokeObjectURL(href); } catch (e) { /* ignore */ }
-        }, 2000);
-        return;
-      }
-
-      // Cho các link bình thường, gọi click gốc
-      return origAnchorClick.call(this);
-    };
-
-    // ============================================================
-    // Interceptor 3: MutationObserver - bắt <a download> khi thêm vào DOM
-    // Backup cho trường hợp Angular append element vào body trước khi click
-    // ============================================================
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node.tagName === 'A' && node.download && node.href && node.href.startsWith('blob:')) {
-            console.log(`[ShinhanScraper] MutationObserver: <a download="${node.download}"> added to DOM`);
-            // File đã được capture bởi Interceptor 1 (createObjectURL)
-            // Chỉ cần set filename
-            const captured = self._interceptedFiles.find(f => f.blobUrl === node.href);
-            if (captured && !captured.filename) {
-              captured.filename = node.download;
-            }
-          }
-        }
+  _setupEventListeners() {
+    window.addEventListener('ntp-file-intercepted', (event) => {
+      const fileData = event.detail;
+      console.log(`[ShinhanScraper] Received intercepted file: type=${fileData.type}, filename=${fileData.filename}, size=${fileData.base64?.length || 0}`);
+      
+      this._capturedFiles.push(fileData);
+      
+      // Resolve pending promise nếu có
+      if (this._fileResolvers.length > 0) {
+        const resolver = this._fileResolvers.shift();
+        resolver(fileData);
       }
     });
 
-    observer.observe(document.body || document.documentElement, {
-      childList: true,
-      subtree: true,
+    console.log('[ShinhanScraper] Event listeners setup for main world communication');
+  }
+
+  /**
+   * Đợi file mới từ interceptor.
+   */
+  _waitForFile(timeout = 15000) {
+    return new Promise((resolve) => {
+      // Kiểm tra nếu đã có file mới trong queue
+      // (interceptor có thể đã capture trước khi ta đợi)
+      
+      const timer = setTimeout(() => {
+        // Timeout - remove resolver
+        const idx = this._fileResolvers.indexOf(resolverFn);
+        if (idx >= 0) this._fileResolvers.splice(idx, 1);
+        resolve(null);
+      }, timeout);
+
+      const resolverFn = (fileData) => {
+        clearTimeout(timer);
+        resolve(fileData);
+      };
+
+      this._fileResolvers.push(resolverFn);
     });
-
-    // ============================================================
-    // Interceptor 4: Override window.open (nếu Angular mở tab mới)
-    // ============================================================
-    const origWindowOpen = window.open;
-    window.open = function (url, ...args) {
-      if (url && url.startsWith('blob:')) {
-        console.log(`[ShinhanScraper] Intercepted window.open(blob:...)`);
-        // Không mở tab mới, đọc blob thay thế
-        fetch(url).then(r => r.blob()).then(blob => {
-          const reader = new FileReader();
-          reader.onload = function () {
-            const base64 = reader.result.split(',')[1];
-            self._interceptedFiles.push({
-              type: 'pdf',
-              base64: base64,
-              blobUrl: url,
-              size: blob.size,
-              timestamp: Date.now(),
-            });
-          };
-          reader.readAsDataURL(blob);
-        }).catch(() => {});
-        return null;
-      }
-      return origWindowOpen.call(this, url, ...args);
-    };
-
-    this._isInterceptorReady = true;
-    console.log('[ShinhanScraper] All interceptors installed (Blob URL + AnchorClick + MutationObserver + window.open)');
   }
 
   /**
@@ -406,7 +289,7 @@ class ShinhanScraper {
 
   /**
    * Download PDF cho một hóa đơn bằng cách click vào link PDF trên bảng.
-   * Interceptor sẽ capture data thay vì download về máy.
+   * Interceptor (main world) sẽ chặn download và gửi base64 qua CustomEvent.
    */
   async downloadPdf(invoice) {
     if (!invoice._hasPdfLink && !invoice.pdf_url) {
@@ -416,36 +299,39 @@ class ShinhanScraper {
     try {
       console.log(`[ShinhanScraper] Download PDF cho HĐ ${invoice.invoice_number} (row ${invoice._rowIndex})`);
 
-      // Ghi nhận số file trước khi click
-      const beforeCount = this._interceptedFiles.length;
+      // Xóa cache cũ
+      window.dispatchEvent(new CustomEvent('ntp-clear-intercepted'));
+      this._capturedFiles = [];
 
-      // Tìm link PDF trong DOM
+      // Bắt đầu đợi file từ interceptor
+      const filePromise = this._waitForFile(15000);
+
+      // Tìm link PDF trong DOM và click
       const pdfLink = this._findLinkInRow(invoice._rowIndex, 'PDF');
       if (!pdfLink) {
         console.warn(`[ShinhanScraper] Không tìm thấy link PDF cho row ${invoice._rowIndex}`);
         return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: 'Không tìm thấy link PDF' };
       }
 
-      // Trigger Angular click event (KHÔNG dùng .click() vì đã bị override)
-      // Dùng dispatchEvent để Angular nhận được event
-      console.log(`[ShinhanScraper] Dispatching click event on PDF link for row ${invoice._rowIndex}...`);
+      // Click link - event sẽ propagate qua cả isolated và main world
+      // Angular (main world) sẽ xử lý click → download → interceptor chặn
+      console.log(`[ShinhanScraper] Clicking PDF link for row ${invoice._rowIndex}...`);
       pdfLink.dispatchEvent(new MouseEvent('click', {
         bubbles: true,
         cancelable: true,
         view: window,
       }));
 
-      // Đợi interceptor capture file (tối đa 15 giây)
-      const result = await this._waitForNewFile(beforeCount, 15000);
+      // Đợi interceptor capture file
+      const result = await filePromise;
 
-      if (result) {
+      if (result && result.base64) {
         const filename = result.filename || `shinhan_${invoice.invoice_number}.pdf`;
         console.log(`[ShinhanScraper] PDF captured: ${invoice.invoice_number}, size=${result.base64.length}`);
         return { pdf_base64: result.base64, pdf_filename: filename, pdf_status: 'downloaded' };
       }
 
       console.warn(`[ShinhanScraper] Không capture được PDF cho ${invoice.invoice_number} sau 15s`);
-      console.log(`[ShinhanScraper] Intercepted files total: ${this._interceptedFiles.length}, before: ${beforeCount}`);
       return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: 'Interceptor timeout' };
     } catch (err) {
       console.error(`[ShinhanScraper] Lỗi download PDF ${invoice.invoice_number}:`, err);
@@ -454,7 +340,7 @@ class ShinhanScraper {
   }
 
   /**
-   * Download XML cho một hóa đơn bằng cách click vào link XML trên bảng.
+   * Download XML cho một hóa đơn.
    */
   async downloadXml(invoice) {
     if (!invoice._hasXmlLink && !invoice.xml_url) {
@@ -464,7 +350,11 @@ class ShinhanScraper {
     try {
       console.log(`[ShinhanScraper] Download XML cho HĐ ${invoice.invoice_number} (row ${invoice._rowIndex})`);
 
-      const beforeCount = this._interceptedFiles.length;
+      // Xóa cache cũ
+      window.dispatchEvent(new CustomEvent('ntp-clear-intercepted'));
+      this._capturedFiles = [];
+
+      const filePromise = this._waitForFile(15000);
 
       const xmlLink = this._findLinkInRow(invoice._rowIndex, 'XML');
       if (!xmlLink) {
@@ -477,9 +367,9 @@ class ShinhanScraper {
         view: window,
       }));
 
-      const result = await this._waitForNewFile(beforeCount, 15000);
+      const result = await filePromise;
 
-      if (result) {
+      if (result && result.base64) {
         const filename = result.filename || `shinhan_${invoice.invoice_number}.xml`;
         console.log(`[ShinhanScraper] XML captured: ${invoice.invoice_number}`);
         return { xml_base64: result.base64, xml_filename: filename };
@@ -506,33 +396,6 @@ class ShinhanScraper {
       if (link.textContent.trim().toUpperCase().includes(linkType)) return link;
     }
     return null;
-  }
-
-  /**
-   * Đợi file mới xuất hiện trong _interceptedFiles.
-   * So sánh với beforeCount để biết có file mới hay không.
-   */
-  _waitForNewFile(beforeCount, timeout = 15000) {
-    return new Promise((resolve) => {
-      const startTime = Date.now();
-      const interval = setInterval(() => {
-        // Tìm file mới (sau beforeCount)
-        if (this._interceptedFiles.length > beforeCount) {
-          // Lấy file mới nhất
-          const newFile = this._interceptedFiles[this._interceptedFiles.length - 1];
-          if (newFile.base64) {
-            clearInterval(interval);
-            resolve(newFile);
-            return;
-          }
-        }
-
-        if (Date.now() - startTime > timeout) {
-          clearInterval(interval);
-          resolve(null);
-        }
-      }, 200);
-    });
   }
 
   _parseAmount(str) {

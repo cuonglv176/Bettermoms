@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTP E-Invoice Fetcher",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Tự động lấy hóa đơn điện tử từ Grab, Tracuuhoadon, Shinhan và đồng bộ vào Odoo",
   "author": "NTP",
   "icons": {
@@ -36,6 +36,14 @@
         "src/content/content-bridge.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://einvoice.shinhan.com.vn/*", "https://*.shinhan.com.vn/*"],
+      "js": [
+        "src/content/shinhan-interceptor.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     },
     {
       "matches": ["https://einvoice.shinhan.com.vn/*", "https://*.shinhan.com.vn/*"],
