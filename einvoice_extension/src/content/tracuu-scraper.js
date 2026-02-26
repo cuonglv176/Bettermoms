@@ -3,15 +3,14 @@
  * Trích xuất dữ liệu hóa đơn từ spv.tracuuhoadon.online
  * Đọc trực tiếp DOM bảng HTML trên trang đã đăng nhập.
  *
- * Cấu trúc bảng (từ phân tích thực tế):
- * Cột: STT | Thao tác (Xem | Tải về) | Số hóa đơn | Mẫu số | Ký hiệu | Ngày HĐ | Tổng tiền | Ký
- * Bảng dùng DataTable plugin (jQuery)
+ * Cấu trúc bảng thực tế (từ screenshot):
+ * STT | Thao tác (Xem | Tải về) | Số hóa đơn | Mẫu số | Ký hiệu | Ngày HĐ | Tổng tiền | Ký
+ *  0  |          1              |      2      |    3   |    4    |    5    |     6     |  7
+ *
+ * Bảng dùng DataTable jQuery plugin.
+ * URL: https://spv.tracuuhoadon.online/danh-sach-hoa-don
  */
 
-/**
- * TracuuScraper - Scrape hóa đơn trực tiếp từ DOM trang tracuuhoadon.
- * Chạy trong context của content script (có quyền truy cập DOM).
- */
 class TracuuScraper {
   constructor() {
     this.source = 'tracuu';
@@ -21,15 +20,30 @@ class TracuuScraper {
    * Kiểm tra trang đã đăng nhập chưa.
    */
   isLoggedIn() {
-    // Nếu đang ở trang đăng nhập thì chưa đăng nhập
-    if (window.location.pathname.includes('dang-nhap')) {
+    // Nếu đang ở trang đăng nhập → chưa đăng nhập
+    if (window.location.pathname.includes('dang-nhap') ||
+        window.location.pathname === '/' ||
+        window.location.pathname === '') {
       return false;
     }
-    // Kiểm tra có bảng dữ liệu hoặc menu user không
+    // Kiểm tra có bảng dữ liệu trên trang không
     const hasTable = document.querySelector('table') !== null;
-    const hasUserMenu = document.querySelector('.dropdown-toggle, .user-info, [class*="user"], [class*="account"]') !== null;
-    const hasInvoiceList = window.location.pathname.includes('danh-sach') || window.location.pathname.includes('hoa-don');
-    return hasTable || hasUserMenu || hasInvoiceList;
+    // Kiểm tra URL có chứa danh-sach hoặc hoa-don
+    const isInvoicePage = window.location.pathname.includes('danh-sach') ||
+                          window.location.pathname.includes('hoa-don') ||
+                          window.location.pathname.includes('bien-ban');
+    // Kiểm tra có menu đăng xuất không
+    const bodyText = document.body ? document.body.innerText : '';
+    const hasLogout = bodyText.includes('Đăng xuất') || bodyText.includes('đăng xuất');
+
+    console.log('[TracuuScraper] isLoggedIn check:', {
+      path: window.location.pathname,
+      hasTable,
+      isInvoicePage,
+      hasLogout,
+    });
+
+    return hasTable || isInvoicePage || hasLogout;
   }
 
   /**
@@ -39,66 +53,113 @@ class TracuuScraper {
   scrapeInvoices() {
     const invoices = [];
 
-    // Tìm tất cả bảng trên trang
-    const tables = document.querySelectorAll('table');
-    if (tables.length === 0) {
-      console.warn('[TracuuScraper] Không tìm thấy bảng nào trên trang');
+    // Debug: log toàn bộ bảng trên trang
+    const allTables = document.querySelectorAll('table');
+    console.log(`[TracuuScraper] Tổng số bảng: ${allTables.length}`);
+    allTables.forEach((t, i) => {
+      const ths = Array.from(t.querySelectorAll('th')).map(h => h.textContent.trim());
+      const rowCount = t.querySelectorAll('tbody tr').length;
+      console.log(`[TracuuScraper] Bảng ${i}: ${rowCount} rows, headers:`, ths);
+    });
+
+    if (allTables.length === 0) {
+      console.warn('[TracuuScraper] Không tìm thấy bảng nào. Trang có thể chưa load xong.');
       return invoices;
     }
 
-    // Tìm bảng chứa hóa đơn (bảng có cột "Số hóa đơn")
+    // Tìm bảng chứa hóa đơn
     let invoiceTable = null;
-    for (const table of tables) {
-      const headers = table.querySelectorAll('th');
-      const headerTexts = Array.from(headers).map(h => h.textContent.trim().toLowerCase());
-      if (headerTexts.some(h => h.includes('số hóa đơn') || h.includes('so hoa don') || h.includes('số hđ'))) {
+
+    // Ưu tiên 1: Tìm bảng có header "Số hóa đơn"
+    for (const table of allTables) {
+      const headers = Array.from(table.querySelectorAll('th'));
+      const headerTexts = headers.map(h => h.textContent.trim().toLowerCase());
+      console.log('[TracuuScraper] Kiểm tra headers:', headerTexts);
+      if (headerTexts.some(h =>
+        h.includes('số hóa đơn') ||
+        h.includes('so hoa don') ||
+        h.includes('số hđ') ||
+        h === 'số hd'
+      )) {
         invoiceTable = table;
+        console.log('[TracuuScraper] Tìm thấy bảng hóa đơn qua header "Số hóa đơn"');
         break;
       }
     }
 
+    // Ưu tiên 2: Tìm bảng có DataTable ID
     if (!invoiceTable) {
-      // Fallback: lấy bảng đầu tiên có nhiều hơn 3 cột
-      for (const table of tables) {
-        const headers = table.querySelectorAll('th');
-        if (headers.length >= 5) {
+      const dtTable = document.querySelector('#tblHoaDon, #invoiceTable, table.dataTable, table[id*="hoa"], table[id*="invoice"]');
+      if (dtTable) {
+        invoiceTable = dtTable;
+        console.log('[TracuuScraper] Tìm thấy bảng qua DataTable ID');
+      }
+    }
+
+    // Ưu tiên 3: Lấy bảng có nhiều cột nhất (>= 5 cột)
+    if (!invoiceTable) {
+      let maxCols = 0;
+      for (const table of allTables) {
+        const colCount = table.querySelectorAll('th').length ||
+                         table.querySelectorAll('tr:first-child td').length;
+        if (colCount > maxCols && colCount >= 5) {
+          maxCols = colCount;
           invoiceTable = table;
-          break;
         }
+      }
+      if (invoiceTable) {
+        console.log(`[TracuuScraper] Fallback: dùng bảng có nhiều cột nhất (${maxCols} cột)`);
       }
     }
 
     if (!invoiceTable) {
-      console.warn('[TracuuScraper] Không tìm thấy bảng hóa đơn');
+      console.warn('[TracuuScraper] Không tìm thấy bảng hóa đơn phù hợp');
       return invoices;
     }
 
-    // Xác định vị trí các cột dựa trên header
+    // Xác định vị trí các cột
     const headers = Array.from(invoiceTable.querySelectorAll('thead th, th'));
+    console.log('[TracuuScraper] Headers của bảng đã chọn:', headers.map(h => h.textContent.trim()));
     const colMap = this._mapColumns(headers);
-
     console.log('[TracuuScraper] Column mapping:', colMap);
 
-    // Lấy dữ liệu từ các hàng
+    // Lấy dữ liệu từ các hàng tbody
     const rows = invoiceTable.querySelectorAll('tbody tr');
-    console.log(`[TracuuScraper] Tìm thấy ${rows.length} hàng trong bảng`);
+    console.log(`[TracuuScraper] Số hàng tbody: ${rows.length}`);
 
-    rows.forEach((row, index) => {
+    // Nếu không có tbody, thử lấy tất cả tr (bỏ qua hàng đầu nếu là header)
+    const dataRows = rows.length > 0 ? rows : Array.from(invoiceTable.querySelectorAll('tr')).slice(1);
+    console.log(`[TracuuScraper] Số hàng dữ liệu: ${dataRows.length}`);
+
+    dataRows.forEach((row, index) => {
       try {
         const cells = row.querySelectorAll('td');
-        if (cells.length < 4) return; // Bỏ qua hàng quá ngắn
+        if (cells.length < 3) {
+          console.log(`[TracuuScraper] Bỏ qua hàng ${index}: chỉ có ${cells.length} cells`);
+          return;
+        }
+
+        // Debug: log nội dung hàng đầu tiên
+        if (index === 0) {
+          const cellTexts = Array.from(cells).map(c => c.textContent.trim().substring(0, 30));
+          console.log('[TracuuScraper] Hàng đầu tiên:', cellTexts);
+        }
 
         const invoice = this._parseRow(cells, colMap, row);
-        if (invoice && invoice.invoice_number) {
-          invoice._id = `tracuu_${index}_${Date.now()}`;
-          invoices.push(invoice);
+        if (invoice) {
+          if (!invoice.invoice_number) {
+            console.warn(`[TracuuScraper] Hàng ${index}: Không lấy được số hóa đơn. colMap.so_hoa_don=${colMap.so_hoa_don}, cell text="${cells[colMap.so_hoa_don] ? cells[colMap.so_hoa_don].textContent.trim() : 'N/A'}"`);
+          } else {
+            invoice._id = `tracuu_${index}_${Date.now()}`;
+            invoices.push(invoice);
+          }
         }
       } catch (err) {
-        console.warn(`[TracuuScraper] Lỗi parse hàng ${index}:`, err);
+        console.warn(`[TracuuScraper] Lỗi parse hàng ${index}:`, err.message);
       }
     });
 
-    console.log(`[TracuuScraper] Scrape được ${invoices.length} hóa đơn`);
+    console.log(`[TracuuScraper] Kết quả: ${invoices.length} hóa đơn`);
     return invoices;
   }
 
@@ -120,41 +181,55 @@ class TracuuScraper {
     };
 
     headers.forEach((th, idx) => {
-      const text = th.textContent.trim().toLowerCase();
-      if (text.includes('stt') || text === '#') {
+      const text = th.textContent.trim().toLowerCase()
+        .replace(/\s+/g, ' ')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // bỏ dấu để so sánh
+        .replace(/đ/g, 'd');
+
+      const original = th.textContent.trim().toLowerCase();
+
+      if (original === 'stt' || original === '#' || original === 'no.') {
         map.stt = idx;
-      } else if (text.includes('thao tác') || text.includes('thao_tac') || text.includes('action')) {
+      } else if (original.includes('thao tác') || original.includes('thao tac') || original.includes('action') || original.includes('tác vụ')) {
         map.thao_tac = idx;
-      } else if (text.includes('số hóa đơn') || text.includes('số hđ') || text.includes('so hoa don') || text.includes('invoice no')) {
+      } else if (original.includes('số hóa đơn') || original.includes('so hoa don') || original.includes('số hđ') || original.includes('số hd') || original.includes('invoice no') || original.includes('invoice number')) {
         map.so_hoa_don = idx;
-      } else if (text.includes('mẫu số') || text.includes('mau so') || text.includes('template')) {
+      } else if (original.includes('mẫu số') || original.includes('mau so') || original.includes('template') || original.includes('form')) {
         map.mau_so = idx;
-      } else if (text.includes('ký hiệu') || text.includes('ky hieu') || text.includes('serial') || text.includes('symbol')) {
+      } else if (original.includes('ký hiệu') || original.includes('ky hieu') || original.includes('serial') || original.includes('symbol') || original.includes('kí hiệu')) {
         map.ky_hieu = idx;
-      } else if (text.includes('ngày') || text.includes('date') || text.includes('ngay')) {
+      } else if (original.includes('ngày') || original.includes('date') || original.includes('ngay')) {
         map.ngay_hd = idx;
-      } else if (text.includes('tổng tiền') || text.includes('tong tien') || text.includes('thành tiền') || text.includes('amount') || text.includes('total')) {
+      } else if (original.includes('tổng tiền') || original.includes('tong tien') || original.includes('thành tiền') || original.includes('amount') || original.includes('total') || original.includes('tiền')) {
         map.tong_tien = idx;
-      } else if (text === 'ký' || text === 'sign') {
+      } else if (original === 'ký' || original === 'ky' || original === 'sign' || original === 'signed') {
         map.ky = idx;
-      } else if (text.includes('mã số thuế') || text.includes('mst') || text.includes('tax')) {
+      } else if (original.includes('mã số thuế') || original.includes('mst') || original.includes('tax code')) {
         map.mst = idx;
-      } else if (text.includes('tên') && (text.includes('bán') || text.includes('ncc') || text.includes('seller'))) {
+      } else if ((original.includes('tên') || original.includes('ten')) && (original.includes('bán') || original.includes('ban') || original.includes('ncc') || original.includes('seller') || original.includes('vendor'))) {
         map.ten_ncc = idx;
       }
     });
 
-    // Fallback cho bảng tracuuhoadon chuẩn:
+    // Fallback cứng cho bảng tracuuhoadon chuẩn:
     // STT(0) | Thao tác(1) | Số hóa đơn(2) | Mẫu số(3) | Ký hiệu(4) | Ngày HĐ(5) | Tổng tiền(6) | Ký(7)
-    if (map.so_hoa_don === -1 && headers.length >= 7) {
-      map.stt = 0;
-      map.thao_tac = 1;
-      map.so_hoa_don = 2;
-      map.mau_so = 3;
-      map.ky_hieu = 4;
-      map.ngay_hd = 5;
-      map.tong_tien = 6;
-      map.ky = 7;
+    if (map.so_hoa_don === -1) {
+      console.log('[TracuuScraper] Không detect được cột "Số hóa đơn", dùng fallback cứng');
+      if (headers.length >= 7) {
+        map.stt = 0;
+        map.thao_tac = 1;
+        map.so_hoa_don = 2;
+        map.mau_so = 3;
+        map.ky_hieu = 4;
+        map.ngay_hd = 5;
+        map.tong_tien = 6;
+        if (headers.length >= 8) map.ky = 7;
+      } else if (headers.length >= 5) {
+        // Bảng ít cột hơn, thử tìm cột số
+        map.so_hoa_don = 1; // Thường là cột thứ 2 sau STT
+        map.ngay_hd = 2;
+        map.tong_tien = 3;
+      }
     }
 
     return map;
@@ -169,18 +244,35 @@ class TracuuScraper {
       return cells[idx].textContent.trim();
     };
 
-    const invoiceNumber = getText(colMap.so_hoa_don);
+    // Lấy số hóa đơn
+    let invoiceNumber = getText(colMap.so_hoa_don);
+
+    // Nếu vẫn không có, thử tìm trong tất cả cells (tìm cell có dạng số)
+    if (!invoiceNumber) {
+      for (let i = 0; i < cells.length; i++) {
+        const text = cells[i].textContent.trim();
+        // Số hóa đơn thường là số nguyên hoặc có dạng như "185517", "100611"
+        if (/^\d{4,10}$/.test(text)) {
+          invoiceNumber = text;
+          console.log(`[TracuuScraper] Tìm thấy số hóa đơn ở cột ${i}: ${text}`);
+          break;
+        }
+      }
+    }
+
     if (!invoiceNumber) return null;
 
     // Lấy link PDF/download từ cột thao tác
     let pdfUrl = null;
     let viewUrl = null;
+
+    // Tìm trong cột thao tác
     if (colMap.thao_tac >= 0 && colMap.thao_tac < cells.length) {
       const links = cells[colMap.thao_tac].querySelectorAll('a');
       links.forEach(link => {
         const linkText = link.textContent.trim().toLowerCase();
         const href = link.href || link.getAttribute('href') || '';
-        if (linkText.includes('tải') || linkText.includes('download') || href.includes('download') || href.includes('pdf')) {
+        if (linkText.includes('tải') || linkText.includes('download') || href.includes('download') || href.includes('pdf') || href.includes('tai-ve')) {
           pdfUrl = href;
         }
         if (linkText.includes('xem') || linkText.includes('view')) {
@@ -189,14 +281,17 @@ class TracuuScraper {
       });
     }
 
-    // Cũng tìm link PDF/download trong toàn bộ hàng
+    // Tìm trong toàn bộ hàng nếu chưa có
     if (!pdfUrl) {
       const allLinks = row.querySelectorAll('a');
       allLinks.forEach(link => {
         const href = link.href || link.getAttribute('href') || '';
         const text = link.textContent.trim().toLowerCase();
-        if (text.includes('tải về') || text.includes('download') || href.includes('pdf') || href.includes('download')) {
+        if (text.includes('tải về') || text.includes('download') || href.includes('pdf') || href.includes('download') || href.includes('tai-ve')) {
           pdfUrl = href;
+        }
+        if (!viewUrl && (text.includes('xem') || text.includes('view'))) {
+          viewUrl = href;
         }
       });
     }
@@ -212,11 +307,11 @@ class TracuuScraper {
     return {
       source: 'tracuu',
       invoice_number: invoiceNumber,
-      invoice_code: '', // Tracuuhoadon không hiển thị mã tra cứu trong bảng
+      invoice_code: '',
       invoice_symbol: getText(colMap.ky_hieu),
       invoice_date: normalizedDate,
-      seller_tax_code: getText(colMap.mst),
-      seller_name: getText(colMap.ten_ncc),
+      seller_tax_code: getText(colMap.mst) || '',
+      seller_name: getText(colMap.ten_ncc) || '',
       amount_untaxed: 0,
       amount_tax: 0,
       amount_total: amount,
@@ -230,8 +325,6 @@ class TracuuScraper {
 
   /**
    * Tải PDF cho một hóa đơn.
-   * @param {Object} invoice
-   * @returns {Promise<Object>}
    */
   async downloadPdf(invoice) {
     if (!invoice.pdf_url && !invoice.view_url) {
@@ -243,9 +336,7 @@ class TracuuScraper {
     try {
       const response = await fetch(url, {
         credentials: 'include',
-        headers: {
-          'Accept': 'application/pdf,application/octet-stream,*/*',
-        },
+        headers: { 'Accept': 'application/pdf,application/octet-stream,*/*' },
       });
 
       if (!response.ok) {
@@ -260,49 +351,30 @@ class TracuuScraper {
       const base64 = await this._blobToBase64(blob);
       const filename = `tracuu_${invoice.invoice_number}_${new Date().toISOString().split('T')[0]}.pdf`;
 
-      return {
-        pdf_base64: base64,
-        pdf_filename: filename,
-        pdf_status: 'downloaded',
-      };
+      return { pdf_base64: base64, pdf_filename: filename, pdf_status: 'downloaded' };
     } catch (err) {
       return { pdf_base64: null, pdf_filename: null, pdf_status: 'error', pdf_error: err.message };
     }
   }
 
-  /**
-   * Parse số tiền từ chuỗi hiển thị.
-   */
   _parseAmount(str) {
     if (!str) return 0;
+    // Xử lý format VN: 176.843 → 176843
     const cleaned = str.replace(/\./g, '').replace(/,/g, '.').replace(/[^\d.-]/g, '');
     return parseFloat(cleaned) || 0;
   }
 
-  /**
-   * Chuẩn hóa ngày sang YYYY-MM-DD.
-   */
   _normalizeDate(str) {
     if (!str) return null;
     const trimmed = str.trim();
-
-    // DD/MM/YYYY
-    const m1 = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
-
-    // DD-MM-YYYY
-    const m2 = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-    if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
-
-    // YYYY-MM-DD
+    const m1 = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+    const m2 = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m2) return `${m2[3]}-${m2[2].padStart(2,'0')}-${m2[1].padStart(2,'0')}`;
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-
     return null;
   }
 
-  /**
-   * Chuyển Blob sang Base64.
-   */
   _blobToBase64(blob) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -313,7 +385,6 @@ class TracuuScraper {
   }
 }
 
-// Export cho content script sử dụng
 if (typeof window !== 'undefined') {
   window.TracuuScraper = TracuuScraper;
 }

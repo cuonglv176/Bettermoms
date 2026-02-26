@@ -3,12 +3,14 @@
  * Content script chạy trên các trang web hóa đơn.
  * Đóng vai trò cầu nối: nhận lệnh từ popup/background → gọi scraper → trả kết quả.
  *
- * Luồng hoạt động mới:
+ * Luồng hoạt động:
  * 1. Content script load trên trang web (đã đăng nhập)
  * 2. Popup gửi message SCRAPE_INVOICES → content script scrape DOM
  * 3. Content script trả về danh sách hóa đơn
- * 4. Popup gửi message DOWNLOAD_PDF → content script tải PDF
- * 5. Content script trả về PDF base64
+ *
+ * Lưu ý: manifest.json inject scraper file TRƯỚC content-bridge.js
+ * nên window.TracuuScraper / window.ShinhanScraper / window.GrabScraper
+ * đã sẵn sàng khi content-bridge.js chạy.
  */
 
 (function () {
@@ -20,7 +22,7 @@
   const currentUrl = window.location.href;
   let source = null;
 
-  if (currentUrl.includes('einvoice.grab.com') || currentUrl.includes('grab.com')) {
+  if (currentUrl.includes('einvoice.grab.com') || currentUrl.includes('grab.com/einvoice')) {
     source = 'grab';
   } else if (currentUrl.includes('tracuuhoadon.online')) {
     source = 'tracuu';
@@ -33,7 +35,7 @@
   console.log(`[NTP E-Invoice] Content bridge loaded for: ${source} on ${currentUrl}`);
 
   // ====================================================================
-  // Load scraper tương ứng
+  // Khởi tạo scraper (đã được inject trước bởi manifest.json)
   // ====================================================================
   let scraper = null;
 
@@ -42,33 +44,62 @@
       case 'grab':
         if (typeof window.GrabScraper !== 'undefined') {
           scraper = new window.GrabScraper();
+          console.log('[NTP E-Invoice] GrabScraper initialized');
+        } else {
+          console.warn('[NTP E-Invoice] GrabScraper class not found on window');
         }
         break;
       case 'tracuu':
         if (typeof window.TracuuScraper !== 'undefined') {
           scraper = new window.TracuuScraper();
+          console.log('[NTP E-Invoice] TracuuScraper initialized');
+        } else {
+          console.warn('[NTP E-Invoice] TracuuScraper class not found on window');
         }
         break;
       case 'shinhan':
         if (typeof window.ShinhanScraper !== 'undefined') {
           scraper = new window.ShinhanScraper();
+          console.log('[NTP E-Invoice] ShinhanScraper initialized');
+        } else {
+          console.warn('[NTP E-Invoice] ShinhanScraper class not found on window');
         }
         break;
     }
     return scraper !== null;
   }
 
-  // Thử init ngay, nếu chưa có thì đợi
-  if (!initScraper()) {
-    // Đợi scraper được inject
-    const checkInterval = setInterval(() => {
-      if (initScraper()) {
-        clearInterval(checkInterval);
-        console.log(`[NTP E-Invoice] Scraper initialized for: ${source}`);
+  initScraper();
+
+  // ====================================================================
+  // Tiện ích: Đợi bảng xuất hiện trong DOM (cho SPA như Angular)
+  // ====================================================================
+  function waitForTable(timeout = 10000) {
+    return new Promise((resolve) => {
+      // Kiểm tra ngay
+      const table = document.querySelector('table');
+      if (table && table.querySelectorAll('tbody tr').length > 0) {
+        resolve(true);
+        return;
       }
-    }, 200);
-    // Timeout sau 10 giây
-    setTimeout(() => clearInterval(checkInterval), 10000);
+
+      // Dùng MutationObserver để đợi DOM thay đổi
+      const observer = new MutationObserver(() => {
+        const t = document.querySelector('table');
+        if (t && t.querySelectorAll('tbody tr').length > 0) {
+          observer.disconnect();
+          clearTimeout(timer);
+          resolve(true);
+        }
+      });
+
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      const timer = setTimeout(() => {
+        observer.disconnect();
+        resolve(false); // Timeout nhưng vẫn thử scrape
+      }, timeout);
+    });
   }
 
   // ====================================================================
@@ -89,6 +120,12 @@
         return true;
 
       case 'GET_PAGE_INFO':
+        const tables = document.querySelectorAll('table');
+        const tableInfo = Array.from(tables).map((t, i) => ({
+          index: i,
+          headers: Array.from(t.querySelectorAll('th')).map(h => h.textContent.trim()),
+          rowCount: t.querySelectorAll('tbody tr').length,
+        }));
         sendResponse({
           success: true,
           source,
@@ -96,8 +133,9 @@
           title: document.title,
           loggedIn: scraper ? scraper.isLoggedIn() : false,
           scraperReady: scraper !== null,
-          hasTable: document.querySelector('table') !== null,
-          tableCount: document.querySelectorAll('table').length,
+          tableCount: tables.length,
+          tableInfo,
+          bodyText: document.body.innerText.substring(0, 500),
         });
         return true;
 
@@ -133,6 +171,11 @@
           success: false,
           error: `Scraper chưa sẵn sàng cho nguồn: ${source}. Vui lòng tải lại trang.`,
           source,
+          debug: {
+            grabAvailable: typeof window.GrabScraper !== 'undefined',
+            tracuuAvailable: typeof window.TracuuScraper !== 'undefined',
+            shinhanAvailable: typeof window.ShinhanScraper !== 'undefined',
+          }
         };
       }
 
@@ -146,8 +189,28 @@
         };
       }
 
+      // Với trang SPA (Angular/React), đợi bảng render xong
+      if (source === 'shinhan' || source === 'grab') {
+        console.log(`[NTP E-Invoice] Đợi bảng render xong cho ${source}...`);
+        await waitForTable(8000);
+      }
+
+      // Debug: log cấu trúc bảng trước khi scrape
+      const tables = document.querySelectorAll('table');
+      console.log(`[NTP E-Invoice] Số bảng trên trang: ${tables.length}`);
+      tables.forEach((t, i) => {
+        const headers = Array.from(t.querySelectorAll('th')).map(h => h.textContent.trim());
+        const rows = t.querySelectorAll('tbody tr').length;
+        console.log(`[NTP E-Invoice] Bảng ${i}: ${rows} hàng, headers:`, headers);
+      });
+
       // Scrape dữ liệu từ DOM
       const invoices = scraper.scrapeInvoices();
+
+      console.log(`[NTP E-Invoice] Kết quả scrape ${source}: ${invoices.length} hóa đơn`);
+      if (invoices.length > 0) {
+        console.log('[NTP E-Invoice] Hóa đơn đầu tiên:', JSON.stringify(invoices[0]));
+      }
 
       return {
         success: true,
@@ -162,6 +225,7 @@
       return {
         success: false,
         error: error.message,
+        stack: error.stack,
         source,
       };
     }
@@ -204,7 +268,7 @@
 
       const { invoices } = payload;
       const results = [];
-      const CONCURRENT = 2; // Tải song song tối đa 2 file
+      const CONCURRENT = 2;
 
       for (let i = 0; i < invoices.length; i += CONCURRENT) {
         const batch = invoices.slice(i, i + CONCURRENT);
@@ -228,7 +292,6 @@
           }
         });
 
-        // Gửi progress
         chrome.runtime.sendMessage({
           type: 'PDF_DOWNLOAD_PROGRESS',
           source,
@@ -256,7 +319,6 @@
     source,
     url: currentUrl,
     scraperReady: scraper !== null,
-  }).catch(() => {
-    // Background có thể chưa sẵn sàng, bỏ qua
-  });
+  }).catch(() => {});
+
 })();
