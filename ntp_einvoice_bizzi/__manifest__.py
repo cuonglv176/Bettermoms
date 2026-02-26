@@ -21,8 +21,10 @@
     "website": "",
     "depends": ["account", "mail", "base_setup"],
     "data": [
-        "security/ir.model.access.csv",
+        # QUAN TRỌNG: security_groups.xml phải được load TRƯỚC ir.model.access.csv
+        # để các group được tạo ra trước khi CSV tham chiếu đến chúng.
         "security/security_groups.xml",
+        "security/ir.model.access.csv",
         "data/ir_cron.xml",
         "views/invoice_staging_views.xml",
         "views/res_config_settings_views.xml",

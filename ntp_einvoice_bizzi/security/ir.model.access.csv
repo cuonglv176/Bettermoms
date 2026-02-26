@@ -1,5 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_invoice_staging_user,invoice.staging.queue user,model_invoice_staging_queue,group_einvoice_user,1,0,0,0
-access_invoice_staging_manager,invoice.staging.queue manager,model_invoice_staging_queue,group_einvoice_manager,1,1,1,1
-access_bizzi_connector_user,bizzi.api.connector user,model_bizzi_api_connector,group_einvoice_user,1,0,0,0
-access_bizzi_connector_manager,bizzi.api.connector manager,model_bizzi_api_connector,group_einvoice_manager,1,1,1,1
+access_invoice_staging_user,invoice.staging.queue user,model_invoice_staging_queue,ntp_einvoice_bizzi.group_einvoice_user,1,0,0,0
+access_invoice_staging_manager,invoice.staging.queue manager,model_invoice_staging_queue,ntp_einvoice_bizzi.group_einvoice_manager,1,1,1,1
