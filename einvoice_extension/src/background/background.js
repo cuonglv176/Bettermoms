@@ -2,15 +2,12 @@
  * background.js
  * Service Worker cho Chrome/Edge Extension.
  *
- * Luồng hoạt động mới (DOM-based scraping):
+ * Luồng hoạt động (DOM-based scraping):
  * 1. Popup gửi FETCH_INVOICES → Background
  * 2. Background tìm tab đang mở các trang hóa đơn
  * 3. Background gửi SCRAPE_INVOICES → Content script trên tab đó
  * 4. Content script scrape DOM → trả về danh sách hóa đơn
  * 5. Background tổng hợp → trả về Popup
- *
- * Background KHÔNG trực tiếp truy cập DOM trang web.
- * Tất cả scraping được thực hiện bởi content scripts.
  */
 
 // ====================================================================
@@ -25,12 +22,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'FETCH_INVOICES':
       handleFetchInvoices(message.payload).then(sendResponse).catch(err => {
+        console.error('[Background] FETCH_INVOICES error:', err);
         sendResponse({ success: false, error: err.message });
       });
       return true;
 
     case 'SYNC_INVOICES':
       handleSyncInvoices(message.payload).then(sendResponse).catch(err => {
+        console.error('[Background] SYNC_INVOICES error:', err);
         sendResponse({ success: false, error: err.message });
       });
       return true;
@@ -48,7 +47,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
 
     case 'CONTENT_SCRIPT_READY':
-      // Lưu tab ID khi content script báo sẵn sàng
       if (sender.tab && message.source) {
         activeTabs[message.source] = sender.tab.id;
         console.log(`[Background] Content script ready: ${message.source} on tab ${sender.tab.id}`);
@@ -56,7 +54,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return false;
 
     case 'PDF_DOWNLOAD_PROGRESS':
-      // Forward progress đến popup
       chrome.runtime.sendMessage({
         type: 'FETCH_PROGRESS',
         source: message.source,
@@ -86,7 +83,6 @@ async function handleCheckTabs() {
     try {
       const tabs = await chrome.tabs.query({ url: patterns });
       if (tabs.length > 0) {
-        // Ping content script để kiểm tra
         try {
           const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'PING' });
           results[source] = {
@@ -144,6 +140,7 @@ async function handleFetchInvoices(payload) {
       const invoices = result.value.invoices || [];
       results.invoices.push(...invoices);
       results.stats[source] = invoices.length;
+      console.log(`[Background] Fetched ${invoices.length} invoices from ${source}`);
     } else {
       const error = result.status === 'fulfilled'
         ? result.value.error
@@ -210,7 +207,6 @@ async function fetchFromTab(source) {
           });
 
           if (pdfResponse && pdfResponse.success) {
-            // Merge PDF data vào invoices
             const pdfMap = {};
             pdfResponse.results.forEach(r => {
               pdfMap[r.invoice_number] = r;
@@ -253,7 +249,6 @@ async function injectScraperIfNeeded(tabId, source) {
   if (!file) return;
 
   try {
-    // Kiểm tra xem scraper đã được inject chưa
     const [checkResult] = await chrome.scripting.executeScript({
       target: { tabId },
       func: (src) => {
@@ -268,18 +263,15 @@ async function injectScraperIfNeeded(tabId, source) {
     });
 
     if (checkResult && checkResult.result) {
-      return; // Đã inject rồi
+      return;
     }
 
-    // Inject scraper
     await chrome.scripting.executeScript({
       target: { tabId },
       files: [file],
     });
 
     console.log(`[Background] Injected ${file} into tab ${tabId}`);
-
-    // Đợi một chút để script load
     await new Promise(resolve => setTimeout(resolve, 300));
   } catch (error) {
     console.warn(`[Background] Lỗi inject scraper cho ${source}:`, error);
@@ -287,7 +279,7 @@ async function injectScraperIfNeeded(tabId, source) {
 }
 
 // ====================================================================
-// Sync Invoices - Đồng bộ lên Odoo
+// Sync Invoices - Đồng bộ lên Odoo (với error logging chi tiết)
 // ====================================================================
 async function handleSyncInvoices(payload) {
   const { invoices, sessionId } = payload;
@@ -298,7 +290,7 @@ async function handleSyncInvoices(payload) {
   if (!config.odooUrl || !config.apiToken) {
     return {
       success: false,
-      error: 'Chưa cấu hình Odoo URL và API Token. Vui lòng vào Cài đặt.',
+      error: 'Chưa cấu hình Odoo URL và API Token. Vui lòng vào Cài đặt Extension (⚙️).',
     };
   }
 
@@ -310,6 +302,11 @@ async function handleSyncInvoices(payload) {
     details: [],
   };
 
+  console.log(`[Background] ===== BẮT ĐẦU SYNC ${invoices.length} HÓA ĐƠN =====`);
+  console.log(`[Background] Odoo URL: ${config.odooUrl}`);
+  console.log(`[Background] API Token: ${config.apiToken ? config.apiToken.substring(0, 8) + '...' : 'EMPTY'}`);
+  console.log(`[Background] Session ID: ${currentSessionId}`);
+
   const BATCH_SIZE = 5;
 
   for (let i = 0; i < invoices.length; i += BATCH_SIZE) {
@@ -317,17 +314,19 @@ async function handleSyncInvoices(payload) {
 
     for (const invoice of batch) {
       try {
+        console.log(`[Background] Syncing invoice: ${invoice.invoice_number} (source: ${invoice.source})`);
+
         const body = {
-          invoice_number: invoice.invoice_number,
+          invoice_number: invoice.invoice_number || '',
           invoice_code: invoice.invoice_code || '',
           invoice_symbol: invoice.invoice_symbol || '',
           invoice_date: invoice.invoice_date || '',
-          source: invoice.source,
+          source: invoice.source || 'manual',
           seller_tax_code: invoice.seller_tax_code || '',
           seller_name: invoice.seller_name || '',
-          amount_untaxed: invoice.amount_untaxed || 0,
-          amount_tax: invoice.amount_tax || 0,
-          amount_total: invoice.amount_total || 0,
+          amount_untaxed: parseFloat(invoice.amount_untaxed) || 0,
+          amount_tax: parseFloat(invoice.amount_tax) || 0,
+          amount_total: parseFloat(invoice.amount_total) || 0,
           pdf_base64: invoice.pdf_base64 || null,
           pdf_filename: invoice.pdf_filename || null,
           xml_base64: invoice.xml_base64 || null,
@@ -335,7 +334,16 @@ async function handleSyncInvoices(payload) {
           session_id: currentSessionId,
         };
 
-        const response = await fetch(`${config.odooUrl}/api/einvoice/staging/create`, {
+        console.log(`[Background] Request body (without pdf/xml):`, JSON.stringify({
+          ...body,
+          pdf_base64: body.pdf_base64 ? `[${body.pdf_base64.length} chars]` : null,
+          xml_base64: body.xml_base64 ? `[${body.xml_base64.length} chars]` : null,
+        }));
+
+        const apiUrl = `${config.odooUrl}/api/einvoice/staging/create`;
+        console.log(`[Background] POST ${apiUrl}`);
+
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -344,7 +352,23 @@ async function handleSyncInvoices(payload) {
           body: JSON.stringify(body),
         });
 
-        const data = await response.json();
+        const responseText = await response.text();
+        console.log(`[Background] Response status: ${response.status}`);
+        console.log(`[Background] Response body: ${responseText.substring(0, 500)}`);
+
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseErr) {
+          console.error(`[Background] Response is not JSON:`, responseText.substring(0, 200));
+          results.errors++;
+          results.details.push({
+            invoice_number: invoice.invoice_number,
+            status: 'error',
+            error: `HTTP ${response.status}: Response không phải JSON - ${responseText.substring(0, 100)}`,
+          });
+          continue;
+        }
 
         if (response.status === 201 && data.success) {
           results.created++;
@@ -353,27 +377,34 @@ async function handleSyncInvoices(payload) {
             status: 'created',
             staging_id: data.staging_id,
           });
+          console.log(`[Background] ✅ Created: ${invoice.invoice_number} → staging_id=${data.staging_id}`);
         } else if (response.status === 409 || data.duplicate) {
           results.duplicates++;
           results.details.push({
             invoice_number: invoice.invoice_number,
             status: 'duplicate',
+            message: data.error || 'Trùng lặp',
           });
+          console.log(`[Background] ⚠️ Duplicate: ${invoice.invoice_number}`);
         } else {
           results.errors++;
+          const errorMsg = data.error || `HTTP ${response.status}: ${responseText.substring(0, 200)}`;
           results.details.push({
             invoice_number: invoice.invoice_number,
             status: 'error',
-            error: data.error || `HTTP ${response.status}`,
+            error: errorMsg,
           });
+          console.error(`[Background] ❌ Error: ${invoice.invoice_number} → ${errorMsg}`);
         }
       } catch (error) {
         results.errors++;
+        const errorMsg = `Network/Fetch error: ${error.message}`;
         results.details.push({
           invoice_number: invoice.invoice_number,
           status: 'error',
-          error: error.message,
+          error: errorMsg,
         });
+        console.error(`[Background] ❌ Exception syncing ${invoice.invoice_number}:`, error);
       }
     }
 
@@ -384,6 +415,10 @@ async function handleSyncInvoices(payload) {
       total: invoices.length,
     }).catch(() => {});
   }
+
+  console.log(`[Background] ===== KẾT QUẢ SYNC =====`);
+  console.log(`[Background] Created: ${results.created}, Duplicates: ${results.duplicates}, Errors: ${results.errors}`);
+  console.log(`[Background] Details:`, JSON.stringify(results.details, null, 2));
 
   return { success: true, ...results };
 }
@@ -398,18 +433,21 @@ async function handleHealthCheck() {
   }
 
   try {
+    console.log(`[Background] Health check: ${config.odooUrl}/api/einvoice/health`);
     const response = await fetch(`${config.odooUrl}/api/einvoice/health`, {
       method: 'GET',
       headers: { 'X-Extension-Token': config.apiToken },
     });
 
     const data = await response.json();
+    console.log(`[Background] Health check response:`, data);
     return {
       success: data.success || false,
       message: data.message || 'Kết nối thành công',
       version: data.version,
     };
   } catch (error) {
+    console.error(`[Background] Health check failed:`, error);
     return { success: false, error: `Lỗi kết nối: ${error.message}` };
   }
 }

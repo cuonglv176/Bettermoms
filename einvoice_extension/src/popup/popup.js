@@ -3,7 +3,7 @@
  * Logic chính cho Extension popup.
  * Quản lý các màn hình: Config → Fetching → Preview → Syncing → Result → Settings
  *
- * Luồng mới:
+ * Luồng:
  * 1. User mở popup → kiểm tra tabs đang mở
  * 2. User bấm "Quét lại" → gửi FETCH_INVOICES → background → content scripts scrape DOM
  * 3. Hiển thị kết quả → User chọn hóa đơn → bấm "Đồng bộ lên Hệ thống"
@@ -28,9 +28,17 @@ let state = {
 // Initialization
 // ====================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[Popup] Initializing...');
+
   // Load config
   state.config = await loadConfig();
   applyConfig();
+
+  console.log('[Popup] Config loaded:', {
+    odooUrl: state.config.odooUrl || '(empty)',
+    apiToken: state.config.apiToken ? state.config.apiToken.substring(0, 8) + '...' : '(empty)',
+    fetchDays: state.config.fetchDays,
+  });
 
   // Kiểm tra tabs đang mở
   await checkOpenTabs();
@@ -40,9 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (cached && cached.length > 0) {
     state.invoices = cached;
     state.filteredInvoices = [...cached];
-    state.selectedIds = new Set(
-      cached.filter(inv => inv.pdf_status === 'downloaded' && inv.pdf_base64).map(inv => inv._id)
-    );
+    state.selectedIds = new Set(cached.map(inv => inv._id));
     renderInvoiceTable(state.filteredInvoices);
     updatePreviewStats();
     showScreen('preview');
@@ -106,7 +112,6 @@ async function loadCachedInvoices() {
 }
 
 async function saveCachedInvoices(invoices) {
-  // Lưu nhưng bỏ pdf_base64 để tiết kiệm storage
   const light = invoices.map(inv => ({
     ...inv,
     pdf_base64: inv.pdf_base64 ? '[HAS_DATA]' : null,
@@ -352,10 +357,14 @@ async function startFetch() {
   showScreen('fetching');
 
   try {
+    console.log('[Popup] Starting fetch from sources:', sources);
+
     const response = await chrome.runtime.sendMessage({
       type: 'FETCH_INVOICES',
       payload: { sources },
     });
+
+    console.log('[Popup] Fetch response:', response);
 
     if (response && response.invoices && response.invoices.length > 0) {
       // Gán _id nếu chưa có
@@ -384,6 +393,12 @@ async function startFetch() {
         showToast(errorMsgs, 5000);
       }
 
+      // Log chi tiết từng invoice
+      console.log('[Popup] Invoices fetched:');
+      state.invoices.forEach((inv, i) => {
+        console.log(`  [${i}] source=${inv.source} number=${inv.invoice_number} date=${inv.invoice_date} total=${inv.amount_total} seller_tax=${inv.seller_tax_code} pdf=${inv.pdf_status}`);
+      });
+
       // Cache và hiển thị
       await saveCachedInvoices(state.invoices);
       state.filteredInvoices = [...state.invoices];
@@ -391,10 +406,10 @@ async function startFetch() {
       updatePreviewStats();
       showScreen('preview');
     } else {
-      // Không có hóa đơn nào
       const errorMsg = response?.errors
         ? Object.entries(response.errors).map(([src, err]) => `${getSourceName(src)}: ${err}`).join('\n')
         : 'Không tìm thấy hóa đơn nào. Hãy đảm bảo đã mở và đăng nhập vào các trang web.';
+      console.warn('[Popup] No invoices found:', errorMsg);
       showToast(errorMsg, 5000);
       showScreen('config');
     }
@@ -408,10 +423,17 @@ async function startFetch() {
 }
 
 // ====================================================================
-// Sync Invoices
+// Sync Invoices (với error detail logging)
 // ====================================================================
 async function startSync() {
   if (state.isSyncing) return;
+
+  // Kiểm tra config trước khi sync
+  state.config = await loadConfig();
+  if (!state.config.odooUrl || !state.config.apiToken) {
+    showToast('Chưa cấu hình Odoo URL và API Token. Vui lòng vào ⚙️ Cài đặt.', 5000);
+    return;
+  }
 
   const selectedInvoices = state.invoices.filter(inv => state.selectedIds.has(inv._id));
   if (selectedInvoices.length === 0) {
@@ -434,6 +456,10 @@ async function startSync() {
 
   showScreen('syncing');
 
+  console.log(`[Popup] Starting sync of ${selectedInvoices.length} invoices`);
+  console.log(`[Popup] Odoo URL: ${state.config.odooUrl}`);
+  console.log(`[Popup] API Token: ${state.config.apiToken ? '***' + state.config.apiToken.slice(-4) : 'EMPTY'}`);
+
   try {
     const response = await chrome.runtime.sendMessage({
       type: 'SYNC_INVOICES',
@@ -443,29 +469,101 @@ async function startSync() {
       },
     });
 
-    if (response && response.success) {
+    console.log('[Popup] Sync response:', JSON.stringify(response, null, 2));
+
+    if (response) {
       state.syncResults = response;
 
       // Hiển thị kết quả
       const resultCreated = document.getElementById('result-created');
       const resultDuplicates = document.getElementById('result-duplicates');
       const resultErrors = document.getElementById('result-errors');
+      const resultIcon = document.getElementById('result-icon');
+      const resultTitle = document.getElementById('result-title');
 
-      if (resultCreated) resultCreated.textContent = response.created || 0;
-      if (resultDuplicates) resultDuplicates.textContent = response.duplicates || 0;
-      if (resultErrors) resultErrors.textContent = response.errors || 0;
+      const created = response.created || 0;
+      const duplicates = response.duplicates || 0;
+      const errors = response.errors || 0;
+
+      if (resultCreated) resultCreated.textContent = created;
+      if (resultDuplicates) resultDuplicates.textContent = duplicates;
+      if (resultErrors) resultErrors.textContent = errors;
+
+      // Cập nhật icon và title dựa trên kết quả
+      if (errors > 0 && created === 0) {
+        if (resultIcon) resultIcon.textContent = '❌';
+        if (resultTitle) resultTitle.textContent = 'Đồng bộ thất bại!';
+      } else if (errors > 0) {
+        if (resultIcon) resultIcon.textContent = '⚠️';
+        if (resultTitle) resultTitle.textContent = 'Đồng bộ có lỗi!';
+      } else {
+        if (resultIcon) resultIcon.textContent = '✅';
+        if (resultTitle) resultTitle.textContent = 'Đồng bộ hoàn tất!';
+      }
+
+      // Hiển thị chi tiết lỗi
+      const errorDetailsEl = document.getElementById('result-error-details');
+      const errorListEl = document.getElementById('result-error-list');
+
+      if (errorDetailsEl && errorListEl && response.details) {
+        const errorDetails = response.details.filter(d => d.status === 'error');
+        const duplicateDetails = response.details.filter(d => d.status === 'duplicate');
+
+        if (errorDetails.length > 0 || duplicateDetails.length > 0) {
+          errorDetailsEl.style.display = 'block';
+          let html = '';
+
+          if (errorDetails.length > 0) {
+            html += '<div class="error-section">';
+            html += '<div class="error-section-title">❌ Lỗi:</div>';
+            errorDetails.forEach(d => {
+              html += `<div class="error-item">
+                <span class="error-invoice">${d.invoice_number || 'N/A'}</span>
+                <span class="error-msg">${escapeHtml(d.error || 'Không rõ lỗi')}</span>
+              </div>`;
+            });
+            html += '</div>';
+          }
+
+          if (duplicateDetails.length > 0) {
+            html += '<div class="error-section">';
+            html += '<div class="error-section-title">⚠️ Trùng lặp:</div>';
+            duplicateDetails.forEach(d => {
+              html += `<div class="error-item duplicate">
+                <span class="error-invoice">${d.invoice_number || 'N/A'}</span>
+                <span class="error-msg">${escapeHtml(d.message || 'Đã tồn tại')}</span>
+              </div>`;
+            });
+            html += '</div>';
+          }
+
+          errorListEl.innerHTML = html;
+        } else {
+          errorDetailsEl.style.display = 'none';
+        }
+      }
 
       showScreen('result');
     } else {
-      showToast(`Lỗi đồng bộ: ${response?.error || 'Không xác định'}`, 5000);
+      showToast('Lỗi đồng bộ: Không nhận được phản hồi', 5000);
       showScreen('preview');
     }
   } catch (error) {
+    console.error('[Popup] Sync error:', error);
     showToast(`Lỗi: ${error.message}`, 5000);
     showScreen('preview');
   } finally {
     state.isSyncing = false;
   }
+}
+
+// ====================================================================
+// Helper: Escape HTML
+// ====================================================================
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // ====================================================================
@@ -522,18 +620,22 @@ async function saveSettings() {
 
   await saveConfig(config);
   state.config = config;
+  console.log('[Popup] Config saved:', { odooUrl: config.odooUrl, apiToken: config.apiToken ? '***' : 'empty' });
   showToast('Đã lưu cài đặt');
 }
 
 async function testConnection() {
   try {
+    console.log('[Popup] Testing connection...');
     const response = await chrome.runtime.sendMessage({ type: 'HEALTH_CHECK' });
+    console.log('[Popup] Health check response:', response);
     if (response && response.success) {
-      showToast('Kết nối Odoo thành công!');
+      showToast('Kết nối Odoo thành công! ✅');
     } else {
       showToast(`Lỗi: ${response?.error || 'Không thể kết nối'}`, 5000);
     }
   } catch (err) {
+    console.error('[Popup] Health check error:', err);
     showToast(`Lỗi: ${err.message}`, 5000);
   }
 }
@@ -561,6 +663,18 @@ function bindEvents() {
   const btnDeselectAll = document.getElementById('btn-deselect-all');
   if (btnSelectAll) btnSelectAll.addEventListener('click', selectAll);
   if (btnDeselectAll) btnDeselectAll.addEventListener('click', deselectAll);
+
+  // Check all header checkbox
+  const checkAllHeader = document.getElementById('check-all-header');
+  if (checkAllHeader) {
+    checkAllHeader.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        selectAll();
+      } else {
+        deselectAll();
+      }
+    });
+  }
 
   // Filters
   const filterSearch = document.getElementById('filter-search');
